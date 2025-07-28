@@ -118,6 +118,18 @@ const html = `<!DOCTYPE html>
 					</div>
 				</div>
 			</div>
+			<div class="editor-context" id="editorContext" style="display: none;">
+				<div class="editor-context-content">
+					<div class="editor-context-header">
+						<span class="editor-context-icon">📝</span>
+						<span class="editor-context-title" id="editorContextTitle">No active file</span>
+						<button class="editor-context-close" onclick="hideEditorContext()" title="Hide">✕</button>
+					</div>
+					<div class="editor-context-details" id="editorContextDetails">
+						<!-- Context details will be populated here -->
+					</div>
+				</div>
+			</div>
 		</div>
 	</div>
 	
@@ -714,6 +726,7 @@ const html = `<!DOCTYPE html>
 		let selectedFileIndex = -1;
 		let planModeEnabled = false;
 		let thinkingModeEnabled = false;
+		let currentEditorContext = null;
 
 		function shouldAutoScroll(messagesDiv) {
 			const threshold = 100; // pixels from bottom
@@ -1414,11 +1427,19 @@ const html = `<!DOCTYPE html>
 		function sendMessage() {
 			const text = messageInput.value.trim();
 			if (text) {
+				// Enhance message with editor context if available
+				let enhancedText = text;
+				const contextInfo = getEditorContextInfo();
+				if (contextInfo) {
+					enhancedText = contextInfo + '\\n\\n' + text;
+				}
+				
 				vscode.postMessage({
 					type: 'sendMessage',
-					text: text,
+					text: enhancedText,
 					planMode: planModeEnabled,
-					thinkingMode: thinkingModeEnabled
+					thinkingMode: thinkingModeEnabled,
+					editorContext: currentEditorContext
 				});
 				
 				messageInput.value = '';
@@ -1452,6 +1473,72 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
+		function updateEditorContext(contextData) {
+			currentEditorContext = contextData;
+			const editorContextDiv = document.getElementById('editorContext');
+			const titleElement = document.getElementById('editorContextTitle');
+			const detailsElement = document.getElementById('editorContextDetails');
+			
+			if (!contextData.hasActiveFile) {
+				editorContextDiv.style.display = 'none';
+				return;
+			}
+			
+			// Update title
+			titleElement.textContent = contextData.fileName + ' (' + contextData.language + ')';
+			
+			// Build details HTML
+			let detailsHTML = 
+				'<div class="editor-context-info">' +
+					'<span class="editor-context-path" title="' + contextData.filePath + '">' + contextData.filePath + '</span>' +
+					'<div class="editor-context-meta">' +
+						'<span>Lines: ' + contextData.totalLines + '</span>' +
+						'<span>Cursor: ' + contextData.cursorPosition.line + ':' + contextData.cursorPosition.character + '</span>' +
+						(contextData.isDirty ? '<span class="dirty-indicator">●</span>' : '') +
+					'</div>' +
+				'</div>';
+			
+			if (contextData.selection && contextData.selectedText) {
+				const startLine = contextData.selection.start.line;
+				const endLine = contextData.selection.end.line;
+				const lineCount = endLine - startLine + 1;
+				const selectedLength = contextData.selectedText.length;
+				
+				detailsHTML += 
+					'<div class="editor-context-selection">' +
+						'<div class="selection-header">' +
+							'<span class="selection-icon">📋</span>' +
+							'<span>Selected: ' + lineCount + ' line' + (lineCount > 1 ? 's' : '') + ' (' + selectedLength + ' characters)</span>' +
+							'<span class="selection-range">Lines ' + startLine + '-' + endLine + '</span>' +
+						'</div>' +
+						'<div class="selection-preview">' +
+							contextData.selectedText.substring(0, 200) + (contextData.selectedText.length > 200 ? '...' : '') +
+						'</div>' +
+					'</div>';
+			}
+			
+			detailsElement.innerHTML = detailsHTML;
+			editorContextDiv.style.display = 'block';
+		}
+		
+		function hideEditorContext() {
+			const editorContextDiv = document.getElementById('editorContext');
+			editorContextDiv.style.display = 'none';
+		}
+		
+		function getEditorContextInfo() {
+			if (!currentEditorContext) {
+				return null;
+			}
+			
+			let contextInfo = 'Current file: ' + currentEditorContext.fileName;
+			if (currentEditorContext.selection && currentEditorContext.selectedText) {
+				const lineCount = currentEditorContext.selection.end.line - currentEditorContext.selection.start.line + 1;
+				contextInfo += '\\nSelected text (' + lineCount + ' lines):\\n' + currentEditorContext.selectedText;
+			}
+			
+			return contextInfo;
+		}
 
 		let totalCost = 0;
 		let totalTokensInput = 0;
@@ -2484,6 +2571,10 @@ const html = `<!DOCTYPE html>
 				case 'ready':
 					addMessage(message.data, 'system');
 					updateStatusWithTotals();
+					break;
+				
+				case 'editorContext':
+					updateEditorContext(message.data);
 					break;
 					
 				case 'output':

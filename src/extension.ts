@@ -112,6 +112,8 @@ class ClaudeChatProvider {
 	}> = [];
 	private _currentClaudeProcess: cp.ChildProcess | undefined;
 	private _selectedModel: string = 'default'; // Default model
+	private _editorChangeListener: vscode.Disposable | undefined;
+	private _selectionChangeListener: vscode.Disposable | undefined;
 
 	constructor(
 		private readonly _extensionUri: vscode.Uri,
@@ -132,6 +134,9 @@ class ClaudeChatProvider {
 		// Resume session from latest conversation
 		const latestConversation = this._getLatestConversation();
 		this._currentSessionId = latestConversation?.sessionId;
+
+		// Set up editor context listeners
+		this._initializeEditorListeners();
 	}
 
 	public show(column: vscode.ViewColumn | vscode.Uri = vscode.ViewColumn.Two) {
@@ -221,6 +226,9 @@ class ClaudeChatProvider {
 
 		// Send current settings to webview
 		this._sendCurrentSettings();
+
+		// Send current editor context
+		this._sendEditorContext();
 	}
 
 	private _handleWebviewMessage(message: any) {
@@ -308,6 +316,9 @@ class ClaudeChatProvider {
 				return;
 			case 'enableYoloMode':
 				this._enableYoloMode();
+				return;
+			case 'getEditorContext':
+				this._sendEditorContext();
 				return;
 		}
 	}
@@ -2265,6 +2276,142 @@ class ClaudeChatProvider {
 			console.error('Error creating image file:', error);
 			vscode.window.showErrorMessage('Failed to create image file');
 		}
+	}
+
+	private _initializeEditorListeners(): void {
+		// Dispose existing listeners
+		if (this._editorChangeListener) {
+			this._editorChangeListener.dispose();
+		}
+		if (this._selectionChangeListener) {
+			this._selectionChangeListener.dispose();
+		}
+
+		// Listen for active editor changes
+		this._editorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
+			this._sendEditorContext();
+		});
+
+		// Listen for selection changes in active editor
+		this._selectionChangeListener = vscode.window.onDidChangeTextEditorSelection((event) => {
+			this._sendEditorContext();
+		});
+
+		// Add to disposables
+		this._disposables.push(this._editorChangeListener, this._selectionChangeListener);
+	}
+
+	private _sendEditorContext(): void {
+		const activeEditor = vscode.window.activeTextEditor;
+		
+		if (!activeEditor) {
+			this._postMessage({
+				type: 'editorContext',
+				data: {
+					hasActiveFile: false,
+					fileName: null,
+					filePath: null,
+					language: null,
+					selection: null,
+					selectedText: null,
+					cursorPosition: null,
+					totalLines: 0
+				}
+			});
+			return;
+		}
+
+		const document = activeEditor.document;
+		const selection = activeEditor.selection;
+		const selectedText = document.getText(selection);
+		
+		// Get cursor position (line and character are 0-based, so add 1 for display)
+		const cursorPosition = {
+			line: selection.active.line + 1,
+			character: selection.active.character + 1
+		};
+
+		// Get selection info
+		const selectionInfo = selection.isEmpty ? null : {
+			start: {
+				line: selection.start.line + 1,
+				character: selection.start.character + 1
+			},
+			end: {
+				line: selection.end.line + 1,
+				character: selection.end.character + 1
+			},
+			text: selectedText
+		};
+
+		this._postMessage({
+			type: 'editorContext',
+			data: {
+				hasActiveFile: true,
+				fileName: document.fileName.split('/').pop() || document.fileName,
+				filePath: document.fileName,
+				language: document.languageId,
+				selection: selectionInfo,
+				selectedText: selectedText || null,
+				cursorPosition: cursorPosition,
+				totalLines: document.lineCount,
+				isDirty: document.isDirty,
+				isUntitled: document.isUntitled
+			}
+		});
+	}
+
+	private _getEditorContext(): any {
+		const activeEditor = vscode.window.activeTextEditor;
+		
+		if (!activeEditor) {
+			return {
+				hasActiveFile: false,
+				fileName: null,
+				filePath: null,
+				language: null,
+				selection: null,
+				selectedText: null,
+				cursorPosition: null,
+				totalLines: 0
+			};
+		}
+
+		const document = activeEditor.document;
+		const selection = activeEditor.selection;
+		const selectedText = document.getText(selection);
+		
+		// Get cursor position (line and character are 0-based, so add 1 for display)
+		const cursorPosition = {
+			line: selection.active.line + 1,
+			character: selection.active.character + 1
+		};
+
+		// Get selection info
+		const selectionInfo = selection.isEmpty ? null : {
+			start: {
+				line: selection.start.line + 1,
+				character: selection.start.character + 1
+			},
+			end: {
+				line: selection.end.line + 1,
+				character: selection.end.character + 1
+			},
+			text: selectedText
+		};
+
+		return {
+			hasActiveFile: true,
+			fileName: document.fileName.split('/').pop() || document.fileName,
+			filePath: document.fileName,
+			language: document.languageId,
+			selection: selectionInfo,
+			selectedText: selectedText || null,
+			cursorPosition: cursorPosition,
+			totalLines: document.lineCount,
+			isDirty: document.isDirty,
+			isUntitled: document.isUntitled
+		};
 	}
 
 	public dispose() {

@@ -2874,6 +2874,124 @@ const styles = `
         overflow: hidden;
         text-overflow: ellipsis;
     }
+
+    /* Editor context styles */
+    .editor-context {
+        margin: 8px 0;
+        background-color: var(--vscode-input-background);
+        border: 1px solid var(--vscode-input-border);
+        border-radius: 4px;
+        font-size: 12px;
+    }
+
+    .editor-context-content {
+        padding: 0;
+    }
+
+    .editor-context-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        background-color: var(--vscode-badge-background);
+        border-bottom: 1px solid var(--vscode-input-border);
+        font-weight: 500;
+    }
+
+    .editor-context-icon {
+        margin-right: 6px;
+    }
+
+    .editor-context-title {
+        flex: 1;
+        color: var(--vscode-badge-foreground);
+        font-size: 13px;
+    }
+
+    .editor-context-close {
+        background: none;
+        border: none;
+        color: var(--vscode-badge-foreground);
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 2px;
+        font-size: 12px;
+        opacity: 0.7;
+    }
+
+    .editor-context-close:hover {
+        opacity: 1;
+        background-color: var(--vscode-toolbar-hoverBackground);
+    }
+
+    .editor-context-details {
+        padding: 12px;
+    }
+
+    .editor-context-info {
+        margin-bottom: 8px;
+    }
+
+    .editor-context-path {
+        display: block;
+        color: var(--vscode-descriptionForeground);
+        font-family: var(--vscode-font-family);
+        font-size: 11px;
+        margin-bottom: 4px;
+        word-break: break-all;
+    }
+
+    .editor-context-meta {
+        display: flex;
+        gap: 12px;
+        font-size: 11px;
+        color: var(--vscode-descriptionForeground);
+    }
+
+    .dirty-indicator {
+        color: var(--vscode-gitDecoration-modifiedResourceForeground);
+        font-weight: bold;
+    }
+
+    .editor-context-selection {
+        border-top: 1px solid var(--vscode-input-border);
+        padding-top: 8px;
+        margin-top: 8px;
+    }
+
+    .selection-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+        font-size: 11px;
+        color: var(--vscode-foreground);
+    }
+
+    .selection-icon {
+        font-size: 12px;
+    }
+
+    .selection-range {
+        margin-left: auto;
+        color: var(--vscode-descriptionForeground);
+        font-family: monospace;
+    }
+
+    .selection-preview {
+        background-color: var(--vscode-textCodeBlock-background);
+        border: 1px solid var(--vscode-input-border);
+        border-radius: 3px;
+        padding: 8px;
+        font-family: var(--vscode-editor-font-family);
+        font-size: 11px;
+        line-height: 1.4;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 120px;
+        overflow-y: auto;
+        color: var(--vscode-editor-foreground);
+    }
 </style>`
 
 export default styles
