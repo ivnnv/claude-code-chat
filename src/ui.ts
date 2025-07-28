@@ -1475,13 +1475,13 @@ const html = `<!DOCTYPE html>
 			let contextText = 'in ' + contextData.fileName;
 			
 			if (contextData.selection && contextData.selectedText) {
-				// Show selection range
-				const startLine = contextData.selection.start.line;
-				const endLine = contextData.selection.end.line;
+				// Show selection range (convert from 0-based to 1-based)
+				const startLine = contextData.selection.start.line + 1;
+				const endLine = contextData.selection.end.line + 1;
 				contextText += ':' + startLine + '-' + endLine;
 			} else {
-				// Show just cursor position
-				contextText += ':' + contextData.cursorPosition.line;
+				// Show just cursor position (convert from 0-based to 1-based)
+				contextText += ':' + (contextData.cursorPosition.line + 1);
 			}
 			
 			editorContextLine.textContent = contextText;
@@ -1501,13 +1501,13 @@ const html = `<!DOCTYPE html>
 			let contextInfo = 'in ' + currentEditorContext.fileName;
 			
 			if (currentEditorContext.selection && currentEditorContext.selectedText) {
-				// Show selection range
-				const startLine = currentEditorContext.selection.start.line;
-				const endLine = currentEditorContext.selection.end.line;
+				// Show selection range (convert from 0-based to 1-based)
+				const startLine = currentEditorContext.selection.start.line + 1;
+				const endLine = currentEditorContext.selection.end.line + 1;
 				contextInfo += ':' + startLine + '-' + endLine;
 			} else {
-				// Show just cursor position
-				contextInfo += ':' + currentEditorContext.cursorPosition.line;
+				// Show just cursor position (convert from 0-based to 1-based)
+				contextInfo += ':' + (currentEditorContext.cursorPosition.line + 1);
 			}
 			
 			return contextInfo;

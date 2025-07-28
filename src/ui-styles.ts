@@ -1803,7 +1803,7 @@ const styles = `
         margin: 0 -12px;
     }
 
-    .tool-item input[type="checkbox"], 
+    .tool-item input[type="checkbox"],
     .tool-item input[type="radio"] {
         margin: 0;
         margin-top: 2px;
@@ -2880,10 +2880,8 @@ const styles = `
         font-size: 11px;
         color: var(--vscode-descriptionForeground);
         margin-bottom: 6px;
-        padding: 0 4px;
         font-family: var(--vscode-font-family);
     }
-
 
     .selection-header {
         display: flex;
@@ -2918,6 +2916,6 @@ const styles = `
         overflow-y: auto;
         color: var(--vscode-editor-foreground);
     }
-</style>`
+</style>`;
 
-export default styles
+export default styles;
