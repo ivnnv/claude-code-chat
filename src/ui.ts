@@ -54,6 +54,7 @@ const html = `<!DOCTYPE html>
 		</div>
 		
 		<div class="input-container" id="inputContainer">
+			<div class="editor-context-line" id="editorContextLine" style="display: none;"></div>
 			<div class="input-modes">
 				<div class="mode-toggle">
 					<span onclick="togglePlanMode()">Plan First</span>
@@ -115,18 +116,6 @@ const html = `<!DOCTYPE html>
 								</div>
 							</button>
 						</div>
-					</div>
-				</div>
-			</div>
-			<div class="editor-context" id="editorContext" style="display: none;">
-				<div class="editor-context-content">
-					<div class="editor-context-header">
-						<span class="editor-context-icon">📝</span>
-						<span class="editor-context-title" id="editorContextTitle">No active file</span>
-						<button class="editor-context-close" onclick="hideEditorContext()" title="Hide">✕</button>
-					</div>
-					<div class="editor-context-details" id="editorContextDetails">
-						<!-- Context details will be populated here -->
 					</div>
 				</div>
 			</div>
@@ -1475,55 +1464,33 @@ const html = `<!DOCTYPE html>
 
 		function updateEditorContext(contextData) {
 			currentEditorContext = contextData;
-			const editorContextDiv = document.getElementById('editorContext');
-			const titleElement = document.getElementById('editorContextTitle');
-			const detailsElement = document.getElementById('editorContextDetails');
+			const editorContextLine = document.getElementById('editorContextLine');
 			
 			if (!contextData.hasActiveFile) {
-				editorContextDiv.style.display = 'none';
+				editorContextLine.style.display = 'none';
 				return;
 			}
 			
-			// Update title
-			titleElement.textContent = contextData.fileName + ' (' + contextData.language + ')';
-			
-			// Build details HTML
-			let detailsHTML = 
-				'<div class="editor-context-info">' +
-					'<span class="editor-context-path" title="' + contextData.filePath + '">' + contextData.filePath + '</span>' +
-					'<div class="editor-context-meta">' +
-						'<span>Lines: ' + contextData.totalLines + '</span>' +
-						'<span>Cursor: ' + contextData.cursorPosition.line + ':' + contextData.cursorPosition.character + '</span>' +
-						(contextData.isDirty ? '<span class="dirty-indicator">●</span>' : '') +
-					'</div>' +
-				'</div>';
+			// Build simple context line
+			let contextText = 'in ' + contextData.fileName;
 			
 			if (contextData.selection && contextData.selectedText) {
+				// Show selection range
 				const startLine = contextData.selection.start.line;
 				const endLine = contextData.selection.end.line;
-				const lineCount = endLine - startLine + 1;
-				const selectedLength = contextData.selectedText.length;
-				
-				detailsHTML += 
-					'<div class="editor-context-selection">' +
-						'<div class="selection-header">' +
-							'<span class="selection-icon">📋</span>' +
-							'<span>Selected: ' + lineCount + ' line' + (lineCount > 1 ? 's' : '') + ' (' + selectedLength + ' characters)</span>' +
-							'<span class="selection-range">Lines ' + startLine + '-' + endLine + '</span>' +
-						'</div>' +
-						'<div class="selection-preview">' +
-							contextData.selectedText.substring(0, 200) + (contextData.selectedText.length > 200 ? '...' : '') +
-						'</div>' +
-					'</div>';
+				contextText += ':' + startLine + '-' + endLine;
+			} else {
+				// Show just cursor position
+				contextText += ':' + contextData.cursorPosition.line;
 			}
 			
-			detailsElement.innerHTML = detailsHTML;
-			editorContextDiv.style.display = 'block';
+			editorContextLine.textContent = contextText;
+			editorContextLine.style.display = 'block';
 		}
 		
 		function hideEditorContext() {
-			const editorContextDiv = document.getElementById('editorContext');
-			editorContextDiv.style.display = 'none';
+			const editorContextLine = document.getElementById('editorContextLine');
+			editorContextLine.style.display = 'none';
 		}
 		
 		function getEditorContextInfo() {
@@ -1531,10 +1498,16 @@ const html = `<!DOCTYPE html>
 				return null;
 			}
 			
-			let contextInfo = 'Current file: ' + currentEditorContext.fileName;
+			let contextInfo = 'in ' + currentEditorContext.fileName;
+			
 			if (currentEditorContext.selection && currentEditorContext.selectedText) {
-				const lineCount = currentEditorContext.selection.end.line - currentEditorContext.selection.start.line + 1;
-				contextInfo += '\\nSelected text (' + lineCount + ' lines):\\n' + currentEditorContext.selectedText;
+				// Show selection range
+				const startLine = currentEditorContext.selection.start.line;
+				const endLine = currentEditorContext.selection.end.line;
+				contextInfo += ':' + startLine + '-' + endLine;
+			} else {
+				// Show just cursor position
+				contextInfo += ':' + currentEditorContext.cursorPosition.line;
 			}
 			
 			return contextInfo;
