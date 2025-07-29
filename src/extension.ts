@@ -44,12 +44,26 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() { }
 
+interface ConversationData {
+	sessionId: string;
+	startTime: string | undefined;
+	endTime: string;
+	messageCount: number;
+	totalCost: number;
+	totalTokens: {
+		input: number;
+		output: number;
+	};
+	messages: Array<{ timestamp: string, messageType: string, data: any }>;
+	filename: string;
+}
+
 class ClaudeChatWebviewProvider implements vscode.WebviewViewProvider {
 	constructor(
 		private readonly _extensionUri: vscode.Uri,
 		private readonly _context: vscode.ExtensionContext,
 		private readonly _chatProvider: ClaudeChatProvider
-	) {}
+	) { }
 
 	public resolveWebviewView(
 		webviewView: vscode.WebviewView,
@@ -114,6 +128,8 @@ class ClaudeChatProvider {
 	private _selectedModel: string = 'default'; // Default model
 	private _editorChangeListener: vscode.Disposable | undefined;
 	private _selectionChangeListener: vscode.Disposable | undefined;
+	private _isProcessing: boolean | undefined;
+	private _draftMessage: string = '';
 
 	constructor(
 		private readonly _extensionUri: vscode.Uri,
@@ -201,18 +217,18 @@ class ClaudeChatProvider {
 
 	private _sendReadyMessage() {
 		// Send current session info if available
-		if (this._currentSessionId) {
+		/*if (this._currentSessionId) {
 			this._postMessage({
 				type: 'sessionResumed',
 				data: {
 					sessionId: this._currentSessionId
 				}
 			});
-		}
+		}*/
 
 		this._postMessage({
 			type: 'ready',
-			data: 'Ready to chat with Claude Code! Type your message below.'
+			data: this._isProcessing ? 'Claude is working...' : 'Ready to chat with Claude Code! Type your message below.'
 		});
 
 		// Send current model to webview
@@ -227,8 +243,13 @@ class ClaudeChatProvider {
 		// Send current settings to webview
 		this._sendCurrentSettings();
 
-		// Send current editor context
-		this._sendEditorContext();
+		// Send saved draft message if any
+		if (this._draftMessage) {
+			this._postMessage({
+				type: 'restoreInputText',
+				data: this._draftMessage
+			});
+		}
 	}
 
 	private _handleWebviewMessage(message: any) {
@@ -319,6 +340,8 @@ class ClaudeChatProvider {
 				return;
 			case 'getEditorContext':
 				this._sendEditorContext();
+			case 'saveInputText':
+				this._saveInputText(message.text);
 				return;
 		}
 	}
@@ -328,7 +351,7 @@ class ClaudeChatProvider {
 		if (this._messageHandlerDisposable) {
 			this._messageHandlerDisposable.dispose();
 		}
-		
+
 		// Set up new message handler
 		this._messageHandlerDisposable = webview.onDidReceiveMessage(
 			message => this._handleWebviewMessage(message),
@@ -344,7 +367,7 @@ class ClaudeChatProvider {
 		}
 	}
 
-	public showInWebview(webview: vscode.Webview, webviewView?: vscode.WebviewView) {		
+	public showInWebview(webview: vscode.Webview, webviewView?: vscode.WebviewView) {
 		// Close main panel if it's open
 		if (this._panel) {
 			console.log('Closing main panel because sidebar is opening');
@@ -404,7 +427,7 @@ class ClaudeChatProvider {
 		}
 		if (thinkingMode) {
 			let thinkingPrompt = '';
-			const thinkingMesssage = ' THROUGH THIS STEP BY STEP: \n'
+			const thinkingMesssage = ' THROUGH THIS STEP BY STEP: \n';
 			switch (thinkingIntensity) {
 				case 'think':
 					thinkingPrompt = 'THINK';
@@ -424,16 +447,21 @@ class ClaudeChatProvider {
 			actualMessage = thinkingPrompt + thinkingMesssage + actualMessage;
 		}
 
+		this._isProcessing = true;
+
+		// Clear draft message since we're sending it
+		this._draftMessage = '';
+
 		// Show original user input in chat and save to conversation (without mode prefixes)
 		this._sendAndSaveMessage({
 			type: 'userInput',
 			data: message
 		});
 
-		// Set processing state
+		// Set processing state to true
 		this._postMessage({
 			type: 'setProcessing',
-			data: true
+			data: { isProcessing: true }
 		});
 
 		// Create backup commit before Claude makes changes
@@ -459,7 +487,7 @@ class ClaudeChatProvider {
 		// Get configuration
 		const config = vscode.workspace.getConfiguration('claudeCodeChat');
 		const yoloMode = config.get<boolean>('permissions.yoloMode', false);
-		
+
 		if (yoloMode) {
 			// Yolo mode: skip all permissions regardless of MCP config
 			args.push('--dangerously-skip-permissions');
@@ -566,12 +594,25 @@ class ClaudeChatProvider {
 			console.log('Claude process closed with code:', code);
 			console.log('Claude stderr output:', errorOutput);
 
+			if (!this._currentClaudeProcess) {
+				return;
+			}
+
 			// Clear process reference
 			this._currentClaudeProcess = undefined;
 
-			// Clear loading indicator
+			// Clear loading indicator and set processing to false
 			this._postMessage({
 				type: 'clearLoading'
+			});
+
+			// Reset processing state
+			this._isProcessing = false;
+
+			// Clear processing state
+			this._postMessage({
+				type: 'setProcessing',
+				data: { isProcessing: false }
 			});
 
 			if (code !== 0 && errorOutput.trim()) {
@@ -585,14 +626,26 @@ class ClaudeChatProvider {
 
 		claudeProcess.on('error', (error) => {
 			console.log('Claude process error:', error.message);
-			
+
+			if (!this._currentClaudeProcess) {
+				return;
+			}
+
 			// Clear process reference
 			this._currentClaudeProcess = undefined;
-			
+
 			this._postMessage({
 				type: 'clearLoading'
 			});
-			
+
+			this._isProcessing = false;
+
+			// Clear processing state
+			this._postMessage({
+				type: 'setProcessing',
+				data: { isProcessing: false }
+			});
+
 			// Check if claude command is not installed
 			if (error.message.includes('ENOENT') || error.message.includes('command not found')) {
 				this._sendAndSaveMessage({
@@ -614,6 +667,18 @@ class ClaudeChatProvider {
 				if (jsonData.subtype === 'init') {
 					// System initialization message - session ID will be captured from final result
 					console.log('System initialized');
+					this._currentSessionId = jsonData.session_id;
+					//this._sendAndSaveMessage({ type: 'init', data: { sessionId: jsonData.session_id; } })
+
+					// Show session info in UI
+					this._sendAndSaveMessage({
+						type: 'sessionInfo',
+						data: {
+							sessionId: jsonData.session_id,
+							tools: jsonData.tools || [],
+							mcpServers: jsonData.mcp_servers || []
+						}
+					});
 				}
 				break;
 
@@ -693,16 +758,16 @@ class ClaudeChatProvider {
 					for (const content of jsonData.message.content) {
 						if (content.type === 'tool_result') {
 							let resultContent = content.content || 'Tool executed successfully';
-							
+
 							// Stringify if content is an object or array
 							if (typeof resultContent === 'object' && resultContent !== null) {
 								resultContent = JSON.stringify(resultContent, null, 2);
 							}
-							
+
 							const isError = content.is_error || false;
 
 							// Find the last tool use to get the tool name
-							const lastToolUse = this._currentConversation[this._currentConversation.length-1]
+							const lastToolUse = this._currentConversation[this._currentConversation.length - 1];
 
 							const toolName = lastToolUse?.data?.toolName;
 
@@ -744,6 +809,8 @@ class ClaudeChatProvider {
 						return;
 					}
 
+					this._isProcessing = false;
+
 					// Capture session ID from final result
 					if (jsonData.session_id) {
 						const isNewSession = !this._currentSessionId;
@@ -772,7 +839,7 @@ class ClaudeChatProvider {
 					// Clear processing state
 					this._postMessage({
 						type: 'setProcessing',
-						data: false
+						data: { isProcessing: false }
 					});
 
 					// Update cumulative tracking
@@ -807,6 +874,22 @@ class ClaudeChatProvider {
 
 
 	private _newSession() {
+
+		this._isProcessing = false;
+
+		// Update UI state
+		this._postMessage({
+			type: 'setProcessing',
+			data: { isProcessing: false }
+		});
+
+		// Try graceful termination first
+		if (this._currentClaudeProcess) {
+			const processToKill = this._currentClaudeProcess;
+			this._currentClaudeProcess = undefined;
+			processToKill.kill('SIGTERM');
+		}
+
 		// Clear current session
 		this._currentSessionId = undefined;
 
@@ -830,10 +913,10 @@ class ClaudeChatProvider {
 	public newSessionOnConfigChange() {
 		// Reinitialize MCP config with new WSL paths
 		this._initializeMCPConfig();
-		
+
 		// Start a new session due to configuration change
 		this._newSession();
-		
+
 		// Show notification to user
 		vscode.window.showInformationMessage(
 			'WSL configuration changed. Started a new Claude session.',
@@ -848,10 +931,13 @@ class ClaudeChatProvider {
 	}
 
 	private _handleLoginRequired() {
+
+		this._isProcessing = false;
+
 		// Clear processing state
 		this._postMessage({
 			type: 'setProcessing',
-			data: false
+			data: { isProcessing: false }
 		});
 
 		// Show login required message
@@ -881,7 +967,7 @@ class ClaudeChatProvider {
 			'OK'
 		);
 
-				// Send message to UI about terminal
+		// Send message to UI about terminal
 		this._postMessage({
 			type: 'terminalOpened',
 			data: `Please login to Claude in the terminal, then come back to this chat to continue.`,
@@ -891,7 +977,7 @@ class ClaudeChatProvider {
 	private async _initializeBackupRepo(): Promise<void> {
 		try {
 			const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-			if (!workspaceFolder) {return;}
+			if (!workspaceFolder) { return; }
 
 			const storagePath = this._context.storageUri?.fsPath;
 			if (!storagePath) {
@@ -924,7 +1010,7 @@ class ClaudeChatProvider {
 	private async _createBackupCommit(userMessage: string): Promise<void> {
 		try {
 			const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-			if (!workspaceFolder || !this._backupRepoPath) {return;}
+			if (!workspaceFolder || !this._backupRepoPath) { return; }
 
 			const workspacePath = workspaceFolder.uri.fsPath;
 			const now = new Date();
@@ -1033,10 +1119,10 @@ class ClaudeChatProvider {
 	private async _initializeConversations(): Promise<void> {
 		try {
 			const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-			if (!workspaceFolder) {return;}
+			if (!workspaceFolder) { return; }
 
 			const storagePath = this._context.storageUri?.fsPath;
-			if (!storagePath) {return;}
+			if (!storagePath) { return; }
 
 			this._conversationsPath = path.join(storagePath, 'conversations');
 
@@ -1055,7 +1141,7 @@ class ClaudeChatProvider {
 	private async _initializeMCPConfig(): Promise<void> {
 		try {
 			const storagePath = this._context.storageUri?.fsPath;
-			if (!storagePath) {return;}
+			if (!storagePath) { return; }
 
 			// Create MCP config directory
 			const mcpConfigDir = path.join(storagePath, 'mcp');
@@ -1070,11 +1156,11 @@ class ClaudeChatProvider {
 			const mcpConfigPath = path.join(mcpConfigDir, 'mcp-servers.json');
 			const mcpPermissionsPath = this.convertToWSLPath(path.join(this._extensionUri.fsPath, 'mcp-permissions.js'));
 			const permissionRequestsPath = this.convertToWSLPath(path.join(storagePath, 'permission-requests'));
-			
+
 			// Load existing config or create new one
 			let mcpConfig: any = { mcpServers: {} };
 			const mcpConfigUri = vscode.Uri.file(mcpConfigPath);
-			
+
 			try {
 				const existingContent = await vscode.workspace.fs.readFile(mcpConfigUri);
 				mcpConfig = JSON.parse(new TextDecoder().decode(existingContent));
@@ -1082,12 +1168,12 @@ class ClaudeChatProvider {
 			} catch {
 				console.log('No existing MCP config found, creating new one');
 			}
-			
+
 			// Ensure mcpServers exists
 			if (!mcpConfig.mcpServers) {
 				mcpConfig.mcpServers = {};
 			}
-			
+
 			// Add or update the permissions server entry
 			mcpConfig.mcpServers['claude-code-chat-permissions'] = {
 				command: 'node',
@@ -1099,7 +1185,7 @@ class ClaudeChatProvider {
 
 			const configContent = new TextEncoder().encode(JSON.stringify(mcpConfig, null, 2));
 			await vscode.workspace.fs.writeFile(mcpConfigUri, configContent);
-			
+
 			console.log(`Updated MCP config at: ${mcpConfigPath}`);
 		} catch (error: any) {
 			console.error('Failed to initialize MCP config:', error.message);
@@ -1109,13 +1195,13 @@ class ClaudeChatProvider {
 	private async _initializePermissions(): Promise<void> {
 		try {
 
-			if(this._permissionWatcher){
+			if (this._permissionWatcher) {
 				this._permissionWatcher.dispose();
 				this._permissionWatcher = undefined;
 			}
 
 			const storagePath = this._context.storageUri?.fsPath;
-			if (!storagePath) {return;}
+			if (!storagePath) { return; }
 
 			// Create permission requests directory
 			this._permissionRequestsPath = path.join(path.join(storagePath, 'permission-requests'));
@@ -1126,7 +1212,7 @@ class ClaudeChatProvider {
 				console.log(`Created permission requests directory at: ${this._permissionRequestsPath}`);
 			}
 
-			console.log("DIRECTORY-----", this._permissionRequestsPath)
+			console.log("DIRECTORY-----", this._permissionRequestsPath);
 
 			// Set up file watcher for *.request files
 			this._permissionWatcher = vscode.workspace.createFileSystemWatcher(
@@ -1134,7 +1220,7 @@ class ClaudeChatProvider {
 			);
 
 			this._permissionWatcher.onDidCreate(async (uri) => {
-				console.log("----file", uri)
+				console.log("----file", uri);
 				// Only handle file scheme URIs, ignore vscode-userdata scheme
 				if (uri.scheme === 'file') {
 					await this._handlePermissionRequest(uri);
@@ -1178,13 +1264,13 @@ class ClaudeChatProvider {
 
 	private async _showPermissionDialog(request: any): Promise<boolean> {
 		const toolName = request.tool || 'Unknown Tool';
-		
+
 		// Generate pattern for Bash commands
 		let pattern = undefined;
 		if (toolName === 'Bash' && request.input?.command) {
 			pattern = this.getCommandPattern(request.input.command);
 		}
-		
+
 		// Send permission request to the UI
 		this._postMessage({
 			type: 'permissionRequest',
@@ -1210,7 +1296,7 @@ class ClaudeChatProvider {
 			if (resolver) {
 				resolver(approved);
 				this._pendingPermissionResolvers.delete(id);
-				
+
 				// Handle always allow setting
 				if (alwaysAllow && approved) {
 					void this._saveAlwaysAllowPermission(id);
@@ -1223,10 +1309,10 @@ class ClaudeChatProvider {
 		try {
 			// Read the original request to get tool name and input
 			const storagePath = this._context.storageUri?.fsPath;
-			if (!storagePath) return;
+			if (!storagePath) {return;}
 
 			const requestFileUri = vscode.Uri.file(path.join(storagePath, 'permission-requests', `${requestId}.request`));
-			
+
 			let requestContent: Uint8Array;
 			try {
 				requestContent = await vscode.workspace.fs.readFile(requestFileUri);
@@ -1235,11 +1321,11 @@ class ClaudeChatProvider {
 			}
 
 			const request = JSON.parse(new TextDecoder().decode(requestContent));
-			
+
 			// Load existing workspace permissions
 			const permissionsUri = vscode.Uri.file(path.join(storagePath, 'permission-requests', 'permissions.json'));
 			let permissions: any = { alwaysAllow: {} };
-			
+
 			try {
 				const content = await vscode.workspace.fs.readFile(permissionsUri);
 				permissions = JSON.parse(new TextDecoder().decode(content));
@@ -1277,7 +1363,7 @@ class ClaudeChatProvider {
 			// Save the permissions
 			const permissionsContent = new TextEncoder().encode(JSON.stringify(permissions, null, 2));
 			await vscode.workspace.fs.writeFile(permissionsUri, permissionsContent);
-			
+
 			console.log(`Saved always-allow permission for ${toolName}`);
 		} catch (error) {
 			console.error('Error saving always-allow permission:', error);
@@ -1286,11 +1372,11 @@ class ClaudeChatProvider {
 
 	private getCommandPattern(command: string): string {
 		const parts = command.trim().split(/\s+/);
-		if (parts.length === 0) return command;
-		
+		if (parts.length === 0) {return command;}
+
 		const baseCmd = parts[0];
 		const subCmd = parts.length > 1 ? parts[1] : '';
-		
+
 		// Common patterns that should use wildcards
 		const patterns = [
 			// Package managers
@@ -1307,7 +1393,7 @@ class ClaudeChatProvider {
 			['pnpm', 'install', 'pnpm install *'],
 			['pnpm', 'add', 'pnpm add *'],
 			['pnpm', 'remove', 'pnpm remove *'],
-			
+
 			// Git commands
 			['git', 'add', 'git add *'],
 			['git', 'commit', 'git commit *'],
@@ -1320,7 +1406,7 @@ class ClaudeChatProvider {
 			['git', 'reset', 'git reset *'],
 			['git', 'rebase', 'git rebase *'],
 			['git', 'tag', 'git tag *'],
-			
+
 			// Docker commands
 			['docker', 'run', 'docker run *'],
 			['docker', 'build', 'docker build *'],
@@ -1332,7 +1418,7 @@ class ClaudeChatProvider {
 			['docker', 'rmi', 'docker rmi *'],
 			['docker', 'pull', 'docker pull *'],
 			['docker', 'push', 'docker push *'],
-			
+
 			// Build tools
 			['make', '', 'make *'],
 			['cargo', 'build', 'cargo build *'],
@@ -1344,7 +1430,7 @@ class ClaudeChatProvider {
 			['mvn', 'package', 'mvn package *'],
 			['gradle', 'build', 'gradle build *'],
 			['gradle', 'test', 'gradle test *'],
-			
+
 			// System commands
 			['curl', '', 'curl *'],
 			['wget', '', 'wget *'],
@@ -1354,7 +1440,7 @@ class ClaudeChatProvider {
 			['tar', '', 'tar *'],
 			['zip', '', 'zip *'],
 			['unzip', '', 'unzip *'],
-			
+
 			// Development tools
 			['node', '', 'node *'],
 			['python', '', 'python *'],
@@ -1366,14 +1452,14 @@ class ClaudeChatProvider {
 			['bundle', 'install', 'bundle install *'],
 			['gem', 'install', 'gem install *'],
 		];
-		
+
 		// Find matching pattern
 		for (const [cmd, sub, pattern] of patterns) {
 			if (baseCmd === cmd && (sub === '' || subCmd === sub)) {
 				return pattern;
 			}
 		}
-		
+
 		// Default: return exact command
 		return command;
 	}
@@ -1391,7 +1477,7 @@ class ClaudeChatProvider {
 
 			const permissionsUri = vscode.Uri.file(path.join(storagePath, 'permission-requests', 'permissions.json'));
 			let permissions: any = { alwaysAllow: {} };
-			
+
 			try {
 				const content = await vscode.workspace.fs.readFile(permissionsUri);
 				permissions = JSON.parse(new TextDecoder().decode(content));
@@ -1415,11 +1501,11 @@ class ClaudeChatProvider {
 	private async _removePermission(toolName: string, command: string | null): Promise<void> {
 		try {
 			const storagePath = this._context.storageUri?.fsPath;
-			if (!storagePath) return;
+			if (!storagePath) {return;}
 
 			const permissionsUri = vscode.Uri.file(path.join(storagePath, 'permission-requests', 'permissions.json'));
 			let permissions: any = { alwaysAllow: {} };
-			
+
 			try {
 				const content = await vscode.workspace.fs.readFile(permissionsUri);
 				permissions = JSON.parse(new TextDecoder().decode(content));
@@ -1448,10 +1534,10 @@ class ClaudeChatProvider {
 			// Save updated permissions
 			const permissionsContent = new TextEncoder().encode(JSON.stringify(permissions, null, 2));
 			await vscode.workspace.fs.writeFile(permissionsUri, permissionsContent);
-			
+
 			// Send updated permissions to UI
 			this._sendPermissions();
-			
+
 			console.log(`Removed permission for ${toolName}${command ? ` command: ${command}` : ''}`);
 		} catch (error) {
 			console.error('Error removing permission:', error);
@@ -1461,11 +1547,11 @@ class ClaudeChatProvider {
 	private async _addPermission(toolName: string, command: string | null): Promise<void> {
 		try {
 			const storagePath = this._context.storageUri?.fsPath;
-			if (!storagePath) return;
+			if (!storagePath) {return;}
 
 			const permissionsUri = vscode.Uri.file(path.join(storagePath, 'permission-requests', 'permissions.json'));
 			let permissions: any = { alwaysAllow: {} };
-			
+
 			try {
 				const content = await vscode.workspace.fs.readFile(permissionsUri);
 				permissions = JSON.parse(new TextDecoder().decode(content));
@@ -1482,19 +1568,19 @@ class ClaudeChatProvider {
 				if (!permissions.alwaysAllow[toolName]) {
 					permissions.alwaysAllow[toolName] = [];
 				}
-				
+
 				// Convert to array if it's currently set to true
 				if (permissions.alwaysAllow[toolName] === true) {
 					permissions.alwaysAllow[toolName] = [];
 				}
-				
+
 				if (Array.isArray(permissions.alwaysAllow[toolName])) {
 					// For Bash commands, convert to pattern using existing logic
 					let commandToAdd = command;
 					if (toolName === 'Bash') {
 						commandToAdd = this.getCommandPattern(command);
 					}
-					
+
 					// Add if not already present
 					if (!permissions.alwaysAllow[toolName].includes(commandToAdd)) {
 						permissions.alwaysAllow[toolName].push(commandToAdd);
@@ -1513,10 +1599,10 @@ class ClaudeChatProvider {
 			// Save updated permissions
 			const permissionsContent = new TextEncoder().encode(JSON.stringify(permissions, null, 2));
 			await vscode.workspace.fs.writeFile(permissionsUri, permissionsContent);
-			
+
 			// Send updated permissions to UI
 			this._sendPermissions();
-			
+
 			console.log(`Added permission for ${toolName}${command ? ` command: ${command}` : ' (all commands)'}`);
 		} catch (error) {
 			console.error('Error adding permission:', error);
@@ -1543,10 +1629,10 @@ class ClaudeChatProvider {
 			}
 
 			// Filter out internal servers before sending to UI
-		const filteredServers = Object.fromEntries(
-			Object.entries(mcpConfig.mcpServers || {}).filter(([name]) => name !== 'claude-code-chat-permissions')
-		);
-		this._postMessage({ type: 'mcpServers', data: filteredServers });
+			const filteredServers = Object.fromEntries(
+				Object.entries(mcpConfig.mcpServers || {}).filter(([name]) => name !== 'claude-code-chat-permissions')
+			);
+			this._postMessage({ type: 'mcpServers', data: filteredServers });
 		} catch (error) {
 			console.error('Error loading MCP servers:', error);
 			this._postMessage({ type: 'mcpServerError', data: { error: 'Failed to load MCP servers' } });
@@ -1642,7 +1728,7 @@ class ClaudeChatProvider {
 
 	private async _sendCustomSnippets(): Promise<void> {
 		try {
-			const customSnippets = this._context.globalState.get<{[key: string]: any}>('customPromptSnippets', {});
+			const customSnippets = this._context.globalState.get<{ [key: string]: any }>('customPromptSnippets', {});
 			this._postMessage({
 				type: 'customSnippetsData',
 				data: customSnippets
@@ -1658,16 +1744,16 @@ class ClaudeChatProvider {
 
 	private async _saveCustomSnippet(snippet: any): Promise<void> {
 		try {
-			const customSnippets = this._context.globalState.get<{[key: string]: any}>('customPromptSnippets', {});
+			const customSnippets = this._context.globalState.get<{ [key: string]: any }>('customPromptSnippets', {});
 			customSnippets[snippet.id] = snippet;
-			
+
 			await this._context.globalState.update('customPromptSnippets', customSnippets);
-			
+
 			this._postMessage({
 				type: 'customSnippetSaved',
 				data: { snippet }
 			});
-			
+
 			console.log('Saved custom snippet:', snippet.name);
 		} catch (error) {
 			console.error('Error saving custom snippet:', error);
@@ -1680,17 +1766,17 @@ class ClaudeChatProvider {
 
 	private async _deleteCustomSnippet(snippetId: string): Promise<void> {
 		try {
-			const customSnippets = this._context.globalState.get<{[key: string]: any}>('customPromptSnippets', {});
-			
+			const customSnippets = this._context.globalState.get<{ [key: string]: any }>('customPromptSnippets', {});
+
 			if (customSnippets[snippetId]) {
 				delete customSnippets[snippetId];
 				await this._context.globalState.update('customPromptSnippets', customSnippets);
-				
+
 				this._postMessage({
 					type: 'customSnippetDeleted',
 					data: { snippetId }
 				});
-				
+
 				console.log('Deleted custom snippet:', snippetId);
 			} else {
 				this._postMessage({
@@ -1710,31 +1796,28 @@ class ClaudeChatProvider {
 	private convertToWSLPath(windowsPath: string): string {
 		const config = vscode.workspace.getConfiguration('claudeCodeChat');
 		const wslEnabled = config.get<boolean>('wsl.enabled', false);
-		
+
 		if (wslEnabled && windowsPath.match(/^[a-zA-Z]:/)) {
 			// Convert C:\Users\... to /mnt/c/Users/...
 			return windowsPath.replace(/^([a-zA-Z]):/, '/mnt/$1').toLowerCase().replace(/\\/g, '/');
 		}
-		
+
 		return windowsPath;
 	}
 
 	public getMCPConfigPath(): string | undefined {
 		const storagePath = this._context.storageUri?.fsPath;
-		if (!storagePath) {return undefined;}
-		
+		if (!storagePath) { return undefined; }
+
 		const configPath = path.join(storagePath, 'mcp', 'mcp-servers.json');
 		return path.join(configPath);
 	}
 
 	private _sendAndSaveMessage(message: { type: string, data: any }): void {
+
 		// Initialize conversation if this is the first message
 		if (this._currentConversation.length === 0) {
 			this._conversationStartTime = new Date().toISOString();
-		}
-
-		if (message.type === 'sessionInfo') {
-			message.data.sessionId;
 		}
 
 		// Send to UI using the helper method
@@ -1752,8 +1835,8 @@ class ClaudeChatProvider {
 	}
 
 	private async _saveCurrentConversation(): Promise<void> {
-		if (!this._conversationsPath || this._currentConversation.length === 0) {return;}
-		if(!this._currentSessionId) {return;}
+		if (!this._conversationsPath || this._currentConversation.length === 0) { return; }
+		if (!this._currentSessionId) { return; }
 
 		try {
 			// Create filename from first user message and timestamp
@@ -1772,7 +1855,7 @@ class ClaudeChatProvider {
 			const datePrefix = startTime.substring(0, 16).replace('T', '_').replace(/:/g, '-');
 			const filename = `${datePrefix}_${cleanMessage}.json`;
 
-			const conversationData = {
+			const conversationData: ConversationData = {
 				sessionId: sessionId,
 				startTime: this._conversationStartTime,
 				endTime: new Date().toISOString(),
@@ -1836,11 +1919,11 @@ class ClaudeChatProvider {
 				fileList = fileList.filter(file => {
 					const fileName = file.name.toLowerCase();
 					const filePath = file.path.toLowerCase();
-					
+
 					// Check if term matches filename or any part of the path
-					return fileName.includes(term) || 
-						   filePath.includes(term) ||
-						   filePath.split('/').some(segment => segment.includes(term));
+					return fileName.includes(term) ||
+						filePath.includes(term) ||
+						filePath.split('/').some(segment => segment.includes(term));
 				});
 			}
 
@@ -1874,7 +1957,7 @@ class ClaudeChatProvider {
 					'Images': ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp']
 				}
 			});
-			
+
 			if (result && result.length > 0) {
 				// Send the selected file paths back to webview
 				result.forEach(uri => {
@@ -1884,7 +1967,7 @@ class ClaudeChatProvider {
 					});
 				});
 			}
-			
+
 		} catch (error) {
 			console.error('Error selecting image files:', error);
 		}
@@ -1892,13 +1975,21 @@ class ClaudeChatProvider {
 
 	private _stopClaudeProcess(): void {
 		console.log('Stop request received');
-		
+
+		this._isProcessing = false;
+
+		// Update UI state
+		this._postMessage({
+			type: 'setProcessing',
+			data: { isProcessing: false }
+		});
+
 		if (this._currentClaudeProcess) {
 			console.log('Terminating Claude process...');
-			
+
 			// Try graceful termination first
 			this._currentClaudeProcess.kill('SIGTERM');
-			
+
 			// Force kill after 2 seconds if still running
 			setTimeout(() => {
 				if (this._currentClaudeProcess && !this._currentClaudeProcess.killed) {
@@ -1906,33 +1997,27 @@ class ClaudeChatProvider {
 					this._currentClaudeProcess.kill('SIGKILL');
 				}
 			}, 2000);
-			
+
 			// Clear process reference
 			this._currentClaudeProcess = undefined;
-			
-			// Update UI state
-			this._postMessage({
-				type: 'setProcessing',
-				data: false
-			});
-			
+
 			this._postMessage({
 				type: 'clearLoading'
 			});
-			
+
 			// Send stop confirmation message directly to UI and save
 			this._sendAndSaveMessage({
 				type: 'error',
 				data: '⏹️ Claude code was stopped.'
 			});
-			
+
 			console.log('Claude process termination initiated');
 		} else {
 			console.log('No Claude process running to stop');
 		}
 	}
 
-	private _updateConversationIndex(filename: string, conversationData: any): void {
+	private _updateConversationIndex(filename: string, conversationData: ConversationData): void {
 		// Extract first and last user messages
 		const userMessages = conversationData.messages.filter((m: any) => m.messageType === 'userInput');
 		const firstUserMessage = userMessages.length > 0 ? userMessages[0].data : 'No user message';
@@ -1942,7 +2027,7 @@ class ClaudeChatProvider {
 		const indexEntry = {
 			filename: filename,
 			sessionId: conversationData.sessionId,
-			startTime: conversationData.startTime,
+			startTime: conversationData.startTime || '',
 			endTime: conversationData.endTime,
 			messageCount: conversationData.messageCount,
 			totalCost: conversationData.totalCost,
@@ -1971,13 +2056,13 @@ class ClaudeChatProvider {
 
 	private async _loadConversationHistory(filename: string): Promise<void> {
 		console.log("_loadConversationHistory");
-		if (!this._conversationsPath) {return;}
+		if (!this._conversationsPath) { return; }
 
 		try {
 			const filePath = path.join(this._conversationsPath, filename);
 			console.log("filePath", filePath);
-			
-			let conversationData;
+
+			let conversationData: ConversationData;
 			try {
 				const fileUri = vscode.Uri.file(filePath);
 				const content = await vscode.workspace.fs.readFile(fileUri);
@@ -1985,8 +2070,7 @@ class ClaudeChatProvider {
 			} catch {
 				return;
 			}
-			
-			console.log("conversationData", conversationData);
+
 			// Load conversation into current state
 			this._currentConversation = conversationData.messages || [];
 			this._conversationStartTime = conversationData.startTime;
@@ -2001,6 +2085,8 @@ class ClaudeChatProvider {
 					type: 'sessionCleared'
 				});
 
+				let requestStartTime: number;
+
 				// Small delay to ensure messages are cleared before loading new ones
 				setTimeout(() => {
 					for (const message of this._currentConversation) {
@@ -2008,6 +2094,13 @@ class ClaudeChatProvider {
 							type: message.messageType,
 							data: message.data
 						});
+						if (message.messageType === 'userInput') {
+							try {
+								requestStartTime = new Date(message.timestamp).getTime();
+							} catch (e) {
+								console.log(e);
+							}
+						}
 					}
 
 					// Send updated totals
@@ -2021,6 +2114,13 @@ class ClaudeChatProvider {
 						}
 					});
 
+					// Restore processing state if the conversation was saved while processing
+					if (this._isProcessing) {
+						this._postMessage({
+							type: 'setProcessing',
+							data: { isProcessing: this._isProcessing, requestStartTime }
+						});
+					}
 					// Send ready message after conversation is loaded
 					this._sendReadyMessage();
 				}, 50);
@@ -2057,23 +2157,27 @@ class ClaudeChatProvider {
 		try {
 			// Update VS Code configuration to enable YOLO mode
 			const config = vscode.workspace.getConfiguration('claudeCodeChat');
-			
+
 			// Clear any global setting and set workspace setting
 			await config.update('permissions.yoloMode', true, vscode.ConfigurationTarget.Workspace);
-			
+
 			console.log('YOLO Mode enabled - all future permissions will be skipped');
-			
+
 			// Send updated settings to UI
 			this._sendCurrentSettings();
-			
+
 		} catch (error) {
 			console.error('Error enabling YOLO mode:', error);
 		}
 	}
 
+	private _saveInputText(text: string): void {
+		this._draftMessage = text || '';
+	}
+
 	private async _updateSettings(settings: { [key: string]: any }): Promise<void> {
 		const config = vscode.workspace.getConfiguration('claudeCodeChat');
-		
+
 		try {
 			for (const [key, value] of Object.entries(settings)) {
 				if (key === 'permissions.yoloMode') {
@@ -2084,7 +2188,7 @@ class ClaudeChatProvider {
 					await config.update(key, value, vscode.ConfigurationTarget.Global);
 				}
 			}
-			
+
 			console.log('Settings updated:', settings);
 		} catch (error) {
 			console.error('Failed to update settings:', error);
@@ -2110,10 +2214,10 @@ class ClaudeChatProvider {
 		if (validModels.includes(model)) {
 			this._selectedModel = model;
 			console.log('Model selected:', model);
-			
+
 			// Store the model preference in workspace state
 			this._context.workspaceState.update('claude.selectedModel', model);
-			
+
 			// Show confirmation
 			vscode.window.showInformationMessage(`Claude model switched to: ${model.charAt(0).toUpperCase() + model.slice(1)}`);
 		} else {
@@ -2131,7 +2235,7 @@ class ClaudeChatProvider {
 
 		// Build command arguments
 		const args = ['/model'];
-		
+
 		// Add session resume if we have a current session
 		if (this._currentSessionId) {
 			args.push('--resume', this._currentSessionId);
@@ -2168,7 +2272,7 @@ class ClaudeChatProvider {
 
 		// Build command arguments
 		const args = [`/${command}`];
-		
+
 		// Add session resume if we have a current session
 		if (this._currentSessionId) {
 			args.push('--resume', this._currentSessionId);
@@ -2199,7 +2303,7 @@ class ClaudeChatProvider {
 	private _sendPlatformInfo() {
 		const platform = process.platform;
 		const dismissed = this._context.globalState.get<boolean>('wslAlertDismissed', false);
-		
+
 		// Get WSL configuration
 		const config = vscode.workspace.getConfiguration('claudeCodeChat');
 		const wslEnabled = config.get<boolean>('wsl.enabled', false);
@@ -2233,23 +2337,23 @@ class ClaudeChatProvider {
 	private async _createImageFile(imageData: string, imageType: string) {
 		try {
 			const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-			if (!workspaceFolder) {return;}
+			if (!workspaceFolder) { return; }
 
 			// Extract base64 data from data URL
 			const base64Data = imageData.split(',')[1];
 			const buffer = Buffer.from(base64Data, 'base64');
-			
+
 			// Get file extension from image type
 			const extension = imageType.split('/')[1] || 'png';
-			
+
 			// Create unique filename with timestamp
 			const timestamp = Date.now();
 			const imageFileName = `image_${timestamp}.${extension}`;
-			
+
 			// Create images folder in workspace .claude directory
 			const imagesDir = vscode.Uri.joinPath(workspaceFolder.uri, '.claude', 'claude-code-chat-images');
 			await vscode.workspace.fs.createDirectory(imagesDir);
-			
+
 			// Create .gitignore to ignore all images
 			const gitignorePath = vscode.Uri.joinPath(imagesDir, '.gitignore');
 			try {
@@ -2259,11 +2363,11 @@ class ClaudeChatProvider {
 				const gitignoreContent = new TextEncoder().encode('*\n');
 				await vscode.workspace.fs.writeFile(gitignorePath, gitignoreContent);
 			}
-			
+
 			// Create the image file
 			const imagePath = vscode.Uri.joinPath(imagesDir, imageFileName);
 			await vscode.workspace.fs.writeFile(imagePath, buffer);
-			
+
 			// Send the file path back to webview
 			this._postMessage({
 				type: 'imagePath',
@@ -2271,7 +2375,7 @@ class ClaudeChatProvider {
 					filePath: imagePath.fsPath
 				}
 			});
-			
+
 		} catch (error) {
 			console.error('Error creating image file:', error);
 			vscode.window.showErrorMessage('Failed to create image file');
@@ -2303,7 +2407,7 @@ class ClaudeChatProvider {
 
 	private _sendEditorContext(): void {
 		const activeEditor = vscode.window.activeTextEditor;
-		
+
 		if (!activeEditor) {
 			this._postMessage({
 				type: 'editorContext',
@@ -2324,7 +2428,7 @@ class ClaudeChatProvider {
 		const document = activeEditor.document;
 		const selection = activeEditor.selection;
 		const selectedText = document.getText(selection);
-		
+
 		// Get cursor position (line and character are 0-based, so add 1 for display)
 		const cursorPosition = {
 			line: selection.active.line + 1,
@@ -2363,7 +2467,7 @@ class ClaudeChatProvider {
 
 	private _getEditorContext(): any {
 		const activeEditor = vscode.window.activeTextEditor;
-		
+
 		if (!activeEditor) {
 			return {
 				hasActiveFile: false,
@@ -2380,7 +2484,7 @@ class ClaudeChatProvider {
 		const document = activeEditor.document;
 		const selection = activeEditor.selection;
 		const selectedText = document.getText(selection);
-		
+
 		// Get cursor position (line and character are 0-based, so add 1 for display)
 		const cursorPosition = {
 			line: selection.active.line + 1,
