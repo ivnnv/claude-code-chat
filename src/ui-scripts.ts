@@ -551,21 +551,93 @@ function parseSimpleMarkdown(markdown: string): string {
 		.replace(/\n/g, '<br>');
 }
 
+function escapeHtml(text: string): string {
+	const div = document.createElement('div');
+	div.textContent = text;
+	return div.innerHTML;
+}
+
 function addToolResultMessage(data: any): void {
 	const shouldScroll = shouldAutoScroll(messagesDiv);
+	// For Read and Edit tools with hidden flag, just hide loading state and show completion message
+	if (data.hidden && (data.toolName === 'Read' || data.toolName === 'Edit' || data.toolName === 'TodoWrite' || data.toolName === 'MultiEdit') && !data.isError) {
+		return;
+		// Show completion message
+		const toolName = data.toolName;
+		let completionText;
+		if (toolName === 'Read') {
+			completionText = '✅ Read completed';
+		} else if (toolName === 'Edit') {
+			completionText = '✅ Edit completed';
+		} else if (toolName === 'TodoWrite') {
+			completionText = '✅ Update Todos completed';
+		} else {
+			completionText = '✅ ' + toolName + ' completed';
+		}
+		addMessage(completionText, 'system');
+		return; // Don't show the result message
+	}
+	if(data.isError && data.content === "File has not been read yet. Read it first before writing to it."){
+		return addMessage("File has not been read yet. Let me read it first before writing to it.", 'system');
+	}
 	const messageDiv = document.createElement('div');
-	messageDiv.className = 'message tool-result';
-
+	messageDiv.className = data.isError ? 'message error' : 'message tool-result';
+	// Create header
+	const headerDiv = document.createElement('div');
+	headerDiv.className = 'message-header';
+	const iconDiv = document.createElement('div');
+	iconDiv.className = data.isError ? 'message-icon error' : 'message-icon';
+	iconDiv.style.background = data.isError ?
+		'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)' :
+		'linear-gradient(135deg, #1cc08c 0%, #16a974 100%)';
+	iconDiv.textContent = data.isError ? '❌' : '✅';
+	const labelDiv = document.createElement('div');
+	labelDiv.className = 'message-label';
+	labelDiv.textContent = data.isError ? 'Error' : 'Result';
+	headerDiv.appendChild(iconDiv);
+	headerDiv.appendChild(labelDiv);
+	messageDiv.appendChild(headerDiv);
+	// Add content
 	const contentDiv = document.createElement('div');
 	contentDiv.className = 'message-content';
-
-	if (typeof data === 'string') {
-		contentDiv.innerHTML = parseSimpleMarkdown(data);
+	// Check if it's a tool result and truncate appropriately
+	let content = data.content;
+	if (content.length > 200 && !data.isError) {
+		const truncateAt = 197;
+		const truncated = content.substring(0, truncateAt);
+		const resultId = 'result_' + Math.random().toString(36).substr(2, 9);
+		const preElement = document.createElement('pre');
+		preElement.innerHTML = '<span id="' + resultId + '_visible">' + escapeHtml(truncated) + '</span>' +
+							   '<span id="' + resultId + '_ellipsis">...</span>' +
+							   '<span id="' + resultId + '_hidden" style="display: none;">' + escapeHtml(content.substring(truncateAt)) + '</span>';
+		contentDiv.appendChild(preElement);
+		// Add expand button container
+		const expandContainer = document.createElement('div');
+		expandContainer.className = 'diff-expand-container';
+		const expandButton = document.createElement('button');
+		expandButton.className = 'diff-expand-btn';
+		expandButton.textContent = 'Show more';
+		expandButton.setAttribute('onclick', 'toggleResultExpansion(\'' + resultId + '\')');
+		expandContainer.appendChild(expandButton);
+		contentDiv.appendChild(expandContainer);
 	} else {
-		contentDiv.textContent = JSON.stringify(data, null, 2);
+		const preElement = document.createElement('pre');
+		preElement.textContent = content;
+		contentDiv.appendChild(preElement);
 	}
-
 	messageDiv.appendChild(contentDiv);
+	// Check if this is a permission-related error and add yolo mode button
+	if (data.isError && isPermissionError(content)) {
+		const yoloSuggestion = document.createElement('div');
+		yoloSuggestion.className = 'yolo-suggestion';
+		yoloSuggestion.innerHTML = `
+			<div class="yolo-suggestion-text">
+				<span>💡 This looks like a permission issue. You can enable Yolo Mode to skip all permission checks.</span>
+			</div>
+			<button class="yolo-suggestion-btn" onclick="enableYoloMode()">Enable Yolo Mode</button>
+		`;
+		messageDiv.appendChild(yoloSuggestion);
+	}
 	messagesDiv.appendChild(messageDiv);
 	scrollToBottomIfNeeded(messagesDiv, shouldScroll);
 }
@@ -688,6 +760,27 @@ function addToolResultMessage(data: any): void {
 };
 
 (window as any).enableYoloMode = enableYoloMode;
+
+(window as any).toggleResultExpansion = function(resultId: string) {
+	const hiddenDiv = document.getElementById(resultId + '_hidden');
+	const ellipsis = document.getElementById(resultId + '_ellipsis');
+	const button = document.querySelector('[onclick*="toggleResultExpansion(\'' + resultId + '\')"]') as HTMLButtonElement;
+	if (hiddenDiv && button) {
+		if (hiddenDiv.style.display === 'none') {
+			hiddenDiv.style.display = 'inline';
+			if (ellipsis) {
+				ellipsis.style.display = 'none';
+			}
+			button.textContent = 'Show less';
+		} else {
+			hiddenDiv.style.display = 'none';
+			if (ellipsis) {
+				ellipsis.style.display = 'inline';
+			}
+			button.textContent = 'Show more';
+		}
+	}
+};
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', function() {
