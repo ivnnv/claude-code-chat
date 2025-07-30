@@ -1,0 +1,15 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"module": "None",
+		"target": "ES2022",
+		"lib": ["ES2022", "DOM"],
+		"outDir": "out",
+		"sourceMap": true,
+		"rootDir": "src",
+		"strict": true
+	},
+	"include": [
+		"src/ui-scripts.ts"
+	]
+}

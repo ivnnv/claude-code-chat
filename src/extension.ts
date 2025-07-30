@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as util from 'util';
 import * as path from 'path';
-import html from './ui';
+import html from './ui-html';
 
 const exec = util.promisify(cp.exec);
 
@@ -208,10 +208,13 @@ class ClaudeChatProvider {
 	}
 
 	private _postMessage(message: any) {
+		console.log('Extension posting:', message.type);
 		if (this._panel && this._panel.webview) {
 			this._panel.webview.postMessage(message);
 		} else if (this._webview) {
 			this._webview.postMessage(message);
+		} else {
+			console.error('No webview available to post message to!');
 		}
 	}
 
@@ -253,8 +256,10 @@ class ClaudeChatProvider {
 	}
 
 	private _handleWebviewMessage(message: any) {
+		console.log('Extension received:', message.type);
 		switch (message.type) {
 			case 'sendMessage':
+				console.log('Handling sendMessage:', message.text?.substring(0, 50));
 				this._sendMessageToClaude(message.text, message.planMode, message.thinkingMode);
 				return;
 			case 'newSession':
@@ -2392,12 +2397,12 @@ class ClaudeChatProvider {
 		}
 
 		// Listen for active editor changes
-		this._editorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
+		this._editorChangeListener = vscode.window.onDidChangeActiveTextEditor((_editor) => {
 			this._sendEditorContext();
 		});
 
 		// Listen for selection changes in active editor
-		this._selectionChangeListener = vscode.window.onDidChangeTextEditorSelection((event) => {
+		this._selectionChangeListener = vscode.window.onDidChangeTextEditorSelection((_event) => {
 			this._sendEditorContext();
 		});
 

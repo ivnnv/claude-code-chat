@@ -1,13 +1,13 @@
-import styles from './ui-styles';
+import styles from './ui-styles'; // MIGRATED: Styles moved to ui.css
 const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Claude Code Chat</title>
-	${styles}
+	${styles} // MIGRATED: Now using <link rel="stylesheet" href="ui.css"> in ui.html
 </head>
-<body>
+<body> <!-- MIGRATED: HTML structure moved to ui-html.html -->
 	<div class="header">
 		<div style="display: flex; align-items: center;">
 			<h2>Claude Code Chat</h2>
@@ -698,7 +698,7 @@ const html = `<!DOCTYPE html>
 		</div>
 	</div>
 
-	<script>
+	<script> // MIGRATED: JavaScript functionality moved to ui-scrips.ts
 		const vscode = acquireVsCodeApi();
 		const messagesDiv = document.getElementById('messages');
 		const messageInput = document.getElementById('messageInput');
