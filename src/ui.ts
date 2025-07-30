@@ -717,7 +717,7 @@ const html = `<!DOCTYPE html>
 		let thinkingModeEnabled = false;
 		let currentEditorContext = null;
 
-		function shouldAutoScroll(messagesDiv) {
+		function shouldAutoScroll(messagesDiv) { // MIGRATED: Moved to ui-scripts.ts
 			const threshold = 100; // pixels from bottom
 			const scrollTop = messagesDiv.scrollTop;
 			const scrollHeight = messagesDiv.scrollHeight;
@@ -726,7 +726,7 @@ const html = `<!DOCTYPE html>
 			return (scrollTop + clientHeight >= scrollHeight - threshold);
 		}
 
-		function scrollToBottomIfNeeded(messagesDiv, shouldScroll = null) {
+		function scrollToBottomIfNeeded(messagesDiv, shouldScroll = null) { // MIGRATED: Moved to ui-scripts.ts
 			// If shouldScroll is not provided, check current scroll position
 			if (shouldScroll === null) {
 				shouldScroll = shouldAutoScroll(messagesDiv);
@@ -737,7 +737,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function addMessage(content, type = 'claude') {
+		function addMessage(content, type = 'claude') { // MIGRATED: Moved to ui-scripts.ts
 			const messagesDiv = document.getElementById('messages');
 			const shouldScroll = shouldAutoScroll(messagesDiv);
 
@@ -816,7 +816,7 @@ const html = `<!DOCTYPE html>
 		}
 
 
-		function addToolUseMessage(data) {
+		function addToolUseMessage(data) { // MIGRATED: Moved to ui-scripts.ts
 			const messagesDiv = document.getElementById('messages');
 			const shouldScroll = shouldAutoScroll(messagesDiv);
 
@@ -1413,7 +1413,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function sendMessage() {
+		function sendMessage() { // MIGRATED: Moved to ui-scripts.ts
 			const text = messageInput.value.trim();
 			if (text) {
 				// Enhance message with editor context if available
@@ -1436,7 +1436,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function togglePlanMode() {
+		function togglePlanMode() { // MIGRATED: Moved to ui-scripts.ts
 			planModeEnabled = !planModeEnabled;
 			const switchElement = document.getElementById('planModeSwitch');
 			if (planModeEnabled) {
@@ -1446,7 +1446,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function toggleThinkingMode() {
+		function toggleThinkingMode() { // MIGRATED: Moved to ui-scripts.ts
 			thinkingModeEnabled = !thinkingModeEnabled;
 
 			if (thinkingModeEnabled) {
@@ -1468,7 +1468,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function updateEditorContext(contextData) {
+		function updateEditorContext(contextData) { // MIGRATED: Moved to ui-scripts.ts
 			currentEditorContext = contextData;
 			const editorContextLine = document.getElementById('editorContextLine');
 
@@ -1499,7 +1499,7 @@ const html = `<!DOCTYPE html>
 			editorContextLine.style.display = 'none';
 		}
 
-		function getEditorContextInfo() {
+		function getEditorContextInfo() { // MIGRATED: Moved to ui-scripts.ts
 			if (!currentEditorContext) {
 				return null;
 			}
@@ -1528,7 +1528,7 @@ const html = `<!DOCTYPE html>
 		let requestTimer = null;
 
 		// Send usage statistics
-		function sendStats(eventName) {
+		function sendStats(eventName) { // MIGRATED: Moved to ui-scripts.ts
 			try {
 				if (typeof umami !== 'undefined' && umami.track) {
 					umami.track(eventName);
@@ -1538,12 +1538,12 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function updateStatus(text, state = 'ready') {
+		function updateStatus(text, state = 'ready') { // MIGRATED: Moved to ui-scripts.ts
 			statusTextDiv.textContent = text;
 			statusDiv.className = \`status \${state}\`;
 		}
 
-		function updateStatusWithTotals() {
+		function updateStatusWithTotals() { // MIGRATED: Moved to ui-scripts.ts
 			if (isProcessing) {
 				// While processing, show tokens and elapsed time
 				const totalTokens = totalTokensInput + totalTokensOutput;
@@ -1571,7 +1571,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function startRequestTimer(startTime = undefined) {
+		function startRequestTimer(startTime = undefined) { // MIGRATED: Moved to ui-scripts.ts
 			requestStartTime = startTime || Date.now();
 			// Update status every 100ms for smooth real-time display
 			requestTimer = setInterval(() => {
@@ -1581,7 +1581,7 @@ const html = `<!DOCTYPE html>
 			}, 100);
 		}
 
-		function stopRequestTimer() {
+		function stopRequestTimer() { // MIGRATED: Moved to ui-scripts.ts
 			if (requestTimer) {
 				clearInterval(requestTimer);
 				requestTimer = null;
@@ -1799,7 +1799,7 @@ const html = `<!DOCTYPE html>
 			loadMCPServers();
 		}
 
-		function updateYoloWarning() {
+		function updateYoloWarning() { // MIGRATED: Moved to ui-scripts.ts
 			const yoloModeCheckbox = document.getElementById('yolo-mode');
 			const warning = document.getElementById('yoloWarning');
 
@@ -1811,7 +1811,7 @@ const html = `<!DOCTYPE html>
 			warning.style.display = yoloMode ? 'block' : 'none';
 		}
 
-		function isPermissionError(content) {
+		function isPermissionError(content) { // MIGRATED: Moved to ui-scripts.ts
 			const permissionErrorPatterns = [
 				'Error: MCP config file not found',
 				'Error: MCP tool',
@@ -1830,7 +1830,7 @@ const html = `<!DOCTYPE html>
 			);
 		}
 
-		function enableYoloMode() {
+		function enableYoloMode() { // MIGRATED: Moved to ui-scripts.ts
 			sendStats('YOLO mode enabled');
 
 			// Update the checkbox
@@ -2187,7 +2187,7 @@ const html = `<!DOCTYPE html>
 		}
 
 		// Thinking intensity modal functions
-		function showThinkingIntensityModal() {
+		function showThinkingIntensityModal() { // MIGRATED: Moved to ui-scripts.ts
 			// Request current settings from VS Code first
 			vscode.postMessage({
 				type: 'getSettings'
@@ -2499,11 +2499,11 @@ const html = `<!DOCTYPE html>
 		});
 
 		// Stop button functions
-		function showStopButton() {
+		function showStopButton() { // MIGRATED: Moved to ui-scripts.ts
 			document.getElementById('stopBtn').style.display = 'flex';
 		}
 
-		function hideStopButton() {
+		function hideStopButton() { // MIGRATED: Moved to ui-scripts.ts
 			document.getElementById('stopBtn').style.display = 'none';
 		}
 
@@ -2517,18 +2517,18 @@ const html = `<!DOCTYPE html>
 		}
 
 		// Disable/enable buttons during processing
-		function disableButtons() {
+		function disableButtons() { // MIGRATED: Moved to ui-scripts.ts
 			const sendBtn = document.getElementById('sendBtn');
 			if (sendBtn) sendBtn.disabled = true;
 		}
 
-		function enableButtons() {
+		function enableButtons() { // MIGRATED: Moved to ui-scripts.ts
 			const sendBtn = document.getElementById('sendBtn');
 			if (sendBtn) sendBtn.disabled = false;
 		}
 
 		// Copy message content function
-		function copyMessageContent(messageDiv) {
+		function copyMessageContent(messageDiv) { // MIGRATED: Moved to ui-scripts.ts
 			const contentDiv = messageDiv.querySelector('.message-content');
 			if (contentDiv) {
 				// Get text content, preserving line breaks
@@ -3286,7 +3286,7 @@ const html = `<!DOCTYPE html>
 			selectedFileIndex = -1;
 		}
 
-		function getFileIcon(filename) {
+		function getFileIcon(filename) { // MIGRATED: Moved to ui-scripts.ts
 			const ext = filename.split('.').pop()?.toLowerCase();
 			switch (ext) {
 				case 'js': case 'jsx': case 'ts': case 'tsx': return '📄';
@@ -3304,7 +3304,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function renderFileList() {
+		function renderFileList() { // MIGRATED: Moved to ui-scripts.ts
 			fileList.innerHTML = '';
 
 			filteredFiles.forEach((file, index) => {
@@ -3330,7 +3330,7 @@ const html = `<!DOCTYPE html>
 			});
 		}
 
-		function selectFile(file) {
+		function selectFile(file) { // MIGRATED: Moved to ui-scripts.ts
 			// Insert file path at cursor position
 			const cursorPos = messageInput.selectionStart;
 			const textBefore = messageInput.value.substring(0, cursorPos);
@@ -3351,7 +3351,7 @@ const html = `<!DOCTYPE html>
 			adjustTextareaHeight();
 		}
 
-		function filterFiles(searchTerm) {
+		function filterFiles(searchTerm) { // MIGRATED: Moved to ui-scripts.ts
 			// Send search request to backend instead of filtering locally
 			vscode.postMessage({
 				type: 'getWorkspaceFiles',
@@ -3468,7 +3468,7 @@ const html = `<!DOCTYPE html>
 			document.getElementById('settingsModal').style.display = 'none';
 		}
 
-		function updateSettings() {
+		function updateSettings() { // MIGRATED: Moved to ui-scripts.ts
 			// Note: thinking intensity is now handled separately in the thinking intensity modal
 
 			const wslEnabled = document.getElementById('wsl-enabled').checked;

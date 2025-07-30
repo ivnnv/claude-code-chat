@@ -222,13 +222,13 @@ function getEditorContextInfo(): string | null {
 	let contextInfo = 'in ' + currentEditorContext.fileName;
 
 	if (currentEditorContext.selection && currentEditorContext.selectedText) {
-		// Show selection range (convert from 0-based to 1-based)
-		const startLine = currentEditorContext.selection.start.line + 1;
-		const endLine = currentEditorContext.selection.end.line + 1;
+		// Show selection range (VS Code already provides 1-based line numbers)
+		const startLine = currentEditorContext.selection.start.line;
+		const endLine = currentEditorContext.selection.end.line;
 		contextInfo += ':' + startLine + '-' + endLine;
 	} else {
-		// Show just cursor position (convert from 0-based to 1-based)
-		contextInfo += ':' + (currentEditorContext.cursorPosition.line + 1);
+		// Show just cursor position (VS Code already provides 1-based line numbers)
+		contextInfo += ':' + currentEditorContext.cursorPosition.line;
 	}
 
 	return contextInfo;
@@ -508,6 +508,7 @@ function filterFiles(searchTerm: string): void {
 }
 
 function updateEditorContext(contextData: any): void {
+	console.log('Updating editor context:', contextData);
 	currentEditorContext = contextData;
 	const editorContextLine = document.getElementById('editorContextLine');
 
@@ -524,17 +525,49 @@ function updateEditorContext(contextData: any): void {
 	let contextText = 'in ' + contextData.fileName;
 
 	if (contextData.selection && contextData.selectedText) {
-		// Show selection range (convert from 0-based to 1-based)
-		const startLine = contextData.selection.start.line + 1;
-		const endLine = contextData.selection.end.line + 1;
+		// Show selection range (VS Code already provides 1-based line numbers)
+		const startLine = contextData.selection.start.line;
+		const endLine = contextData.selection.end.line;
 		contextText += ':' + startLine + '-' + endLine;
 	} else {
-		// Show just cursor position (convert from 0-based to 1-based)
-		contextText += ':' + (contextData.cursorPosition.line + 1);
+		// Show just cursor position (VS Code already provides 1-based line numbers)
+		contextText += ':' + contextData.cursorPosition.line;
 	}
 
 	editorContextLine.textContent = contextText;
 	editorContextLine.style.display = 'block';
+}
+
+function parseSimpleMarkdown(markdown: string): string {
+	if (!markdown) {
+		return '';
+	}
+
+	// Convert basic markdown to HTML
+	return markdown
+		.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+		.replace(/\*(.*?)\*/g, '<em>$1</em>')
+		.replace(/`(.*?)`/g, '<code>$1</code>')
+		.replace(/\n/g, '<br>');
+}
+
+function addToolResultMessage(data: any): void {
+	const shouldScroll = shouldAutoScroll(messagesDiv);
+	const messageDiv = document.createElement('div');
+	messageDiv.className = 'message tool-result';
+
+	const contentDiv = document.createElement('div');
+	contentDiv.className = 'message-content';
+
+	if (typeof data === 'string') {
+		contentDiv.innerHTML = parseSimpleMarkdown(data);
+	} else {
+		contentDiv.textContent = JSON.stringify(data, null, 2);
+	}
+
+	messageDiv.appendChild(contentDiv);
+	messagesDiv.appendChild(messageDiv);
+	scrollToBottomIfNeeded(messagesDiv, shouldScroll);
 }
 
 // Global functions accessible from HTML onclick handlers
@@ -766,6 +799,138 @@ document.addEventListener('DOMContentLoaded', function() {
 			case 'editorContext':
 				console.log('Editor context updated');
 				updateEditorContext(message.data);
+				break;
+			case 'userInput':
+				console.log('User input received');
+				if (message.data.trim()) {
+					addMessage(parseSimpleMarkdown(message.data), 'user');
+				}
+				break;
+			case 'output':
+				console.log('Output received');
+				if (message.data.trim()) {
+					let displayData = message.data;
+
+					// Check if this is a usage limit message with Unix timestamp
+					const usageLimitMatch = displayData.match(/Claude AI usage limit reached\\|(\\d+)/);
+					if (usageLimitMatch) {
+						const timestamp = parseInt(usageLimitMatch[1]);
+						const date = new Date(timestamp * 1000);
+						const readableDate = date.toLocaleString(
+							undefined,
+							{
+								weekday: 'short',
+								month: 'short',
+								day: 'numeric',
+								hour: 'numeric',
+								minute: '2-digit',
+								second: '2-digit',
+								hour12: true,
+								timeZoneName: 'short',
+								year: 'numeric'
+							}
+						);
+						displayData = displayData.replace(usageLimitMatch[0], `Claude AI usage limit reached: ${readableDate}`);
+					}
+
+					addMessage(parseSimpleMarkdown(displayData), 'claude');
+				}
+				updateStatusWithTotals();
+				break;
+			case 'loading':
+				console.log('Loading message received');
+				addMessage(message.data, 'system');
+				updateStatusWithTotals();
+				break;
+			case 'clearLoading':
+				console.log('Clear loading received');
+				// Remove the last loading message
+				const messages = messagesDiv.children;
+				if (messages.length > 0) {
+					const lastMessage = messages[messages.length - 1];
+					if (lastMessage.classList.contains('system')) {
+						lastMessage.remove();
+					}
+				}
+				updateStatusWithTotals();
+				break;
+			case 'error':
+				console.log('Error received');
+				if (message.data.trim()) {
+					// Check if this is an install required error
+					if (message.data.includes('Install claude code first') ||
+						message.data.includes('command not found') ||
+						message.data.includes('ENOENT')) {
+						sendStats('Install required');
+					}
+					addMessage(message.data, 'error');
+				}
+				updateStatusWithTotals();
+				break;
+			case 'toolUse':
+				console.log('Tool use received');
+				if (typeof message.data === 'object') {
+					addToolUseMessage(message.data);
+				} else if (message.data.trim()) {
+					addMessage(message.data, 'tool');
+				}
+				break;
+			case 'toolResult':
+				console.log('Tool result received');
+				addToolResultMessage(message.data);
+				break;
+			case 'thinking':
+				console.log('Thinking received');
+				if (message.data.trim()) {
+					addMessage('💭 Thinking...' + parseSimpleMarkdown(message.data), 'thinking');
+				}
+				break;
+			case 'sessionInfo':
+				console.log('Session info received');
+				// Session info handling can be added later if needed
+				break;
+			case 'updateTokens':
+				console.log('Update tokens received');
+				// Update token totals in real-time
+				totalTokensInput = message.data.totalTokensInput || 0;
+				totalTokensOutput = message.data.totalTokensOutput || 0;
+
+				// Update status bar immediately
+				updateStatusWithTotals();
+
+				// Show detailed token breakdown for current message
+				const currentTotal = (message.data.currentInputTokens || 0) + (message.data.currentOutputTokens || 0);
+				if (currentTotal > 0) {
+					let tokenBreakdown = `📊 Tokens: ${currentTotal.toLocaleString()}`;
+
+					if (message.data.cacheCreationTokens || message.data.cacheReadTokens) {
+						const cacheInfo = [];
+						if (message.data.cacheCreationTokens) {
+							cacheInfo.push(`${message.data.cacheCreationTokens.toLocaleString()} cache created`);
+						}
+						if (message.data.cacheReadTokens) {
+							cacheInfo.push(`${message.data.cacheReadTokens.toLocaleString()} cache read`);
+						}
+						tokenBreakdown += ` • ${cacheInfo.join(' • ')}`;
+					}
+
+					addMessage(tokenBreakdown, 'system');
+				}
+				break;
+			case 'updateTotals':
+				console.log('Update totals received');
+				// Update local tracking variables
+				totalCost = message.data.totalCost || 0;
+				totalTokensInput = message.data.totalTokensInput || 0;
+				totalTokensOutput = message.data.totalTokensOutput || 0;
+				requestCount = message.data.requestCount || 0;
+
+				// Update status bar with new totals
+				updateStatusWithTotals();
+				break;
+			case 'showRestoreOption':
+				console.log('Show restore option received');
+				// Restore option handling can be added later if needed
 				break;
 			default:
 				console.log('Unknown message type:', message.type);
