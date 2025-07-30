@@ -897,7 +897,7 @@ const html = `<!DOCTYPE html>
 			scrollToBottomIfNeeded(messagesDiv, shouldScroll);
 		}
 
-		function createExpandableInput(toolInput, rawInput) {
+		function createExpandableInput(toolInput, rawInput) { // MIGRATED
 			try {
 				let html = toolInput.replace(/\\[expand\\]/g, '<span class="expand-btn" onclick="toggleExpand(this)">expand</span>');
 
@@ -923,7 +923,7 @@ const html = `<!DOCTYPE html>
 		}
 
 
-		function addToolResultMessage(data) {
+		function addToolResultMessage(data) { // MIGRATED
 			const messagesDiv = document.getElementById('messages');
 			const shouldScroll = shouldAutoScroll(messagesDiv);
 
@@ -1023,7 +1023,7 @@ const html = `<!DOCTYPE html>
 			scrollToBottomIfNeeded(messagesDiv, shouldScroll);
 		}
 
-		function formatToolInputUI(input) {
+		function formatToolInputUI(input) { // MIGRATED
 			if (!input || typeof input !== 'object') {
 				const str = String(input);
 				if (str.length > 100) {
@@ -1070,7 +1070,7 @@ const html = `<!DOCTYPE html>
 			return result;
 		}
 
-		function formatEditToolDiff(input) {
+		function formatEditToolDiff(input) { // MIGRATED
 			if (!input || typeof input !== 'object') {
 				return formatToolInputUI(input);
 			}
@@ -1139,7 +1139,7 @@ const html = `<!DOCTYPE html>
 			return result;
 		}
 
-		function formatMultiEditToolDiff(input) {
+		function formatMultiEditToolDiff(input) { // MIGRATED
 			if (!input || typeof input !== 'object') {
 				return formatToolInputUI(input);
 			}
@@ -1231,7 +1231,7 @@ const html = `<!DOCTYPE html>
 			return result;
 		}
 
-		function formatSingleEdit(edit, editNumber) {
+		function formatSingleEdit(edit, editNumber) { // MIGRATED
 			let result = '<div class="single-edit">';
 			result += '<div class="edit-number">Edit #' + editNumber + '</div>';
 
@@ -1253,7 +1253,7 @@ const html = `<!DOCTYPE html>
 			return result;
 		}
 
-		function formatWriteToolDiff(input) {
+		function formatWriteToolDiff(input) { // MIGRATED
 			if (!input || typeof input !== 'object') {
 				return formatToolInputUI(input);
 			}
@@ -1315,20 +1315,20 @@ const html = `<!DOCTYPE html>
 			return result;
 		}
 
-		function escapeHtml(text) {
+		function escapeHtml(text) { // MIGRATED
 			const div = document.createElement('div');
 			div.textContent = text;
 			return div.innerHTML;
 		}
 
-		function openFileInEditor(filePath) {
+		function openFileInEditor(filePath) { // MIGRATED
 			vscode.postMessage({
 				type: 'openFile',
 				filePath: filePath
 			});
 		}
 
-		function formatFilePath(filePath) {
+		function formatFilePath(filePath) { // MIGRATED
 			if (!filePath) return '';
 
 			// Extract just the filename
@@ -1339,7 +1339,7 @@ const html = `<!DOCTYPE html>
 				   '<span class="file-icon">📄</span>' + escapeHtml(fileName) + '</span>';
 		}
 
-		function toggleDiffExpansion(diffId) {
+		function toggleDiffExpansion(diffId) { // MIGRATED
 			const hiddenDiv = document.getElementById(diffId + '_hidden');
 			const button = document.querySelector('[onclick*="' + diffId + '"]');
 
@@ -1355,7 +1355,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function toggleResultExpansion(resultId) {
+		function toggleResultExpansion(resultId) { // MIGRATED
 			const hiddenDiv = document.getElementById(resultId + '_hidden');
 			const ellipsis = document.getElementById(resultId + '_ellipsis');
 			const button = document.querySelector('[onclick*="toggleResultExpansion(\\'' + resultId + '\\\')"]');
@@ -1373,7 +1373,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function toggleExpand(button) {
+		function toggleExpand(button) { // MIGRATED
 			const key = button.getAttribute('data-key');
 			const value = button.getAttribute('data-value');
 
@@ -1494,7 +1494,7 @@ const html = `<!DOCTYPE html>
 			editorContextLine.style.display = 'block';
 		}
 
-		function hideEditorContext() {
+		function hideEditorContext() { // MIGRATED
 			const editorContextLine = document.getElementById('editorContextLine');
 			editorContextLine.style.display = 'none';
 		}
@@ -1590,7 +1590,7 @@ const html = `<!DOCTYPE html>
 		}
 
 		// Auto-resize textarea
-		function adjustTextareaHeight() {
+		function adjustTextareaHeight() { // MIGRATED
 			// Reset height to calculate new height
 			messageInput.style.height = 'auto';
 
@@ -1793,7 +1793,7 @@ const html = `<!DOCTYPE html>
 		});
 
 		// Tools modal functions
-		function showMCPModal() {
+		function showMCPModal() { // MIGRATED
 			document.getElementById('mcpModal').style.display = 'flex';
 			// Load existing MCP servers
 			loadMCPServers();
@@ -1849,7 +1849,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function hideMCPModal() {
+		function hideMCPModal() { // MIGRATED
 			document.getElementById('mcpModal').style.display = 'none';
 			hideAddServerForm();
 		}
@@ -1862,17 +1862,17 @@ const html = `<!DOCTYPE html>
 		});
 
 		// MCP Server management functions
-		function loadMCPServers() {
+		function loadMCPServers() { // MIGRATED
 			vscode.postMessage({ type: 'loadMCPServers' });
 		}
 
-		function showAddServerForm() {
+		function showAddServerForm() { // MIGRATED
 			document.getElementById('addServerBtn').style.display = 'none';
 			document.getElementById('popularServers').style.display = 'none';
 			document.getElementById('addServerForm').style.display = 'block';
 		}
 
-		function hideAddServerForm() {
+		function hideAddServerForm() { // MIGRATED
 			document.getElementById('addServerBtn').style.display = 'block';
 			document.getElementById('popularServers').style.display = 'block';
 			document.getElementById('addServerForm').style.display = 'none';
@@ -1899,7 +1899,7 @@ const html = `<!DOCTYPE html>
 			updateServerForm();
 		}
 
-		function updateServerForm() {
+		function updateServerForm() { // MIGRATED
 			const serverType = document.getElementById('serverType').value;
 			const commandGroup = document.getElementById('commandGroup');
 			const urlGroup = document.getElementById('urlGroup');
@@ -1922,7 +1922,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function saveMCPServer() {
+		function saveMCPServer() { // MIGRATED
 			sendStats('MCP server added');
 
 			const name = document.getElementById('serverName').value.trim();
@@ -2016,7 +2016,7 @@ const html = `<!DOCTYPE html>
 			hideAddServerForm();
 		}
 
-		function deleteMCPServer(serverName) {
+		function deleteMCPServer(serverName) { // MIGRATED
 			// Just delete without confirmation
 			vscode.postMessage({
 				type: 'deleteMCPServer',
@@ -2026,7 +2026,7 @@ const html = `<!DOCTYPE html>
 
 		let editingServerName = null;
 
-		function editMCPServer(name, config) {
+		function editMCPServer(name, config) { // MIGRATED
 			editingServerName = name;
 
 			// Hide add button and popular servers
@@ -2083,7 +2083,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function addPopularServer(name, config) {
+		function addPopularServer(name, config) { // MIGRATED
 			// Check if server already exists
 			const serversList = document.getElementById('mcpServersList');
 			const existingServers = serversList.querySelectorAll('.server-name');
@@ -2108,7 +2108,7 @@ const html = `<!DOCTYPE html>
 			});
 		}
 
-		function displayMCPServers(servers) {
+		function displayMCPServers(servers) { // MIGRATED
 			const serversList = document.getElementById('mcpServersList');
 			serversList.innerHTML = '';
 
@@ -2160,7 +2160,7 @@ const html = `<!DOCTYPE html>
 		// Model selector functions
 		let currentModel = 'opus'; // Default model
 
-		function showModelSelector() {
+		function showModelSelector() { // MIGRATED
 			document.getElementById('modelModal').style.display = 'flex';
 			// Select the current model radio button
 			const radioButton = document.getElementById('model-' + currentModel);
@@ -2169,12 +2169,12 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function hideModelModal() {
+		function hideModelModal() { // MIGRATED
 			document.getElementById('modelModal').style.display = 'none';
 		}
 
 		// Slash commands modal functions
-		function showSlashCommandsModal() {
+		function showSlashCommandsModal() { // MIGRATED
 			document.getElementById('slashCommandsModal').style.display = 'flex';
 			// Auto-focus the search input
 			setTimeout(() => {
@@ -2182,7 +2182,7 @@ const html = `<!DOCTYPE html>
 			}, 100);
 		}
 
-		function hideSlashCommandsModal() {
+		function hideSlashCommandsModal() { // MIGRATED
 			document.getElementById('slashCommandsModal').style.display = 'none';
 		}
 
@@ -2195,11 +2195,11 @@ const html = `<!DOCTYPE html>
 			document.getElementById('thinkingIntensityModal').style.display = 'flex';
 		}
 
-		function hideThinkingIntensityModal() {
+		function hideThinkingIntensityModal() { // MIGRATED
 			document.getElementById('thinkingIntensityModal').style.display = 'none';
 		}
 
-		function saveThinkingIntensity() {
+		function saveThinkingIntensity() { // MIGRATED
 			const thinkingSlider = document.getElementById('thinkingIntensitySlider');
 			const intensityValues = ['think', 'think-hard', 'think-harder', 'ultrathink'];
 			const thinkingIntensity = intensityValues[thinkingSlider.value] || 'think';
@@ -2213,7 +2213,7 @@ const html = `<!DOCTYPE html>
 			});
 		}
 
-		function updateThinkingModeToggleName(intensityValue) {
+		function updateThinkingModeToggleName(intensityValue) { // MIGRATED
 			const intensityNames = ['Thinking', 'Think Hard', 'Think Harder', 'Ultrathink'];
 			const modeName = intensityNames[intensityValue] || 'Thinking';
 			const toggleLabel = document.getElementById('thinkingModeLabel');
@@ -2222,7 +2222,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function updateThinkingIntensityDisplay(value) {
+		function updateThinkingIntensityDisplay(value) { // MIGRATED
 			// Update label highlighting for thinking intensity modal
 			for (let i = 0; i < 4; i++) {
 				const label = document.getElementById('thinking-label-' + i);
@@ -2236,7 +2236,7 @@ const html = `<!DOCTYPE html>
 			// Don't update toggle name until user confirms
 		}
 
-		function setThinkingIntensityValue(value) {
+		function setThinkingIntensityValue(value) { // MIGRATED
 			// Set slider value for thinking intensity modal
 			document.getElementById('thinkingIntensitySlider').value = value;
 
@@ -2244,7 +2244,7 @@ const html = `<!DOCTYPE html>
 			updateThinkingIntensityDisplay(value);
 		}
 
-		function confirmThinkingIntensity() {
+		function confirmThinkingIntensity() { // MIGRATED
 			// Get the current slider value
 			const currentValue = document.getElementById('thinkingIntensitySlider').value;
 
@@ -2259,14 +2259,14 @@ const html = `<!DOCTYPE html>
 		}
 
 		// WSL Alert functions
-		function showWSLAlert() {
+		function showWSLAlert() { // MIGRATED
 			const alert = document.getElementById('wslAlert');
 			if (alert) {
 				alert.style.display = 'block';
 			}
 		}
 
-		function dismissWSLAlert() {
+		function dismissWSLAlert() { // MIGRATED
 			const alert = document.getElementById('wslAlert');
 			if (alert) {
 				alert.style.display = 'none';
@@ -2277,7 +2277,7 @@ const html = `<!DOCTYPE html>
 			});
 		}
 
-		function openWSLSettings() {
+		function openWSLSettings() { // MIGRATED
 			// Dismiss the alert
 			dismissWSLAlert();
 
@@ -2285,7 +2285,7 @@ const html = `<!DOCTYPE html>
 			toggleSettings();
 		}
 
-		function executeSlashCommand(command) {
+		function executeSlashCommand(command) { // MIGRATED
 			// Hide the modal
 			hideSlashCommandsModal();
 
@@ -2302,7 +2302,7 @@ const html = `<!DOCTYPE html>
 			addMessage('user', \`Executing /\${command} command in terminal. Check the terminal output and return when ready.\`, 'assistant');
 		}
 
-		function handleCustomCommandKeydown(event) {
+		function handleCustomCommandKeydown(event) { // MIGRATED
 			if (event.key === 'Enter') {
 				event.preventDefault();
 				const customCommand = event.target.value.trim();
@@ -2317,7 +2317,7 @@ const html = `<!DOCTYPE html>
 		// Store custom snippets data globally
 		let customSnippetsData = {};
 
-		function usePromptSnippet(snippetType) {
+		function usePromptSnippet(snippetType) { // MIGRATED
 			const builtInSnippets = {
 				'performance-analysis': 'Analyze this code for performance issues and suggest optimizations',
 				'security-review': 'Review this code for security vulnerabilities',
@@ -2350,19 +2350,19 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function showAddSnippetForm() {
+		function showAddSnippetForm() { // MIGRATED
 			document.getElementById('addSnippetForm').style.display = 'block';
 			document.getElementById('snippetName').focus();
 		}
 
-		function hideAddSnippetForm() {
+		function hideAddSnippetForm() { // MIGRATED
 			document.getElementById('addSnippetForm').style.display = 'none';
 			// Clear form fields
 			document.getElementById('snippetName').value = '';
 			document.getElementById('snippetPrompt').value = '';
 		}
 
-		function saveCustomSnippet() {
+		function saveCustomSnippet() { // MIGRATED
 			const name = document.getElementById('snippetName').value.trim();
 			const prompt = document.getElementById('snippetPrompt').value.trim();
 
@@ -2390,7 +2390,7 @@ const html = `<!DOCTYPE html>
 			hideAddSnippetForm();
 		}
 
-		function loadCustomSnippets(snippetsData = {}) {
+		function loadCustomSnippets(snippetsData = {}) { // MIGRATED
 			const snippetsList = document.getElementById('promptSnippetsList');
 
 			// Remove existing custom snippets
@@ -2421,14 +2421,14 @@ const html = `<!DOCTYPE html>
 			});
 		}
 
-		function deleteCustomSnippet(snippetId) {
+		function deleteCustomSnippet(snippetId) { // MIGRATED
 			vscode.postMessage({
 				type: 'deleteCustomSnippet',
 				snippetId: snippetId
 			});
 		}
 
-		function filterSlashCommands() {
+		function filterSlashCommands() { // MIGRATED
 			const searchTerm = document.getElementById('slashCommandsSearch').value.toLowerCase();
 			const allItems = document.querySelectorAll('.slash-command-item');
 
@@ -2444,14 +2444,14 @@ const html = `<!DOCTYPE html>
 			});
 		}
 
-		function openModelTerminal() {
+		function openModelTerminal() { // MIGRATED
 			vscode.postMessage({
 				type: 'openModelTerminal'
 			});
 			hideModelModal();
 		}
 
-		function selectModel(model, fromBackend = false) {
+		function selectModel(model, fromBackend = false) { // MIGRATED
 			currentModel = model;
 
 			// Update the display text
@@ -2507,7 +2507,7 @@ const html = `<!DOCTYPE html>
 			document.getElementById('stopBtn').style.display = 'none';
 		}
 
-		function stopRequest() {
+		function stopRequest() { // MIGRATED
 			sendStats('Stop request');
 
 			vscode.postMessage({
@@ -2552,7 +2552,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function copyCodeBlock(codeId) {
+		function copyCodeBlock(codeId) { // MIGRATED
 			const codeElement = document.getElementById(codeId);
 			if (codeElement) {
 				const rawCode = codeElement.getAttribute('data-raw-code');
@@ -2878,7 +2878,7 @@ const html = `<!DOCTYPE html>
 		});
 
 		// Permission request functions
-		function addPermissionRequestMessage(data) {
+		function addPermissionRequestMessage(data) { // MIGRATED
 			const messagesDiv = document.getElementById('messages');
 			const shouldScroll = shouldAutoScroll(messagesDiv);
 
@@ -2930,7 +2930,7 @@ const html = `<!DOCTYPE html>
 			scrollToBottomIfNeeded(messagesDiv, shouldScroll);
 		}
 
-		function respondToPermission(id, approved, alwaysAllow = false) {
+		function respondToPermission(id, approved, alwaysAllow = false) { // MIGRATED
 			// Send response back to extension
 			vscode.postMessage({
 				type: 'permissionResponse',
@@ -2966,7 +2966,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function togglePermissionMenu(permissionId) {
+		function togglePermissionMenu(permissionId) { // MIGRATED
 			const menu = document.getElementById(\`permissionMenu-\${permissionId}\`);
 			const isVisible = menu.style.display !== 'none';
 
@@ -2979,7 +2979,7 @@ const html = `<!DOCTYPE html>
 			menu.style.display = isVisible ? 'none' : 'block';
 		}
 
-		function enableYoloMode(permissionId) {
+		function enableYoloMode(permissionId) { // MIGRATED
 			sendStats('YOLO mode enabled');
 
 			// Hide the menu
@@ -3007,7 +3007,7 @@ const html = `<!DOCTYPE html>
 		});
 
 		// Session management functions
-		function newSession() {
+		function newSession() { // MIGRATED
 			sendStats('New chat');
 
 			vscode.postMessage({
@@ -3015,7 +3015,7 @@ const html = `<!DOCTYPE html>
 			});
 		}
 
-		function restoreToCommit(commitSha) {
+		function restoreToCommit(commitSha) { // MIGRATED
 			console.log('Restore button clicked for commit:', commitSha);
 			vscode.postMessage({
 				type: 'restoreCommit',
@@ -3023,7 +3023,7 @@ const html = `<!DOCTYPE html>
 			});
 		}
 
-		function showRestoreContainer(data) {
+		function showRestoreContainer(data) { // MIGRATED
 			const messagesDiv = document.getElementById('messages');
 			const shouldScroll = shouldAutoScroll(messagesDiv);
 
@@ -3045,14 +3045,14 @@ const html = `<!DOCTYPE html>
 			scrollToBottomIfNeeded(messagesDiv, shouldScroll);
 		}
 
-		function hideRestoreContainer(commitSha) {
+		function hideRestoreContainer(commitSha) { // MIGRATED
 			const container = document.getElementById(\`restore-\${commitSha}\`);
 			if (container) {
 				container.remove();
 			}
 		}
 
-		function showSessionInfo(sessionId) {
+		function showSessionInfo(sessionId) { // MIGRATED
 			// const sessionInfo = document.getElementById('sessionInfo');
 			// const sessionIdSpan = document.getElementById('sessionId');
 			const sessionStatus = document.getElementById('sessionStatus');
@@ -3071,7 +3071,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function copySessionId(sessionId) {
+		function copySessionId(sessionId) { // MIGRATED
 			navigator.clipboard.writeText(sessionId).then(() => {
 				// Show temporary feedback
 				const sessionIdSpan = document.getElementById('sessionId');
@@ -3087,7 +3087,7 @@ const html = `<!DOCTYPE html>
 			});
 		}
 
-		function hideSessionInfo() {
+		function hideSessionInfo() { // MIGRATED
 			// const sessionInfo = document.getElementById('sessionInfo');
 			const sessionStatus = document.getElementById('sessionStatus');
 			const newSessionBtn = document.getElementById('newSessionBtn');
@@ -3107,7 +3107,7 @@ const html = `<!DOCTYPE html>
 		updateStatus('Initializing...', 'disconnected');
 
 
-		function parseSimpleMarkdown(markdown) {
+		function parseSimpleMarkdown(markdown) { // MIGRATED
 			// First, handle code blocks before line-by-line processing
 			let processedMarkdown = markdown;
 
@@ -3233,7 +3233,7 @@ const html = `<!DOCTYPE html>
 		}
 
 		// Conversation history functions
-		function toggleConversationHistory() {
+		function toggleConversationHistory() { // MIGRATED
 			const historyDiv = document.getElementById('conversationHistory');
 			const chatContainer = document.getElementById('chatContainer');
 
@@ -3250,13 +3250,13 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function requestConversationList() {
+		function requestConversationList() { // MIGRATED
 			vscode.postMessage({
 				type: 'getConversationList'
 			});
 		}
 
-		function loadConversation(filename) {
+		function loadConversation(filename) { // MIGRATED
 			vscode.postMessage({
 				type: 'loadConversation',
 				filename: filename
@@ -3267,7 +3267,7 @@ const html = `<!DOCTYPE html>
 		}
 
 		// File picker functions
-		function showFilePicker() {
+		function showFilePicker() { // MIGRATED
 			// Request initial file list from VS Code
 			vscode.postMessage({
 				type: 'getWorkspaceFiles',
@@ -3280,7 +3280,7 @@ const html = `<!DOCTYPE html>
 			selectedFileIndex = -1;
 		}
 
-		function hideFilePicker() {
+		function hideFilePicker() { // MIGRATED
 			filePickerModal.style.display = 'none';
 			fileSearchInput.value = '';
 			selectedFileIndex = -1;
@@ -3361,7 +3361,7 @@ const html = `<!DOCTYPE html>
 		}
 
 		// Image handling functions
-		function selectImage() {
+		function selectImage() { // MIGRATED
 			// Use VS Code's native file picker instead of browser file picker
 			vscode.postMessage({
 				type: 'selectImageFile'
@@ -3369,7 +3369,7 @@ const html = `<!DOCTYPE html>
 		}
 
 
-		function showImageAddedFeedback(fileName) {
+		function showImageAddedFeedback(fileName) { // MIGRATED
 			// Create temporary feedback element
 			const feedback = document.createElement('div');
 			feedback.textContent = \`Added: \${fileName}\`;
@@ -3399,7 +3399,7 @@ const html = `<!DOCTYPE html>
 			}, 2000);
 		}
 
-		function displayConversationList(conversations) {
+		function displayConversationList(conversations) { // MIGRATED
 			const listDiv = document.getElementById('conversationList');
 			listDiv.innerHTML = '';
 
@@ -3426,7 +3426,7 @@ const html = `<!DOCTYPE html>
 			});
 		}
 
-		function handleClipboardText(text) {
+		function handleClipboardText(text) { // MIGRATED
 			if (!text) return;
 
 			// Insert text at cursor position
@@ -3447,7 +3447,7 @@ const html = `<!DOCTYPE html>
 
 		// Settings functions
 
-		function toggleSettings() {
+		function toggleSettings() { // MIGRATED
 			const settingsModal = document.getElementById('settingsModal');
 			if (settingsModal.style.display === 'none') {
 				// Request current settings from VS Code
@@ -3464,7 +3464,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function hideSettingsModal() {
+		function hideSettingsModal() { // MIGRATED
 			document.getElementById('settingsModal').style.display = 'none';
 		}
 
@@ -3494,7 +3494,7 @@ const html = `<!DOCTYPE html>
 		}
 
 		// Permissions management functions
-		function renderPermissions(permissions) {
+		function renderPermissions(permissions) { // MIGRATED
 			const permissionsList = document.getElementById('permissionsList');
 
 			if (!permissions || !permissions.alwaysAllow || Object.keys(permissions.alwaysAllow).length === 0) {
@@ -3540,7 +3540,7 @@ const html = `<!DOCTYPE html>
 			permissionsList.innerHTML = html;
 		}
 
-		function removePermission(toolName, command) {
+		function removePermission(toolName, command) { // MIGRATED
 			vscode.postMessage({
 				type: 'removePermission',
 				toolName: toolName,
@@ -3548,7 +3548,7 @@ const html = `<!DOCTYPE html>
 			});
 		}
 
-		function showAddPermissionForm() {
+		function showAddPermissionForm() { // MIGRATED
 			document.getElementById('showAddPermissionBtn').style.display = 'none';
 			document.getElementById('addPermissionForm').style.display = 'block';
 
@@ -3558,7 +3558,7 @@ const html = `<!DOCTYPE html>
 			}, 100);
 		}
 
-		function hideAddPermissionForm() {
+		function hideAddPermissionForm() { // MIGRATED
 			document.getElementById('showAddPermissionBtn').style.display = 'flex';
 			document.getElementById('addPermissionForm').style.display = 'none';
 
@@ -3568,7 +3568,7 @@ const html = `<!DOCTYPE html>
 			document.getElementById('addPermissionCommand').style.display = 'none';
 		}
 
-		function toggleCommandInput() {
+		function toggleCommandInput() { // MIGRATED
 			const toolSelect = document.getElementById('addPermissionTool');
 			const commandInput = document.getElementById('addPermissionCommand');
 			const hintDiv = document.getElementById('permissionsFormHint');
@@ -3587,7 +3587,7 @@ const html = `<!DOCTYPE html>
 			}
 		}
 
-		function addPermission() {
+		function addPermission() { // MIGRATED
 			const toolSelect = document.getElementById('addPermissionTool');
 			const commandInput = document.getElementById('addPermissionCommand');
 			const addBtn = document.getElementById('addPermissionBtn');

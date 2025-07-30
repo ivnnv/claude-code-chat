@@ -2,15 +2,15 @@
 declare const acquireVsCodeApi: () => any;
 
 const vscode = acquireVsCodeApi();
-const messagesDiv = document.getElementById('messages') as HTMLElement;
-const messageInput = document.getElementById('messageInput') as HTMLTextAreaElement;
-const sendBtn = document.getElementById('sendBtn') as HTMLButtonElement;
-const statusDiv = document.getElementById('status') as HTMLElement;
-const statusTextDiv = document.getElementById('statusText') as HTMLElement;
-const filePickerModal = document.getElementById('filePickerModal') as HTMLElement;
-const fileSearchInput = document.getElementById('fileSearchInput') as HTMLInputElement;
-const fileList = document.getElementById('fileList') as HTMLElement;
-const _imageBtn = document.getElementById('imageBtn') as HTMLButtonElement;
+let messagesDiv: HTMLElement;
+let messageInput: HTMLTextAreaElement;
+let sendBtn: HTMLButtonElement;
+let statusDiv: HTMLElement;
+let statusTextDiv: HTMLElement;
+let filePickerModal: HTMLElement;
+let fileSearchInput: HTMLInputElement;
+let fileList: HTMLElement;
+let _imageBtn: HTMLButtonElement;
 
 let _isProcessRunning = false;
 let filteredFiles: any[] = [];
@@ -48,6 +48,7 @@ function scrollToBottomIfNeeded(messagesDiv: HTMLElement, shouldScroll: boolean 
 }
 
 function addMessage(content: string, type = 'claude'): void {
+	const messagesDiv = document.getElementById('messages')!;
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 
 	const messageDiv = document.createElement('div');
@@ -125,6 +126,8 @@ function addMessage(content: string, type = 'claude'): void {
 }
 
 function addToolUseMessage(data: any): void {
+	const messagesDiv = document.getElementById('messages');
+	if (!messagesDiv) {return;}
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 
 	const messageDiv = document.createElement('div');
@@ -151,12 +154,60 @@ function addToolUseMessage(data: any): void {
 	headerDiv.appendChild(toolInfoElement);
 	messageDiv.appendChild(headerDiv);
 
+	if (data.rawInput) {
+		const inputElement = document.createElement('div');
+		inputElement.className = 'tool-input';
+
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'tool-input-content';
+
+		// Handle TodoWrite specially or format raw input
+		if (data.toolName === 'TodoWrite' && data.rawInput.todos) {
+			let todoHtml = 'Todo List Update:';
+			for (const todo of data.rawInput.todos) {
+				const status = todo.status === 'completed' ? '✅' :
+					todo.status === 'in_progress' ? '🔄' : '⏳';
+				todoHtml += '\n' + status + ' ' + todo.content + ' <span class="priority-badge ' + todo.priority + '">' + todo.priority + '</span>';
+			}
+			contentDiv.innerHTML = todoHtml;
+		} else {
+			// Format raw input with expandable content for long values
+			// Use diff format for Edit, MultiEdit, and Write tools, regular format for others
+			if (data.toolName === 'Edit') {
+				contentDiv.innerHTML = formatEditToolDiff(data.rawInput);
+			} else if (data.toolName === 'MultiEdit') {
+				contentDiv.innerHTML = formatMultiEditToolDiff(data.rawInput);
+			} else if (data.toolName === 'Write') {
+				contentDiv.innerHTML = formatWriteToolDiff(data.rawInput);
+			} else {
+				contentDiv.innerHTML = formatToolInputUI(data.rawInput);
+			}
+		}
+
+		inputElement.appendChild(contentDiv);
+		messageDiv.appendChild(inputElement);
+	} else if (data.toolInput) {
+		// Fallback for pre-formatted input
+		const inputElement = document.createElement('div');
+		inputElement.className = 'tool-input';
+
+		const labelDiv = document.createElement('div');
+		labelDiv.className = 'tool-input-label';
+		labelDiv.textContent = 'INPUT';
+		inputElement.appendChild(labelDiv);
+
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'tool-input-content';
+		contentDiv.textContent = data.toolInput;
+		inputElement.appendChild(contentDiv);
+		messageDiv.appendChild(inputElement);
+	}
+
 	messagesDiv.appendChild(messageDiv);
 	scrollToBottomIfNeeded(messagesDiv, shouldScroll);
 }
 
 function sendMessage(): void {
-	console.log('sendMessage called');
 	const text = messageInput.value.trim();
 
 	if (text) {
@@ -168,7 +219,6 @@ function sendMessage(): void {
 		}
 		sendStats('Send message');
 
-		console.log('Posting message to extension:', text);
 
 		vscode.postMessage({
 			type: 'sendMessage',
@@ -199,14 +249,14 @@ function toggleThinkingMode(): void {
 		sendStats('Thinking mode enabled');
 	}
 
-	const switchElement = document.getElementById('thinkingModeSwitch');
+	const switchElement = document.getElementById('thinkingModeSwitch')!;
 	const toggleLabel = document.getElementById('thinkingModeLabel');
 	if (thinkingModeEnabled) {
-		switchElement?.classList.add('active');
+		switchElement.classList.add('active');
 		// Show thinking intensity modal when thinking mode is enabled
 		showThinkingIntensityModal();
 	} else {
-		switchElement?.classList.remove('active');
+		switchElement.classList.remove('active');
 		// Reset to default "Thinking Mode" when turned off
 		if (toggleLabel) {
 			toggleLabel.textContent = 'Thinking Mode';
@@ -222,15 +272,15 @@ function getEditorContextInfo(): string | null {
 	let contextInfo = 'in ' + currentEditorContext.fileName;
 
 	if (currentEditorContext.selection && currentEditorContext.selectedText) {
-		// Show selection range (VS Code already provides 1-based line numbers)
+		// VS Code already provides 1-based line numbers
 		const startLine = currentEditorContext.selection.start.line;
 		const endLine = currentEditorContext.selection.end.line;
 		contextInfo += ':' + startLine + '-' + endLine;
 	} else {
-		// Show just cursor position (VS Code already provides 1-based line numbers)
-		contextInfo += ':' + currentEditorContext.cursorPosition.line;
+		// VS Code already provides 1-based line numbers
+		const cursorLine = currentEditorContext.cursorPosition.line;
+		contextInfo += ':' + cursorLine;
 	}
-
 	return contextInfo;
 }
 
@@ -508,13 +558,9 @@ function filterFiles(searchTerm: string): void {
 }
 
 function updateEditorContext(contextData: any): void {
-	console.log('Updating editor context:', contextData);
 	currentEditorContext = contextData;
-	const editorContextLine = document.getElementById('editorContextLine');
+	const editorContextLine = document.getElementById('editorContextLine')!;
 
-	if (!editorContextLine) {
-		return;
-	}
 
 	if (!contextData.hasActiveFile) {
 		editorContextLine.style.display = 'none';
@@ -525,13 +571,14 @@ function updateEditorContext(contextData: any): void {
 	let contextText = 'in ' + contextData.fileName;
 
 	if (contextData.selection && contextData.selectedText) {
-		// Show selection range (VS Code already provides 1-based line numbers)
+		// VS Code already provides 1-based line numbers
 		const startLine = contextData.selection.start.line;
 		const endLine = contextData.selection.end.line;
 		contextText += ':' + startLine + '-' + endLine;
 	} else {
-		// Show just cursor position (VS Code already provides 1-based line numbers)
-		contextText += ':' + contextData.cursorPosition.line;
+		// VS Code already provides 1-based line numbers
+		const cursorLine = contextData.cursorPosition.line;
+		contextText += ':' + cursorLine;
 	}
 
 	editorContextLine.textContent = contextText;
@@ -557,9 +604,9 @@ function escapeHtml(text: string): string {
 	return div.innerHTML;
 }
 
-function createExpandableInput(toolInput: string, rawInput: any): string {
+function _createExpandableInput(toolInput: string, rawInput: any): string {
 	try {
-		let html = toolInput.replace(/\[expand\]/g, '<span class="expand-btn" onclick="toggleExpand(this)">expand</span>');
+		let html = toolInput.replace(/\[expand\]/g, '<span class="expand-btn" style="cursor: pointer;">expand</span>');
 		// Store raw input data for expansion
 		if (rawInput && typeof rawInput === 'object') {
 			let btnIndex = 0;
@@ -606,7 +653,7 @@ function formatToolInputUI(input: any): string {
 				   '<span id="' + inputId + '_ellipsis">...</span>' +
 				   '<span id="' + inputId + '_hidden" style="display: none;">' + escapeHtml(str.substring(truncateAt)) + '</span>' +
 				   '<div class="diff-expand-container">' +
-				   '<button class="diff-expand-btn" onclick="toggleResultExpansion(\'' + inputId + '\')">Show more</button>' +
+				   '<button class="result-expand-btn" data-result-id="' + inputId + '" style="cursor: pointer;">Show more</button>' +
 				   '</div>';
 		}
 		return str;
@@ -614,22 +661,22 @@ function formatToolInputUI(input: any): string {
 	// Special handling for Read tool with file_path
 	if (input.file_path && Object.keys(input).length === 1) {
 		const formattedPath = formatFilePath(input.file_path);
-		return '<div class="diff-file-path" onclick="openFileInEditor(\'' + escapeHtml(input.file_path) + '\')">' + formattedPath + '</div>';
+		return '<div class="diff-file-path" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer;">' + formattedPath + '</div>';
 	}
 	let result = '';
 	let isFirst = true;
 	for (const [key, value] of Object.entries(input)) {
 		const valueStr = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-		if (!isFirst) result += '\n';
+		if (!isFirst) {result += '\n';}
 		isFirst = false;
 		// Special formatting for file_path in Read tool context
 		if (key === 'file_path') {
 			const formattedPath = formatFilePath(valueStr);
-			result += '<div class="diff-file-path" onclick="openFileInEditor(\'' + escapeHtml(valueStr) + '\')">' + formattedPath + '</div>';
+			result += '<div class="diff-file-path" data-file-path="' + escapeHtml(valueStr) + '" style="cursor: pointer;">' + formattedPath + '</div>';
 		} else if (valueStr.length > 100) {
 			const truncated = valueStr.substring(0, 97) + '...';
 			const escapedValue = valueStr.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-			result += '<span class="expandable-item"><strong>' + key + ':</strong> ' + truncated + ' <span class="expand-btn" data-key="' + key + '" data-value="' + escapedValue + '" onclick="toggleExpand(this)">expand</span></span>';
+			result += '<span class="expandable-item"><strong>' + key + ':</strong> ' + truncated + ' <span class="expand-btn" data-key="' + key + '" data-value="' + escapedValue + '" style="cursor: pointer;">expand</span></span>';
 		} else {
 			result += '<strong>' + key + ':</strong> ' + valueStr;
 		}
@@ -647,7 +694,7 @@ function formatEditToolDiff(input: any): string {
 	}
 	// Format file path with better display
 	const formattedPath = formatFilePath(input.file_path);
-	let result = '<div class="diff-file-path" onclick="openFileInEditor(\'' + escapeHtml(input.file_path) + '\')">' + formattedPath + '</div>\n';
+	let result = '<div class="diff-file-path" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer;">' + formattedPath + '</div>\n';
 	// Create diff view
 	const oldLines = input.old_string.split('\n');
 	const newLines = input.new_string.split('\n');
@@ -680,7 +727,7 @@ function formatEditToolDiff(input: any): string {
 		result += '</div>';
 		// Add expand button
 		result += '<div class="diff-expand-container">';
-		result += '<button class="diff-expand-btn" onclick="toggleDiffExpansion(\'' + diffId + '\')">Show ' + hiddenLines.length + ' more lines</button>';
+		result += '<button class="diff-expand-btn" data-diff-id="' + diffId + '" style="cursor: pointer;">Show ' + hiddenLines.length + ' more lines</button>';
 		result += '</div>';
 	}
 	result += '</div>';
@@ -722,7 +769,7 @@ function formatMultiEditToolDiff(input: any): string {
 	}
 	// Format file path with better display
 	const formattedPath = formatFilePath(input.file_path);
-	let result = '<div class="diff-file-path" onclick="openFileInEditor(\'' + escapeHtml(input.file_path) + '\')">' + formattedPath + '</div>\n';
+	let result = '<div class="diff-file-path" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer;">' + formattedPath + '</div>\n';
 	// Count total lines across all edits for truncation
 	let totalLines = 0;
 	for (const edit of input.edits) {
@@ -744,7 +791,7 @@ function formatMultiEditToolDiff(input: any): string {
 	// Determine which edits to show/hide based on line count
 	for (let i = 0; i < input.edits.length; i++) {
 		const edit = input.edits[i];
-		if (!edit.old_string || !edit.new_string) continue;
+		if (!edit.old_string || !edit.new_string) {continue;}
 		const oldLines = edit.old_string.split('\n');
 		const newLines = edit.new_string.split('\n');
 		const editLines = oldLines.length + newLines.length;
@@ -759,7 +806,7 @@ function formatMultiEditToolDiff(input: any): string {
 	result += '<div id="' + diffId + '_visible">';
 	for (let i = 0; i < visibleEdits.length; i++) {
 		const edit = visibleEdits[i];
-		if (i > 0) result += '<div class="diff-edit-separator"></div>';
+		if (i > 0) {result += '<div class="diff-edit-separator"></div>';}
 		result += formatSingleEdit(edit, i + 1);
 	}
 	result += '</div>';
@@ -774,7 +821,7 @@ function formatMultiEditToolDiff(input: any): string {
 		result += '</div>';
 		// Add expand button
 		result += '<div class="diff-expand-container">';
-		result += '<button class="diff-expand-btn" onclick="toggleDiffExpansion(\'' + diffId + '\')">Show ' + hiddenEdits.length + ' more edit' + (hiddenEdits.length > 1 ? 's' : '') + '</button>';
+		result += '<button class="diff-expand-btn" data-diff-id="' + diffId + '" style="cursor: pointer;">Show ' + hiddenEdits.length + ' more edit' + (hiddenEdits.length > 1 ? 's' : '') + '</button>';
 		result += '</div>';
 	}
 	result += '</div>';
@@ -798,7 +845,7 @@ function formatWriteToolDiff(input: any): string {
 	}
 	// Format file path with better display
 	const formattedPath = formatFilePath(input.file_path);
-	let result = '<div class="diff-file-path" onclick="openFileInEditor(\'' + escapeHtml(input.file_path) + '\')">' + formattedPath + '</div>\n';
+	let result = '<div class="diff-file-path" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer;">' + formattedPath + '</div>\n';
 	// Create diff view showing all content as additions
 	const contentLines = input.content.split('\n');
 	const maxLines = 6;
@@ -824,7 +871,7 @@ function formatWriteToolDiff(input: any): string {
 		result += '</div>';
 		// Add expand button
 		result += '<div class="diff-expand-container">';
-		result += '<button class="diff-expand-btn" onclick="toggleDiffExpansion(\'' + diffId + '\')">Show ' + hiddenLines.length + ' more lines</button>';
+		result += '<button class="diff-expand-btn" data-diff-id="' + diffId + '" style="cursor: pointer;">Show ' + hiddenLines.length + ' more lines</button>';
 		result += '</div>';
 	}
 	result += '</div>';
@@ -838,7 +885,7 @@ function formatWriteToolDiff(input: any): string {
 	return result;
 }
 
-function hideEditorContext(): void {
+function _hideEditorContext(): void {
 	const editorContextLine = document.getElementById('editorContextLine');
 	if (editorContextLine) {
 		editorContextLine.style.display = 'none';
@@ -876,23 +923,23 @@ function showAddServerForm(): void {
 	const addServerBtn = document.getElementById('addServerBtn');
 	const popularServers = document.getElementById('popularServers');
 	const addServerForm = document.getElementById('addServerForm');
-	if (addServerBtn) addServerBtn.style.display = 'none';
-	if (popularServers) popularServers.style.display = 'none';
-	if (addServerForm) addServerForm.style.display = 'block';
+	if (addServerBtn) {addServerBtn.style.display = 'none';}
+	if (popularServers) {popularServers.style.display = 'none';}
+	if (addServerForm) {addServerForm.style.display = 'block';}
 }
 
 function hideAddServerForm(): void {
 	const addServerBtn = document.getElementById('addServerBtn');
 	const popularServers = document.getElementById('popularServers');
 	const addServerForm = document.getElementById('addServerForm');
-	if (addServerBtn) addServerBtn.style.display = 'block';
-	if (popularServers) popularServers.style.display = 'block';
-	if (addServerForm) addServerForm.style.display = 'none';
+	if (addServerBtn) {addServerBtn.style.display = 'block';}
+	if (popularServers) {popularServers.style.display = 'block';}
+	if (addServerForm) {addServerForm.style.display = 'none';}
 	// Reset form title and button
 	const formTitle = document.querySelector('#addServerForm h5');
-	if (formTitle) formTitle.remove();
+	if (formTitle) {formTitle.remove();}
 	const submitBtn = document.querySelector('#addServerForm .btn');
-	if (submitBtn) submitBtn.textContent = 'Add Server';
+	if (submitBtn) {submitBtn.textContent = 'Add Server';}
 }
 
 function addToolResultMessage(data: any): void {
@@ -1029,9 +1076,7 @@ function newSession(): void {
 	});
 }
 
-(window as any).togglePlanMode = togglePlanMode;
-
-(window as any).toggleThinkingMode = toggleThinkingMode;
+// Global scope assignments moved to end of file
 
 // Duplicate functions removed - using properly typed versions defined later
 
@@ -1055,11 +1100,7 @@ function selectImage(): void {
 	});
 }
 
-(window as any).sendMessage = sendMessage;
-
-// Duplicate stopRequest removed - using properly typed version defined later
-
-(window as any).enableYoloMode = enableYoloMode;
+// Global scope assignments moved to end of file
 
 function showMCPModal(): void {
 	const modal = document.getElementById('mcpModal');
@@ -1077,85 +1118,113 @@ function hideMCPModal(): void {
 	}
 }
 
-(window as any).showAddServerForm = showAddServerForm;
-(window as any).hideAddServerForm = hideAddServerForm;
+// Global scope assignments moved to end of file
 
 // Duplicate updateServerForm removed - using the one defined later with proper typing
 
 function saveMCPServer(): void {
-	const serverName = (document.getElementById('serverName') as HTMLInputElement)?.value;
-	const serverType = (document.getElementById('serverType') as HTMLSelectElement)?.value;
-	const serverCommand = (document.getElementById('serverCommand') as HTMLInputElement)?.value;
-	const serverUrl = (document.getElementById('serverUrl') as HTMLInputElement)?.value;
-	const serverArgs = (document.getElementById('serverArgs') as HTMLTextAreaElement)?.value;
-	const serverEnv = (document.getElementById('serverEnv') as HTMLTextAreaElement)?.value;
-	const serverHeaders = (document.getElementById('serverHeaders') as HTMLTextAreaElement)?.value;
-	
-	if (!serverName) {
-		alert('Please enter a server name');
+	sendStats('MCP server added');
+	const name = (document.getElementById('serverName') as HTMLInputElement).value.trim();
+	const type = (document.getElementById('serverType') as HTMLSelectElement).value;
+	if (!name) {
+		// Use a simple notification instead of alert which is blocked
+		const notification = document.createElement('div');
+		notification.textContent = 'Server name is required';
+		notification.style.cssText = 'position: fixed; top: 20px; right: 20px; background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-inputValidation-errorForeground); padding: 8px 12px; border-radius: 4px; z-index: 9999;';
+		document.body.appendChild(notification);
+		setTimeout(() => notification.remove(), 3000);
 		return;
 	}
-	
-	const config: any = { type: serverType };
-	
-	if (serverType === 'stdio') {
-		if (!serverCommand) {
-			alert('Please enter a command');
+	// If editing, we can use the same name; if adding, check for duplicates
+	if (!editingServerName) {
+		const serversList = document.getElementById('mcpServersList');
+		if (!serversList) {return;}
+		const existingServers = serversList.querySelectorAll('.server-name');
+		for (let i = 0; i < existingServers.length; i++) {
+			const server = existingServers[i];
+			if (server.textContent === name) {
+				const notification = document.createElement('div');
+				notification.textContent = `Server "${name}" already exists`;
+				notification.style.cssText = 'position: fixed; top: 20px; right: 20px; background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-inputValidation-errorForeground); padding: 8px 12px; border-radius: 4px; z-index: 9999;';
+				document.body.appendChild(notification);
+				setTimeout(() => notification.remove(), 3000);
+				return;
+			}
+		}
+	}
+	const serverConfig: any = { type };
+	if (type === 'stdio') {
+		const command = (document.getElementById('serverCommand') as HTMLInputElement).value.trim();
+		if (!command) {
+			const notification = document.createElement('div');
+			notification.textContent = 'Command is required for stdio servers';
+			notification.style.cssText = 'position: fixed; top: 20px; right: 20px; background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-inputValidation-errorForeground); padding: 8px 12px; border-radius: 4px; z-index: 9999;';
+			document.body.appendChild(notification);
+			setTimeout(() => notification.remove(), 3000);
 			return;
 		}
-		config.command = serverCommand;
-		if (serverArgs) {
-			config.args = serverArgs.split('\n').filter(arg => arg.trim());
+		serverConfig.command = command;
+		const argsText = (document.getElementById('serverArgs') as HTMLTextAreaElement).value.trim();
+		if (argsText) {
+			serverConfig.args = argsText.split('\n').filter(line => line.trim());
 		}
-		if (serverEnv) {
-			config.env = {};
-			serverEnv.split('\n').forEach(line => {
-				const [key, value] = line.split('=');
-				if (key && value) config.env[key.trim()] = value.trim();
+		const envText = (document.getElementById('serverEnv') as HTMLTextAreaElement).value.trim();
+		if (envText) {
+			serverConfig.env = {};
+			envText.split('\n').forEach(line => {
+				const [key, ...valueParts] = line.split('=');
+				if (key && valueParts.length > 0) {
+					serverConfig.env[key.trim()] = valueParts.join('=').trim();
+				}
 			});
 		}
-	} else {
-		if (!serverUrl) {
-			alert('Please enter a URL');
+	} else if (type === 'http' || type === 'sse') {
+		const url = (document.getElementById('serverUrl') as HTMLInputElement).value.trim();
+		if (!url) {
+			const notification = document.createElement('div');
+			notification.textContent = 'URL is required for HTTP/SSE servers';
+			notification.style.cssText = 'position: fixed; top: 20px; right: 20px; background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-inputValidation-errorForeground); padding: 8px 12px; border-radius: 4px; z-index: 9999;';
+			document.body.appendChild(notification);
+			setTimeout(() => notification.remove(), 3000);
 			return;
 		}
-		config.url = serverUrl;
-		if (serverHeaders) {
-			config.headers = {};
-			serverHeaders.split('\n').forEach(line => {
-				const [key, value] = line.split('=');
-				if (key && value) config.headers[key.trim()] = value.trim();
+		serverConfig.url = url;
+		const headersText = (document.getElementById('serverHeaders') as HTMLTextAreaElement).value.trim();
+		if (headersText) {
+			serverConfig.headers = {};
+			headersText.split('\n').forEach(line => {
+				const [key, ...valueParts] = line.split('=');
+				if (key && valueParts.length > 0) {
+					serverConfig.headers[key.trim()] = valueParts.join('=').trim();
+				}
 			});
 		}
 	}
-	
 	vscode.postMessage({
 		type: 'saveMCPServer',
-		serverName,
-		config
+		name: name,
+		config: serverConfig
 	});
-	
 	hideAddServerForm();
 }
 
-(window as any).deleteMCPServer = function(serverName: string) {
-	if (confirm(`Delete MCP server "${serverName}"?`)) {
-		vscode.postMessage({
-			type: 'deleteMCPServer',
-			serverName
-		});
-	}
-};
+function deleteMCPServer(serverName: string): void {
+	// Just delete without confirmation
+	vscode.postMessage({
+		type: 'deleteMCPServer',
+		name: serverName
+	});
+}
 
-(window as any).addPopularServer = function(name: string, config: any) {
+function addPopularServer(name: string, config: any): void {
 	vscode.postMessage({
 		type: 'saveMCPServer',
 		serverName: name,
 		config
 	});
-};
+}
 
-(window as any).toggleResultExpansion = function(resultId: string) {
+function toggleResultExpansion(resultId: string): void {
 	const hiddenDiv = document.getElementById(resultId + '_hidden');
 	const ellipsis = document.getElementById(resultId + '_ellipsis');
 	const button = document.querySelector('[onclick*="toggleResultExpansion(\'' + resultId + '\')"]') as HTMLButtonElement;
@@ -1174,9 +1243,9 @@ function saveMCPServer(): void {
 			button.textContent = 'Show more';
 		}
 	}
-};
+}
 
-(window as any).toggleExpand = function(button: HTMLElement) {
+function toggleExpand(button: HTMLElement): void {
 	const key = button.getAttribute('data-key');
 	const value = button.getAttribute('data-value');
 	// Find the container that holds just this key-value pair
@@ -1210,9 +1279,9 @@ function saveMCPServer(): void {
 		const truncated = decodedValue.substring(0, 97) + '...';
 		container.innerHTML = '<strong>' + key + ':</strong> ' + truncated + ' <span class="expand-btn" data-key="' + key + '" data-value="' + value + '" onclick="toggleExpand(this)">expand</span>';
 	}
-};
+}
 
-(window as any).toggleDiffExpansion = function(diffId: string) {
+function toggleDiffExpansion(diffId: string): void {
 	const hiddenDiv = document.getElementById(diffId + '_hidden');
 	const button = document.querySelector('[onclick*="' + diffId + '"]') as HTMLButtonElement;
 	if (hiddenDiv && button) {
@@ -1225,66 +1294,261 @@ function saveMCPServer(): void {
 			button.textContent = 'Show ' + hiddenLines + ' more lines';
 		}
 	}
-};
+}
 
 // Additional essential utility functions from original ui.ts
 
 // Duplicate functions removed - using original implementations above
 
-(window as any).hideThinkingIntensityModal = function() {
+function hideThinkingIntensityModal(): void {
 	const modal = document.getElementById('thinkingIntensityModal');
-	if (modal) modal.style.display = 'none';
-};
+	if (modal) {modal.style.display = 'none';}
+}
 
-(window as any).setThinkingIntensity = function(intensity: string) {
+function setThinkingIntensity(intensity: string): void {
 	const toggleLabel = document.getElementById('thinkingModeLabel');
 	if (toggleLabel) {
 		toggleLabel.textContent = `Thinking Mode (${intensity})`;
 	}
-	
+
 	vscode.postMessage({
 		type: 'setThinkingIntensity',
 		intensity: intensity
 	});
-	
-	(window as any).hideThinkingIntensityModal();
-};
 
-// Plan mode and thinking mode toggles - expose to global scope
-(window as any).togglePlanMode = function() {
-	planModeEnabled = !planModeEnabled;
-	const switchElement = document.getElementById('planModeSwitch');
-	if (planModeEnabled) {
-		switchElement?.classList.add('active');
-	} else {
-		switchElement?.classList.remove('active');
-	}
-};
+	hideThinkingIntensityModal();
+}
 
-(window as any).toggleThinkingMode = function() {
-	thinkingModeEnabled = !thinkingModeEnabled;
-
-	if (thinkingModeEnabled) {
-		sendStats('Thinking mode enabled');
+function setThinkingIntensityValue(value: number): void {
+	// Set slider value for thinking intensity modal
+	const thinkingIntensitySlider = document.getElementById('thinkingIntensitySlider') as HTMLInputElement;
+	if (thinkingIntensitySlider) {
+		thinkingIntensitySlider.value = value.toString();
 	}
 
-	const switchElement = document.getElementById('thinkingModeSwitch');
+	// Update visual state
+	updateThinkingIntensityDisplay(value);
+}
+
+function updateThinkingModeToggleName(intensityValue: number): void {
+	const intensityNames = ['Thinking', 'Think Hard', 'Think Harder', 'Ultrathink'];
+	const modeName = intensityNames[intensityValue] || 'Thinking';
 	const toggleLabel = document.getElementById('thinkingModeLabel');
-	if (thinkingModeEnabled) {
-		switchElement?.classList.add('active');
-		// Show thinking intensity modal when thinking mode is enabled
-		showThinkingIntensityModal();
-	} else {
-		switchElement?.classList.remove('active');
-		// Reset to default "Thinking Mode" when turned off
-		if (toggleLabel) {
-			toggleLabel.textContent = 'Thinking Mode';
+	if (toggleLabel) {
+		toggleLabel.textContent = modeName + ' Mode';
+	}
+}
+
+function updateThinkingIntensityDisplay(value: number): void {
+	// Update label highlighting for thinking intensity modal
+	for (let i = 0; i < 4; i++) {
+		const label = document.getElementById('thinking-label-' + i)!;
+		if (i === value) {
+			label.classList.add('active');
+		} else {
+			label.classList.remove('active');
 		}
 	}
-};
+	// Don't update toggle name until user confirms
+}
 
-// Global sendMessage function
-(window as any).sendMessage = sendMessage;
+function confirmThinkingIntensity(): void {
+	// Get the current slider value
+	const currentValue = (document.getElementById('thinkingIntensitySlider') as HTMLInputElement).value;
+	// Update the toggle name with confirmed selection
+	updateThinkingModeToggleName(parseInt(currentValue));
+	// Save the current intensity setting
+	saveThinkingIntensity();
+	// Close the modal
+	hideThinkingIntensityModal();
+}
+
+function saveThinkingIntensity(): void {
+	const thinkingSlider = document.getElementById('thinkingIntensitySlider') as HTMLInputElement;
+	const intensityValues = ['think', 'think-hard', 'think-harder', 'ultrathink'];
+	const value = parseInt(thinkingSlider.value);
+	const thinkingIntensity = intensityValues[value] || 'think';
+	// Send settings to VS Code
+	vscode.postMessage({
+		type: 'updateSettings',
+		settings: {
+			thinkingIntensity: thinkingIntensity
+		}
+	});
+}
+
+function restoreToCommit(commitSha: string): void {
+	console.log('Restore button clicked for commit:', commitSha);
+	vscode.postMessage({
+		type: 'restoreCommit',
+		commitSha: commitSha
+	});
+}
+
+function requestConversationList(): void {
+	vscode.postMessage({
+		type: 'getConversationList'
+	});
+}
+
+function loadConversation(filename: string): void {
+	vscode.postMessage({
+		type: 'loadConversation',
+		filename: filename
+	});
+	// Hide conversation history and show chat
+	toggleConversationHistory();
+}
+
+function showRestoreContainer(data: any): void {
+	const messagesDiv = document.getElementById('messages');
+	if (!messagesDiv) {return;}
+	const shouldScroll = shouldAutoScroll(messagesDiv);
+	const restoreContainer = document.createElement('div');
+	restoreContainer.className = 'restore-container';
+	restoreContainer.id = `restore-${data.sha}`;
+	const timeAgo = new Date(data.timestamp).toLocaleTimeString();
+	const _shortSha = data.sha ? data.sha.substring(0, 8) : 'unknown';
+	restoreContainer.innerHTML = `
+		<button class="restore-btn dark" onclick="restoreToCommit('${data.sha}')">
+			Restore checkpoint
+		</button>
+		<span class="restore-date">${timeAgo}</span>
+	`;
+	messagesDiv.appendChild(restoreContainer);
+	scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+}
+
+function _hideRestoreContainer(commitSha: string): void {
+	const container = document.getElementById(`restore-${commitSha}`);
+	if (container) {
+		container.remove();
+	}
+}
+
+function showSessionInfo(_sessionId: string): void {
+	// const sessionInfo = document.getElementById('sessionInfo');
+	// const sessionIdSpan = document.getElementById('sessionId');
+	const sessionStatus = document.getElementById('sessionStatus');
+	const newSessionBtn = document.getElementById('newSessionBtn');
+	const historyBtn = document.getElementById('historyBtn');
+	if (sessionStatus && newSessionBtn) {
+		// sessionIdSpan.textContent = sessionId.substring(0, 8);
+		// sessionIdSpan.title = `Full session ID: ${sessionId} (click to copy)`;
+		// sessionIdSpan.style.cursor = 'pointer';
+		// sessionIdSpan.onclick = () => copySessionId(sessionId);
+		// sessionInfo.style.display = 'flex';
+		sessionStatus.style.display = 'none';
+		newSessionBtn.style.display = 'block';
+		if (historyBtn) {historyBtn.style.display = 'block';}
+	}
+}
+
+function _copySessionId(sessionId: string): void {
+	navigator.clipboard.writeText(sessionId).then(() => {
+		// Show temporary feedback
+		const sessionIdSpan = document.getElementById('sessionId');
+		if (sessionIdSpan) {
+			const originalText = sessionIdSpan.textContent;
+			sessionIdSpan.textContent = 'Copied!';
+			setTimeout(() => {
+				sessionIdSpan.textContent = originalText;
+			}, 1000);
+		}
+	}).catch(err => {
+		console.error('Failed to copy session ID:', err);
+	});
+}
+
+function hideSessionInfo(): void {
+	// const sessionInfo = document.getElementById('sessionInfo');
+	const sessionStatus = document.getElementById('sessionStatus');
+	const newSessionBtn = document.getElementById('newSessionBtn');
+	const historyBtn = document.getElementById('historyBtn');
+	if (sessionStatus && newSessionBtn) {
+		// sessionInfo.style.display = 'none';
+		sessionStatus.style.display = 'none';
+		// Always show new session
+		newSessionBtn.style.display = 'block';
+		// Keep history button visible - don't hide it
+		if (historyBtn) {historyBtn.style.display = 'block';}
+	}
+}
+
+function hideFilePicker(): void {
+	filePickerModal.style.display = 'none';
+	fileSearchInput.value = '';
+	selectedFileIndex = -1;
+}
+
+function _showImageAddedFeedback(fileName: string): void {
+	// Create temporary feedback element
+	const feedback = document.createElement('div');
+	feedback.textContent = `Added: ${fileName}`;
+	feedback.style.cssText = `
+		position: fixed;
+		top: 20px;
+		right: 20px;
+		background: var(--vscode-notifications-background);
+		color: var(--vscode-notifications-foreground);
+		padding: 8px 12px;
+		border-radius: 4px;
+		font-size: 12px;
+		z-index: 1000;
+		opacity: 0;
+		transition: opacity 0.3s ease;
+	`;
+	document.body.appendChild(feedback);
+	// Animate in
+	setTimeout(() => feedback.style.opacity = '1', 10);
+	// Animate out and remove
+	setTimeout(() => {
+		feedback.style.opacity = '0';
+		setTimeout(() => feedback.remove(), 300);
+	}, 2000);
+}
+
+function displayConversationList(conversations: any[]): void {
+	const listDiv = document.getElementById('conversationList');
+	if (!listDiv) {return;}
+	listDiv.innerHTML = '';
+	if (conversations.length === 0) {
+		listDiv.innerHTML = '<p style="text-align: center; color: var(--vscode-descriptionForeground);">No conversations found</p>';
+		return;
+	}
+	conversations.forEach(conv => {
+		const item = document.createElement('div');
+		item.className = 'conversation-item';
+		item.onclick = () => loadConversation(conv.filename);
+		const date = new Date(conv.startTime).toLocaleDateString();
+		const time = new Date(conv.startTime).toLocaleTimeString();
+		item.innerHTML = `
+			<div class="conversation-title">${conv.firstUserMessage.substring(0, 60)}${conv.firstUserMessage.length > 60 ? '...' : ''}</div>
+			<div class="conversation-meta">${date} at ${time} • ${conv.messageCount} messages • $${conv.totalCost.toFixed(3)}</div>
+			<div class="conversation-preview">Last: ${conv.lastUserMessage.substring(0, 80)}${conv.lastUserMessage.length > 80 ? '...' : ''}</div>
+		`;
+		listDiv.appendChild(item);
+	});
+}
+
+function handleClipboardText(text: string): void {
+	if (!text) {return;}
+	// Insert text at cursor position
+	const start = messageInput.selectionStart;
+	const end = messageInput.selectionEnd;
+	const currentValue = messageInput.value;
+	const newValue = currentValue.substring(0, start) + text + currentValue.substring(end);
+	messageInput.value = newValue;
+	// Set cursor position after pasted text
+	const newCursorPos = start + text.length;
+	messageInput.setSelectionRange(newCursorPos, newCursorPos);
+	// Trigger input event to adjust height
+	messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// Plan mode and thinking mode toggles - already defined above
+
+// Global sendMessage function - assignment moved to end of file
 
 // Missing global variables for MCP server editing state
 let editingServerName: string | null = null;
@@ -1293,118 +1557,55 @@ let editingServerName: string | null = null;
 let customSnippetsData: any = {};
 
 // Additional essential global functions - exposed to window for HTML onclick handlers
-(window as any).enableYoloMode = function() {
-	sendStats('YOLO mode enabled');
 
-	// Update the checkbox
-	const yoloModeCheckbox = document.getElementById('yolo-mode') as HTMLInputElement;
-	if (yoloModeCheckbox) {
-		yoloModeCheckbox.checked = true;
-
-		// Trigger the settings update
-		(window as any).updateSettings();
-
-		// Show confirmation message
-		addMessage('✅ Yolo Mode enabled! All permission checks will be bypassed for future commands.', 'system');
-
-		// Update the warning banner
-		updateYoloWarning();
-	}
-};
-
-// Settings update function
-(window as any).updateSettings = function() {
-	const yoloModeCheckbox = document.getElementById('yolo-mode') as HTMLInputElement;
-	const themeSelect = document.getElementById('theme-select') as HTMLSelectElement;
-	const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
-	const wslEnabledCheckbox = document.getElementById('wsl-enabled') as HTMLInputElement;
-	const wslDistroInput = document.getElementById('wsl-distro') as HTMLInputElement;
-	const wslNodePathInput = document.getElementById('wsl-node-path') as HTMLInputElement;
-	const wslClaudePathInput = document.getElementById('wsl-claude-path') as HTMLInputElement;
-
-	const wslEnabled = wslEnabledCheckbox?.checked || false;
-	const wslDistro = wslDistroInput?.value || 'Ubuntu';
-	const wslNodePath = wslNodePathInput?.value || '/usr/bin/node';
-	const wslClaudePath = wslClaudePathInput?.value || '/usr/local/bin/claude';
-
-	// Update WSL options visibility
-	const wslOptions = document.getElementById('wslOptions');
-	if (wslOptions) {
-		wslOptions.style.display = wslEnabled ? 'block' : 'none';
-	}
-
-	const settings = {
-		'permissions.yoloMode': yoloModeCheckbox?.checked || false,
-		'ui.theme': themeSelect?.value || 'auto',
-		'model': modelSelect?.value || 'claude-3-5-sonnet-20241022',
-		'wsl.enabled': wslEnabled,
-		'wsl.distro': wslDistro,
-		'wsl.nodePath': wslNodePath,
-		'wsl.claudePath': wslClaudePath
-	};
-
-	vscode.postMessage({
-		type: 'updateSettings',
-		settings: settings
-	});
-};
-
-// Modal management functions - exposed to global scope for HTML onclick handlers
-(window as any).showModelSelector = function() {
-	const modal = document.getElementById('modelModal');
-	if (modal) modal.style.display = 'flex';
-	// Select the current model radio button
-	const currentModel = 'claude-3-5-sonnet-20241022'; // Default model
-	const radioButton = document.getElementById('model-' + currentModel);
-	if (radioButton) {
-		(radioButton as HTMLInputElement).checked = true;
-	}
-};
+// Duplicate functions removed - using original implementations above
 
 // Duplicate modal functions removed - using properly typed versions defined later
 
-(window as any).executeSlashCommand = function(command: string) {
+function executeSlashCommand(command: string): void {
 	// Hide the modal
 	hideSlashCommandsModal();
-	
+
 	// Clear the input since user selected a command
 	messageInput.value = '';
-	
+
 	// Send command to VS Code to execute in terminal
 	vscode.postMessage({
 		type: 'executeSlashCommand',
 		command: command
 	});
-};
+	// Show user feedback
+	addMessage(`Executing /${command} command in terminal. Check the terminal output and return when ready.`, 'system');
+}
 
 // WSL Alert functions
-(window as any).showWSLAlert = function() {
+function showWSLAlert(): void {
 	const alert = document.getElementById('wslAlert');
-	if (alert) alert.style.display = 'block';
+	if (alert) {alert.style.display = 'block';}
 };
 
-(window as any).dismissWSLAlert = function() {
+function dismissWSLAlert(): void {
 	const alert = document.getElementById('wslAlert');
-	if (alert) alert.style.display = 'none';
+	if (alert) {alert.style.display = 'none';}
 	// Send dismiss message to extension to store in globalState
 	vscode.postMessage({
 		type: 'dismissWSLAlert'
 	});
 };
 
-(window as any).openWSLSettings = function() {
+function openWSLSettings(): void {
 	// Dismiss the alert
-	(window as any).dismissWSLAlert();
-	
+	dismissWSLAlert();
+
 	// Open settings modal
-	(window as any).toggleSettings();
+	toggleSettings();
 };
 
 // MCP Server display and editing functions
 function displayMCPServers(servers: any): void {
 	const serversList = document.getElementById('mcpServersList');
-	if (!serversList) return;
-	
+	if (!serversList) {return;}
+
 	serversList.innerHTML = '';
 
 	if (Object.keys(servers).length === 0) {
@@ -1453,7 +1654,7 @@ function displayMCPServers(servers: any): void {
 	}
 }
 
-(window as any).editMCPServer = function(name: string, config: any) {
+function editMCPServer(name: string, config: any): void {
 	// Set editing state
 	editingServerName = name;
 
@@ -1461,22 +1662,22 @@ function displayMCPServers(servers: any): void {
 	const addBtn = document.getElementById('addServerBtn');
 	const popularServers = document.getElementById('popularServers');
 	const addForm = document.getElementById('addServerForm');
-	
-	if (addBtn) addBtn.style.display = 'none';
-	if (popularServers) popularServers.style.display = 'none';
-	if (addForm) addForm.style.display = 'block';
+
+	if (addBtn) {addBtn.style.display = 'none';}
+	if (popularServers) {popularServers.style.display = 'none';}
+	if (addForm) {addForm.style.display = 'block';}
 
 	// Update form title and button
 	if (!document.querySelector('#addServerForm h5')) {
 		addForm?.insertAdjacentHTML('afterbegin', '<h5 style="margin: 0 0 20px 0; font-size: 14px; font-weight: 600;">Edit MCP Server</h5>');
 	} else {
 		const title = document.querySelector('#addServerForm h5');
-		if (title) title.textContent = 'Edit MCP Server';
+		if (title) {title.textContent = 'Edit MCP Server';}
 	}
 
 	// Update save button text
 	const saveBtn = document.querySelector('#addServerForm .btn:not(.outlined)');
-	if (saveBtn) saveBtn.textContent = 'Update Server';
+	if (saveBtn) {saveBtn.textContent = 'Update Server';}
 
 	// Populate form with existing values
 	const serverName = document.getElementById('serverName') as HTMLInputElement;
@@ -1492,7 +1693,7 @@ function displayMCPServers(servers: any): void {
 		serverName.disabled = true; // Don't allow name changes when editing
 	}
 
-	if (serverType) serverType.value = config.type || 'stdio';
+	if (serverType) {serverType.value = config.type || 'stdio';}
 
 	if (config.command && serverCommand) {
 		serverCommand.value = config.command;
@@ -1521,8 +1722,8 @@ function displayMCPServers(servers: any): void {
 	}
 };
 
-// Additional functions for prompt snippets and slash commands  
-(window as any).usePromptSnippet = function(snippetType: string) {
+// Additional functions for prompt snippets and slash commands
+function usePromptSnippet(snippetType: string): void {
 	const builtInSnippets: { [key: string]: string } = {
 		'performance-analysis': 'Analyze this code for performance issues and suggest optimizations',
 		'security-review': 'Review this code for security vulnerabilities',
@@ -1544,7 +1745,7 @@ function displayMCPServers(servers: any): void {
 
 	if (promptText) {
 		// Hide the modal
-		(window as any).hideSlashCommandsModal();
+		hideSlashCommandsModal();
 
 		// Insert the prompt into the message input
 		messageInput.value = promptText;
@@ -1555,29 +1756,21 @@ function displayMCPServers(servers: any): void {
 	}
 };
 
-(window as any).showAddSnippetForm = function() {
-	const form = document.getElementById('addSnippetForm');
-	if (form) form.style.display = 'block';
-	const nameInput = document.getElementById('snippetName') as HTMLInputElement;
-	if (nameInput) nameInput.focus();
-};
+function showAddSnippetForm(): void {
+	document.getElementById('addSnippetForm')!.style.display = 'block';
+	document.getElementById('snippetName')!.focus();
+}
 
-(window as any).hideAddSnippetForm = function() {
-	const form = document.getElementById('addSnippetForm');
-	if (form) form.style.display = 'none';
+function hideAddSnippetForm(): void {
+	document.getElementById('addSnippetForm')!.style.display = 'none';
 	// Clear form fields
-	const nameInput = document.getElementById('snippetName') as HTMLInputElement;
-	const promptInput = document.getElementById('snippetPrompt') as HTMLTextAreaElement;
-	if (nameInput) nameInput.value = '';
-	if (promptInput) promptInput.value = '';
+	(document.getElementById('snippetName') as HTMLInputElement).value = '';
+	(document.getElementById('snippetPrompt') as HTMLTextAreaElement).value = '';
 };
 
-(window as any).saveCustomSnippet = function() {
-	const nameInput = document.getElementById('snippetName') as HTMLInputElement;
-	const promptInput = document.getElementById('snippetPrompt') as HTMLTextAreaElement;
-	
-	const name = nameInput?.value.trim();
-	const prompt = promptInput?.value.trim();
+function saveCustomSnippet(): void {
+	const name = (document.getElementById('snippetName') as HTMLInputElement).value.trim();
+	const prompt = (document.getElementById('snippetPrompt') as HTMLTextAreaElement).value.trim();
 
 	if (!name || !prompt) {
 		alert('Please fill in both name and prompt text.');
@@ -1600,12 +1793,12 @@ function displayMCPServers(servers: any): void {
 	});
 
 	// Hide the form
-	(window as any).hideAddSnippetForm();
+	hideAddSnippetForm();
 };
 
 function loadCustomSnippets(snippetsData: any = {}): void {
 	const snippetsList = document.getElementById('promptSnippetsList');
-	if (!snippetsList) return;
+	if (!snippetsList) {return;}
 
 	// Remove existing custom snippets
 	const existingCustom = snippetsList.querySelectorAll('.custom-snippet-item');
@@ -1613,12 +1806,12 @@ function loadCustomSnippets(snippetsData: any = {}): void {
 
 	// Add custom snippets after the add button and form
 	const addForm = document.getElementById('addSnippetForm');
-	if (!addForm) return;
+	if (!addForm) {return;}
 
 	Object.values(snippetsData).forEach((snippet: any) => {
 		const snippetElement = document.createElement('div');
 		snippetElement.className = 'slash-command-item prompt-snippet-item custom-snippet-item';
-		snippetElement.onclick = () => (window as any).usePromptSnippet(snippet.id);
+		snippetElement.onclick = () => usePromptSnippet(snippet.id);
 
 		snippetElement.innerHTML = `
 			<div class="slash-command-icon">📝</div>
@@ -1636,14 +1829,14 @@ function loadCustomSnippets(snippetsData: any = {}): void {
 	});
 }
 
-(window as any).deleteCustomSnippet = function(snippetId: string) {
+function deleteCustomSnippet(snippetId: string): void {
 	vscode.postMessage({
 		type: 'deleteCustomSnippet',
 		snippetId: snippetId
 	});
 };
 
-(window as any).filterSlashCommands = function() {
+function filterSlashCommands(): void {
 	const searchInput = document.getElementById('slashCommandsSearch') as HTMLInputElement;
 	const searchTerm = searchInput?.value.toLowerCase() || '';
 	const allItems = document.querySelectorAll('.slash-command-item');
@@ -1660,24 +1853,25 @@ function loadCustomSnippets(snippetsData: any = {}): void {
 	});
 };
 
-(window as any).handleCustomCommandKeydown = function(event: KeyboardEvent) {
+function handleCustomCommandKeydown(event: KeyboardEvent): void {
 	if (event.key === 'Enter') {
 		event.preventDefault();
 		const target = event.target as HTMLInputElement;
 		const customCommand = target.value.trim();
 		if (customCommand) {
-			(window as any).executeSlashCommand(customCommand);
+			executeSlashCommand(customCommand);
 			// Clear the input for next use
 			target.value = '';
 		}
 	}
 };
 
-(window as any).openModelTerminal = function() {
+function openModelTerminal(): void {
 	vscode.postMessage({
 		type: 'openModelTerminal'
 	});
-};
+	hideModelModal();
+}
 
 // updateServerForm function that was missing
 function updateServerForm(): void {
@@ -1689,44 +1883,38 @@ function updateServerForm(): void {
 	const headersGroup = document.getElementById('headersGroup');
 
 	if (serverType === 'stdio') {
-		if (commandGroup) commandGroup.style.display = 'block';
-		if (urlGroup) urlGroup.style.display = 'none';
-		if (argsGroup) argsGroup.style.display = 'block';
-		if (envGroup) envGroup.style.display = 'block';
-		if (headersGroup) headersGroup.style.display = 'none';
+		if (commandGroup) {commandGroup.style.display = 'block';}
+		if (urlGroup) {urlGroup.style.display = 'none';}
+		if (argsGroup) {argsGroup.style.display = 'block';}
+		if (envGroup) {envGroup.style.display = 'block';}
+		if (headersGroup) {headersGroup.style.display = 'none';}
 	} else if (serverType === 'http' || serverType === 'sse') {
-		if (commandGroup) commandGroup.style.display = 'none';
-		if (urlGroup) urlGroup.style.display = 'block';
-		if (argsGroup) argsGroup.style.display = 'none';
-		if (envGroup) envGroup.style.display = 'none';
-		if (headersGroup) headersGroup.style.display = 'block';
+		if (commandGroup) {commandGroup.style.display = 'none';}
+		if (urlGroup) {urlGroup.style.display = 'block';}
+		if (argsGroup) {argsGroup.style.display = 'none';}
+		if (envGroup) {envGroup.style.display = 'none';}
+		if (headersGroup) {headersGroup.style.display = 'block';}
 	}
 }
 
 // Hide modal functions for close buttons (X)
 function hideSettingsModal(): void {
 	const modal = document.getElementById('settingsModal');
-	if (modal) modal.style.display = 'none';
+	if (modal) {modal.style.display = 'none';}
 }
 
 function hideModelModal(): void {
 	const modal = document.getElementById('modelModal');
-	if (modal) modal.style.display = 'none';
+	if (modal) {modal.style.display = 'none';}
 }
 
 function hideSlashCommandsModal(): void {
 	const modal = document.getElementById('slashCommandsModal');
-	if (modal) modal.style.display = 'none';
-}
-
-function hideThinkingIntensityModal(): void {
-	const modal = document.getElementById('thinkingIntensityModal');
-	if (modal) modal.style.display = 'none';
+	if (modal) {modal.style.display = 'none';}
 }
 
 function showModelSelector(): void {
-	const modal = document.getElementById('modelModal');
-	if (modal) modal.style.display = 'flex';
+	document.getElementById('modelModal')!.style.display = 'flex';
 	// Select the current model radio button
 	const radioButton = document.getElementById('model-' + currentModel) as HTMLInputElement;
 	if (radioButton) {
@@ -1736,50 +1924,29 @@ function showModelSelector(): void {
 
 function showSlashCommandsModal(): void {
 	const modal = document.getElementById('slashCommandsModal');
-	if (modal) modal.style.display = 'flex';
+	if (modal) {modal.style.display = 'flex';}
 	// Auto-focus the search input
 	setTimeout(() => {
 		const searchInput = document.getElementById('slashCommandsSearch') as HTMLInputElement;
-		if (searchInput) searchInput.focus();
+		if (searchInput) {searchInput.focus();}
 	}, 100);
 }
 
-// Expose essential functions to global scope for HTML onclick handlers
-(window as any).updateServerForm = updateServerForm;
-(window as any).toggleSettings = toggleSettings;
-(window as any).toggleConversationHistory = toggleConversationHistory;
-(window as any).newSession = newSession;
-(window as any).showFilePicker = showFilePicker;
-(window as any).selectImage = selectImage;
-(window as any).showMCPModal = showMCPModal;
-(window as any).hideMCPModal = hideMCPModal;
-(window as any).saveMCPServer = saveMCPServer;
-
-// Expose show/hide modal functions for UI interactions
-(window as any).showModelSelector = showModelSelector;
-(window as any).showSlashCommandsModal = showSlashCommandsModal;
-(window as any).hideSettingsModal = hideSettingsModal;
-(window as any).hideModelModal = hideModelModal;
-(window as any).hideSlashCommandsModal = hideSlashCommandsModal;
-(window as any).hideThinkingIntensityModal = hideThinkingIntensityModal;
+// Global scope assignments moved to end of file
 
 // Model selection functions
-let currentModel = 'claude-3-5-sonnet-20241022'; // Default model
+let currentModel = 'opus'; // Default model
 
-(window as any).selectModel = function(model: string, fromBackend: boolean = false) {
+function selectModel(model: string, fromBackend = false): void {
 	currentModel = model;
 
 	// Update the display text
-	const displayNames: { [key: string]: string } = {
-		'claude-3-opus-20240229': 'Opus',
-		'claude-3-5-sonnet-20241022': 'Sonnet',
-		'claude-3-5-haiku-20241022': 'Haiku',
+	const displayNames: Record<string, string> = {
+		'opus': 'Opus',
+		'sonnet': 'Sonnet',
 		'default': 'Model'
 	};
-	const selectedModelEl = document.getElementById('selectedModel');
-	if (selectedModelEl) {
-		selectedModelEl.textContent = displayNames[model] || model;
-	}
+	document.getElementById('selectedModel')!.textContent = displayNames[model] || model;
 
 	// Only send model selection to VS Code extension if not from backend
 	if (!fromBackend) {
@@ -1798,11 +1965,11 @@ let currentModel = 'claude-3-5-sonnet-20241022'; // Default model
 		radioButton.checked = true;
 	}
 
-	(window as any).hideModelModal();
-};
+	hideModelModal();
+}
 
 // Stop request function
-(window as any).stopRequest = function() {
+function stopRequest(): void {
 	sendStats('Stop request');
 
 	vscode.postMessage({
@@ -1811,34 +1978,9 @@ let currentModel = 'claude-3-5-sonnet-20241022'; // Default model
 	hideStopButton();
 };
 
-// Copy functions
-(window as any).copyMessageContent = function(messageDiv: HTMLElement) {
-	const contentDiv = messageDiv.querySelector('.message-content');
-	if (contentDiv) {
-		// Get text content, preserving line breaks
-		const text = contentDiv.textContent || '';
+// Copy functions - using original implementation defined earlier
 
-		// Copy to clipboard
-		navigator.clipboard.writeText(text).then(() => {
-			// Show brief feedback
-			const copyBtn = messageDiv.querySelector('.copy-btn') as HTMLElement;
-			if (copyBtn) {
-				const originalHtml = copyBtn.innerHTML;
-				copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
-				copyBtn.style.color = '#4caf50';
-
-				setTimeout(() => {
-					copyBtn.innerHTML = originalHtml;
-					copyBtn.style.color = '';
-				}, 1000);
-			}
-		}).catch(err => {
-			console.error('Failed to copy message:', err);
-		});
-	}
-};
-
-(window as any).copyCodeBlock = function(codeId: string) {
+function copyCodeBlock(codeId: string): void {
 	const codeElement = document.getElementById(codeId);
 	if (codeElement) {
 		const rawCode = codeElement.getAttribute('data-raw-code');
@@ -1867,7 +2009,7 @@ let currentModel = 'claude-3-5-sonnet-20241022'; // Default model
 // Permissions management functions
 function renderPermissions(permissions: any): void {
 	const permissionsList = document.getElementById('permissionsList');
-	if (!permissionsList) return;
+	if (!permissionsList) {return;}
 
 	if (!permissions || !permissions.alwaysAllow || Object.keys(permissions.alwaysAllow).length === 0) {
 		permissionsList.innerHTML = `
@@ -1911,7 +2053,7 @@ function renderPermissions(permissions: any): void {
 	permissionsList.innerHTML = html;
 }
 
-(window as any).removePermission = function(toolName: string, command: string | null) {
+function removePermission(toolName: string, command: string | null): void {
 	vscode.postMessage({
 		type: 'removePermission',
 		toolName,
@@ -1919,36 +2061,36 @@ function renderPermissions(permissions: any): void {
 	});
 };
 
-(window as any).showAddPermissionForm = function() {
+function showAddPermissionForm(): void {
 	const showBtn = document.getElementById('showAddPermissionBtn');
 	const form = document.getElementById('addPermissionForm');
-	if (showBtn) showBtn.style.display = 'none';
-	if (form) form.style.display = 'block';
+	if (showBtn) {showBtn.style.display = 'none';}
+	if (form) {form.style.display = 'block';}
 
 	// Focus the select element
 	setTimeout(() => {
 		const toolSelect = document.getElementById('addPermissionTool') as HTMLSelectElement;
-		if (toolSelect) toolSelect.focus();
+		if (toolSelect) {toolSelect.focus();}
 	}, 100);
 };
 
 function hideAddPermissionForm(): void {
 	const showBtn = document.getElementById('showAddPermissionBtn');
 	const form = document.getElementById('addPermissionForm');
-	if (showBtn) showBtn.style.display = 'flex';
-	if (form) form.style.display = 'none';
+	if (showBtn) {showBtn.style.display = 'flex';}
+	if (form) {form.style.display = 'none';}
 
 	// Reset form
 	const toolSelect = document.getElementById('addPermissionTool') as HTMLSelectElement;
 	const commandInput = document.getElementById('addPermissionCommand') as HTMLInputElement;
-	if (toolSelect) toolSelect.value = '';
+	if (toolSelect) {toolSelect.value = '';}
 	if (commandInput) {
 		commandInput.value = '';
 		commandInput.style.display = 'none';
 	}
 }
 
-(window as any).toggleCommandInput = function() {
+function toggleCommandInput(): void {
 	const toolSelect = document.getElementById('addPermissionTool') as HTMLSelectElement;
 	const commandInput = document.getElementById('addPermissionCommand') as HTMLInputElement;
 	const hintDiv = document.getElementById('permissionsFormHint');
@@ -1957,23 +2099,23 @@ function hideAddPermissionForm(): void {
 		if (toolSelect.value === 'Bash') {
 			commandInput.style.display = 'block';
 			commandInput.placeholder = 'Command pattern (e.g., npm i *)';
-			if (hintDiv) hintDiv.textContent = 'Use * as wildcard. Example: npm i * allows any npm install command';
+			if (hintDiv) {hintDiv.textContent = 'Use * as wildcard. Example: npm i * allows any npm install command';}
 		} else {
 			commandInput.style.display = 'none';
-			if (hintDiv) hintDiv.textContent = '';
+			if (hintDiv) {hintDiv.textContent = '';}
 		}
 	}
 };
 
-(window as any).addPermission = function() {
+function addPermission(): void {
 	const toolSelect = document.getElementById('addPermissionTool') as HTMLSelectElement;
 	const commandInput = document.getElementById('addPermissionCommand') as HTMLInputElement;
 	const addBtn = document.getElementById('addPermissionBtn') as HTMLButtonElement;
 
-	if (!toolSelect || !addBtn) return;
+	if (!toolSelect || !addBtn) {return;}
 
 	const toolName = toolSelect.value;
-	if (!toolName) return;
+	if (!toolName) {return;}
 
 	addBtn.disabled = true;
 	addBtn.textContent = 'Adding...';
@@ -2001,44 +2143,53 @@ function hideAddPermissionForm(): void {
 
 // Permission request handling functions
 function addPermissionRequestMessage(data: any): void {
+	const messagesDiv = document.getElementById('messages')!;
+	const shouldScroll = shouldAutoScroll(messagesDiv);
 	const messageDiv = document.createElement('div');
-	messageDiv.className = 'message system permission-request';
-	messageDiv.setAttribute('data-permission-id', data.id);
-
-	const alwaysAllowDisabled = data.toolName === 'Bash' && !data.command;
-	const alwaysAllowTooltip = alwaysAllowDisabled ? 'title="Cannot auto-allow all Bash commands for security"' : '';
-	const alwaysAllowText = alwaysAllowDisabled ? 'Always Allow' : 'Always Allow';
-
+	messageDiv.className = 'message permission-request';
+	const toolName = data.tool || 'Unknown Tool';
+	// Create always allow button text with command styling for Bash
+	let alwaysAllowText = `Always allow ${toolName}`;
+	let alwaysAllowTooltip = '';
+	if (toolName === 'Bash' && data.pattern) {
+		const pattern = data.pattern;
+		// Remove the asterisk for display - show "npm i" instead of "npm i *"
+		const displayPattern = pattern.replace(' *', '');
+		const truncatedPattern = displayPattern.length > 30 ? displayPattern.substring(0, 30) + '...' : displayPattern;
+		alwaysAllowText = `Always allow <code>${truncatedPattern}</code>`;
+		alwaysAllowTooltip = displayPattern.length > 30 ? `title="${displayPattern}"` : '';
+	}
 	messageDiv.innerHTML = `
-		<div class="message-content permission-content">
-			<div class="permission-header">
-				<div class="permission-title">
-					<span>Permission Required</span>
-				</div>
+		<div class="permission-header">
+			<span class="icon">🔐</span>
+			<span>Permission Required</span>
+			<div class="permission-menu">
 				<button class="permission-menu-btn" onclick="togglePermissionMenu('${data.id}')" title="More options">⋮</button>
-				<div class="permission-menu" id="menu-${data.id}" style="display: none;">
-					<div class="permission-menu-item" onclick="enableYoloModeFromPermission('${data.id}')">
-						<span class="menu-title">Enable Yolo Mode</span>
-						<span class="menu-subtitle">Auto-allow all permissions</span>
-					</div>
+				<div class="permission-menu-dropdown" id="permissionMenu-${data.id}" style="display: none;">
+					<button class="permission-menu-item" onclick="enableYoloMode('${data.id}')">
+						<span class="menu-icon">⚡</span>
+						<div class="menu-content">
+							<span class="menu-title">Enable YOLO Mode</span>
+							<span class="menu-subtitle">Auto-allow all permissions</span>
+						</div>
+					</button>
 				</div>
 			</div>
-			<div class="permission-details">
-				<strong>${data.toolName}</strong> wants to ${data.command ? `run: <code>${escapeHtml(data.command)}</code>` : 'be used'}
-			</div>
-			<div class="permission-actions">
+		</div>
+		<div class="permission-content">
+			<p>Allow <strong>${toolName}</strong> to execute the tool call above?</p>
+			<div class="permission-buttons">
 				<button class="btn deny" onclick="respondToPermission('${data.id}', false)">Deny</button>
 				<button class="btn always-allow" onclick="respondToPermission('${data.id}', true, true)" ${alwaysAllowTooltip}>${alwaysAllowText}</button>
 				<button class="btn allow" onclick="respondToPermission('${data.id}', true)">Allow</button>
 			</div>
 		</div>
 	`;
-
 	messagesDiv.appendChild(messageDiv);
-	scrollToBottomIfNeeded(messagesDiv, true);
+	scrollToBottomIfNeeded(messagesDiv, shouldScroll);
 }
 
-(window as any).respondToPermission = function(id: string, approved: boolean, alwaysAllow: boolean = false) {
+function respondToPermission(id: string, approved: boolean, alwaysAllow: boolean = false): void {
 	vscode.postMessage({
 		type: 'permissionResponse',
 		id: id,
@@ -2058,27 +2209,26 @@ function addPermissionRequestMessage(data: any): void {
 	}
 };
 
-(window as any).togglePermissionMenu = function(permissionId: string) {
+function togglePermissionMenu(permissionId: string): void {
 	const menu = document.getElementById(`menu-${permissionId}`);
 	if (menu) {
 		menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
 	}
 };
 
-(window as any).enableYoloModeFromPermission = function(permissionId: string) {
+function enableYoloModeFromPermission(permissionId: string): void {
 	// Hide the menu first
-	(window as any).togglePermissionMenu(permissionId);
-	
+	togglePermissionMenu(permissionId);
+
 	// Auto-approve this permission
-	(window as any).respondToPermission(permissionId, true);
-	
+	respondToPermission(permissionId, true);
+
 	// Enable yolo mode
-	(window as any).enableYoloMode();
+	enableYoloMode();
 };
 
 // Expose permissions functions to global scope
-(window as any).showAddPermissionForm = (window as any).showAddPermissionForm;
-(window as any).hideAddPermissionForm = hideAddPermissionForm;
+// Global scope assignments moved to end of file
 
 // Modal close functionality
 function initializeModals(): void {
@@ -2135,6 +2285,16 @@ function initializeModals(): void {
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', function() {
+	// Initialize DOM elements
+	messagesDiv = document.getElementById('messages') as HTMLElement;
+	messageInput = document.getElementById('messageInput') as HTMLTextAreaElement;
+	sendBtn = document.getElementById('sendBtn') as HTMLButtonElement;
+	statusDiv = document.getElementById('status') as HTMLElement;
+	statusTextDiv = document.getElementById('statusText') as HTMLElement;
+	filePickerModal = document.getElementById('filePickerModal') as HTMLElement;
+	fileSearchInput = document.getElementById('fileSearchInput') as HTMLInputElement;
+	fileList = document.getElementById('fileList') as HTMLElement;
+	_imageBtn = document.getElementById('imageBtn') as HTMLButtonElement;
 	console.log('UI initialized');
 	console.log('Communication test - vscode API:', typeof vscode);
 	console.log('Elements found:', {
@@ -2157,6 +2317,18 @@ document.addEventListener('DOMContentLoaded', function() {
 	}
 
 	// Set up message input event listeners
+	messageInput.addEventListener('input', adjustTextareaHeight);
+
+	messageInput.addEventListener('input', () => {
+		if (messageInput.value.length > 0) {
+			sendBtn.style.opacity = '1';
+			sendBtn.style.cursor = 'pointer';
+		} else {
+			sendBtn.style.opacity = '0.5';
+			sendBtn.style.cursor = 'default';
+		}
+	});
+
 	messageInput.addEventListener('keydown', function(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
@@ -2167,13 +2339,121 @@ document.addEventListener('DOMContentLoaded', function() {
 		} else if (e.key === '@' && !e.ctrlKey && !e.metaKey) {
 			// Don't prevent default, let @ be typed first
 			setTimeout(() => {
-				(window as any).showFilePicker();
+				showFilePicker();
 			}, 0);
 		} else if (e.key === 'Escape' && filePickerModal.style.display === 'flex') {
 			e.preventDefault();
 			filePickerModal.style.display = 'none';
 			fileSearchInput.value = '';
 			selectedFileIndex = -1;
+		}
+	});
+
+	messageInput.addEventListener('paste', async (e) => {
+		e.preventDefault();
+
+		try {
+			// Try to get clipboard data from the event first
+			const clipboardData = e.clipboardData;
+
+			// Check for images first
+			if (clipboardData && clipboardData.items) {
+				let hasImage = false;
+				for (let i = 0; i < clipboardData.items.length; i++) {
+					const item = clipboardData.items[i];
+					if (item.type.startsWith('image/')) {
+						// Found an image, handle it
+						console.log('Image detected in clipboard:', item.type);
+						hasImage = true;
+						const blob = item.getAsFile();
+						if (blob) {
+							console.log('Converting image blob to base64...');
+							// Convert blob to base64
+							const reader = new FileReader();
+							reader.onload = function(event) {
+								const base64Data = event.target?.result;
+								console.log('Sending image to extension for file creation');
+								// Send to extension to create file
+								vscode.postMessage({
+									type: 'createImageFile',
+									imageData: base64Data,
+									imageType: item.type
+								});
+							};
+							reader.readAsDataURL(blob);
+						}
+						break; // Process only the first image found
+					}
+				}
+
+				// If we found an image, don't process any text
+				if (hasImage) {
+					return;
+				}
+			}
+
+			// No image found, handle text
+			let text = '';
+
+			if (clipboardData) {
+				text = clipboardData.getData('text/plain');
+			}
+
+			// If no text from event, try navigator.clipboard API
+			if (!text && navigator.clipboard && navigator.clipboard.readText) {
+				try {
+					text = await navigator.clipboard.readText();
+				} catch (err) {
+					console.log('Clipboard API failed:', err);
+				}
+			}
+
+			// If still no text, request from VS Code extension
+			if (!text) {
+				vscode.postMessage({
+					type: 'getClipboardText'
+				});
+				return;
+			}
+
+			// Insert text at cursor position
+			const start = messageInput.selectionStart;
+			const end = messageInput.selectionEnd;
+			const currentValue = messageInput.value;
+
+			const newValue = currentValue.substring(0, start) + text + currentValue.substring(end);
+			messageInput.value = newValue;
+
+			// Set cursor position after pasted text
+			const newCursorPos = start + text.length;
+			messageInput.setSelectionRange(newCursorPos, newCursorPos);
+
+			// Trigger input event to adjust height
+			messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+		} catch (error) {
+			console.error('Paste error:', error);
+			// Fallback: request clipboard from VS Code
+			vscode.postMessage({
+				type: 'getClipboardText'
+			});
+		}
+	});
+
+	messageInput.addEventListener('contextmenu', (e) => {
+		e.preventDefault();
+		// Optional: show custom context menu or request clipboard
+		vscode.postMessage({
+			type: 'getClipboardText'
+		});
+	});
+
+	// Document click handler to close permission menus
+	document.addEventListener('click', function(event) {
+		if (!(event.target as HTMLElement)?.closest('.permission-menu')) {
+			document.querySelectorAll('.permission-menu-dropdown').forEach(dropdown => {
+				(dropdown as HTMLElement).style.display = 'none';
+			});
 		}
 	});
 
@@ -2196,22 +2476,47 @@ document.addEventListener('DOMContentLoaded', function() {
 			selectFile(filteredFiles[selectedFileIndex]);
 		} else if (e.key === 'Escape') {
 			e.preventDefault();
-			filePickerModal.style.display = 'none';
-			fileSearchInput.value = '';
-			selectedFileIndex = -1;
+			hideFilePicker();
 		}
 	});
 
 	// Close modal when clicking outside
 	filePickerModal.addEventListener('click', (e) => {
 		if (e.target === filePickerModal) {
-			filePickerModal.style.display = 'none';
-			fileSearchInput.value = '';
-			selectedFileIndex = -1;
+			hideFilePicker();
 		}
 	});
 
 	// Listen for messages from the extension
+	// Global event delegation for dynamically created elements
+	document.addEventListener('click', function(event: Event) {
+		const target = event.target as HTMLElement;
+
+		// Handle file path clicks
+		if (target.classList.contains('diff-file-path') && target.dataset.filePath) {
+			openFileInEditor(target.dataset.filePath);
+			return;
+		}
+
+		// Handle expand buttons
+		if (target.classList.contains('expand-btn')) {
+			toggleExpand(target);
+			return;
+		}
+
+		// Handle diff expansion buttons
+		if (target.classList.contains('diff-expand-btn') && target.dataset.diffId) {
+			toggleDiffExpansion(target.dataset.diffId);
+			return;
+		}
+
+		// Handle result expansion buttons
+		if (target.classList.contains('result-expand-btn') && target.dataset.resultId) {
+			toggleResultExpansion(target.dataset.resultId);
+			return;
+		}
+	});
+
 	window.addEventListener('message', function(event: MessageEvent) {
 		console.log('Received message from extension:', event.data.type);
 		const message = event.data;
@@ -2343,8 +2648,16 @@ document.addEventListener('DOMContentLoaded', function() {
 				}
 				break;
 			case 'sessionInfo':
-				console.log('Session info received');
-				// Session info handling can be added later if needed
+				if (message.data.sessionId) {
+					showSessionInfo(message.data.sessionId);
+					// Show detailed session information
+					const _sessionDetails = [
+						`🆔 Session ID: ${message.data.sessionId}`,
+						`🔧 Tools Available: ${message.data.tools.length}`,
+						`🖥️ MCP Servers: ${message.data.mcpServers ? message.data.mcpServers.length : 0}`
+					];
+					//addMessage(sessionDetails.join('\n'), 'system');
+				}
 				break;
 			case 'updateTokens':
 				console.log('Update tokens received');
@@ -2386,8 +2699,113 @@ document.addEventListener('DOMContentLoaded', function() {
 				updateStatusWithTotals();
 				break;
 			case 'showRestoreOption':
-				console.log('Show restore option received');
-				// Restore option handling can be added later if needed
+				showRestoreContainer(message.data);
+				break;
+			case 'restoreProgress':
+				addMessage('🔄 ' + message.data, 'system');
+				break;
+			case 'restoreSuccess':
+				//hideRestoreContainer(message.data.commitSha);
+				addMessage('✅ ' + message.data.message, 'system');
+				break;
+			case 'restoreError':
+				addMessage('❌ ' + message.data, 'error');
+				break;
+			case 'sessionResumed':
+				console.log('Session resumed:', message.data);
+				showSessionInfo(message.data.sessionId);
+				addMessage(`📝 Resumed previous session\n🆔 Session ID: ${message.data.sessionId}\n💡 Your conversation history is preserved`, 'system');
+				break;
+			case 'sessionCleared':
+				console.log('Session cleared');
+				// Clear all messages from UI
+				messagesDiv.innerHTML = '';
+				hideSessionInfo();
+				addMessage('🆕 Started new session', 'system');
+				// Reset totals
+				totalCost = 0;
+				totalTokensInput = 0;
+				totalTokensOutput = 0;
+				requestCount = 0;
+				updateStatusWithTotals();
+				break;
+			case 'loginRequired':
+				sendStats('Login required');
+				addMessage('🔐 Login Required\n\nYour Claude API key is invalid or expired.\nA terminal has been opened - please run the login process there.\n\nAfter logging in, come back to this chat to continue.', 'error');
+				updateStatus('Login Required', 'error');
+				break;
+			case 'conversationList':
+				displayConversationList(message.data);
+				break;
+			case 'clipboardText':
+				handleClipboardText(message.data);
+				break;
+			case 'modelSelected':
+				// Update the UI with the current model
+				currentModel = message.model;
+				selectModel(message.model, true);
+				break;
+			case 'terminalOpened':
+				// Display notification about checking the terminal
+				addMessage(message.data, 'system');
+				break;
+			case 'mcpServers':
+				displayMCPServers(message.data);
+				break;
+			case 'mcpServerSaved':
+				loadMCPServers(); // Reload the servers list
+				addMessage('✅ MCP server "' + message.data.name + '" saved successfully', 'system');
+				break;
+			case 'mcpServerDeleted':
+				loadMCPServers(); // Reload the servers list
+				addMessage('✅ MCP server "' + message.data.name + '" deleted successfully', 'system');
+				break;
+			case 'mcpServerError':
+				addMessage('❌ Error with MCP server: ' + message.data.error, 'error');
+				break;
+			case 'restoreInputText':
+				const inputField = document.getElementById('messageInput') as HTMLTextAreaElement;
+				if (inputField && message.data) {
+					inputField.value = message.data;
+					// Auto-resize the textarea
+					inputField.style.height = 'auto';
+					inputField.style.height = Math.min(inputField.scrollHeight, 200) + 'px';
+				}
+				break;
+			case 'imagePath':
+				// Handle image file path response
+				if (message.data.filePath) {
+					// Get current cursor position and content
+					const cursorPosition = messageInput.selectionStart || messageInput.value.length;
+					const currentValue = messageInput.value || '';
+
+					// Insert the file path at the current cursor position
+					const textBefore = currentValue.substring(0, cursorPosition);
+					const textAfter = currentValue.substring(cursorPosition);
+
+					// Add a space before the path if there's text before and it doesn't end with whitespace
+					const separator = (textBefore && !textBefore.endsWith(' ') && !textBefore.endsWith('\n')) ? ' ' : '';
+
+					messageInput.value = textBefore + separator + message.data.filePath + textAfter;
+
+					// Move cursor to end of inserted path
+					const newCursorPosition = cursorPosition + separator.length + message.data.filePath.length;
+					messageInput.setSelectionRange(newCursorPosition, newCursorPosition);
+
+					// Focus back on textarea and adjust height
+					messageInput.focus();
+					adjustTextareaHeight();
+
+					console.log('Inserted image path:', message.data.filePath);
+					console.log('Full textarea value:', messageInput.value);
+				} else if (message.path) {
+					// Add the image path to the textarea (alternative format)
+					const currentText = messageInput.value;
+					const pathIndicator = `@${message.path} `;
+					messageInput.value = currentText + pathIndicator;
+					messageInput.focus();
+					adjustTextareaHeight();
+				}
 				break;
 			case 'permissionsData':
 				console.log('Permissions data received');
@@ -2399,35 +2817,156 @@ document.addEventListener('DOMContentLoaded', function() {
 				addPermissionRequestMessage(message.data);
 				break;
 			case 'settingsData':
-				console.log('Settings data received');
-				// Update settings form with received data
-				const yoloModeCheckbox = document.getElementById('yolo-mode') as HTMLInputElement;
-				const themeSelect = document.getElementById('theme-select') as HTMLSelectElement;
-				const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
-				const wslEnabledCheckbox = document.getElementById('wsl-enabled') as HTMLInputElement;
-				const wslDistroInput = document.getElementById('wsl-distro') as HTMLInputElement;
-				const wslNodePathInput = document.getElementById('wsl-node-path') as HTMLInputElement;
-				const wslClaudePathInput = document.getElementById('wsl-claude-path') as HTMLInputElement;
-				
-				if (yoloModeCheckbox) yoloModeCheckbox.checked = message.data['permissions.yoloMode'] || false;
-				if (themeSelect) themeSelect.value = message.data['ui.theme'] || 'auto';
-				if (modelSelect) modelSelect.value = message.data['model'] || 'claude-3-5-sonnet-20241022';
-				if (wslEnabledCheckbox) wslEnabledCheckbox.checked = message.data['wsl.enabled'] || false;
-				if (wslDistroInput) wslDistroInput.value = message.data['wsl.distro'] || 'Ubuntu';
-				if (wslNodePathInput) wslNodePathInput.value = message.data['wsl.nodePath'] || '/usr/bin/node';
-				if (wslClaudePathInput) wslClaudePathInput.value = message.data['wsl.claudePath'] || '/usr/local/bin/claude';
-				
-				// Show/hide WSL options based on checkbox state
-				const wslOptions = document.getElementById('wslOptions');
-				if (wslOptions) {
-					wslOptions.style.display = message.data['wsl.enabled'] ? 'block' : 'none';
+				// Update UI with current settings
+				const thinkingIntensity = message.data['thinking.intensity'] || 'think';
+				const intensityValues = ['think', 'think-hard', 'think-harder', 'ultrathink'];
+				const sliderValue = intensityValues.indexOf(thinkingIntensity);
+
+				// Update thinking intensity modal if it exists
+				const thinkingIntensitySlider = document.getElementById('thinkingIntensitySlider') as HTMLInputElement;
+				if (thinkingIntensitySlider) {
+					thinkingIntensitySlider.value = (sliderValue >= 0 ? sliderValue : 0).toString();
+					updateThinkingIntensityDisplay(parseInt(thinkingIntensitySlider.value));
+				} else {
+					// Update toggle name even if modal isn't open
+					updateThinkingModeToggleName(sliderValue >= 0 ? sliderValue : 0);
 				}
-				
-				// Update yolo warning
+
+				const wslEnabledElement = document.getElementById('wsl-enabled') as HTMLInputElement;
+				const wslDistroElement = document.getElementById('wsl-distro') as HTMLInputElement;
+				const wslNodePathElement = document.getElementById('wsl-node-path') as HTMLInputElement;
+				const wslClaudePathElement = document.getElementById('wsl-claude-path') as HTMLInputElement;
+				const yoloModeElement = document.getElementById('yolo-mode') as HTMLInputElement;
+
+				if (wslEnabledElement) {wslEnabledElement.checked = message.data['wsl.enabled'] || false;}
+				if (wslDistroElement) {wslDistroElement.value = message.data['wsl.distro'] || 'Ubuntu';}
+				if (wslNodePathElement) {wslNodePathElement.value = message.data['wsl.nodePath'] || '/usr/bin/node';}
+				if (wslClaudePathElement) {wslClaudePathElement.value = message.data['wsl.claudePath'] || '/usr/local/bin/claude';}
+				if (yoloModeElement) {yoloModeElement.checked = message.data['permissions.yoloMode'] || false;}
+
+				// Update yolo warning visibility
 				updateYoloWarning();
+
+				// Show/hide WSL options
+				const wslOptionsElement = document.getElementById('wslOptions');
+				if (wslOptionsElement) {
+					wslOptionsElement.style.display = message.data['wsl.enabled'] ? 'block' : 'none';
+				}
+				break;
+			case 'platformInfo':
+				// Check if user is on Windows and show WSL alert if not dismissed and WSL not already enabled
+				if (message.data.isWindows && !message.data.wslAlertDismissed && !message.data.wslEnabled) {
+					// Small delay to ensure UI is ready
+					setTimeout(() => {
+						showWSLAlert();
+					}, 1000);
+				}
+				break;
+			case 'customSnippetsData':
+				// Update global custom snippets data
+				customSnippetsData = message.data || {};
+				// Refresh the snippets display
+				loadCustomSnippets(customSnippetsData);
+				break;
+			case 'customSnippetSaved':
+				// Refresh snippets after saving
+				vscode.postMessage({
+					type: 'getCustomSnippets'
+				});
+				break;
+			case 'customSnippetDeleted':
+				// Refresh snippets after deletion
+				vscode.postMessage({
+					type: 'getCustomSnippets'
+				});
 				break;
 			default:
 				console.log('Unknown message type:', message.type);
 		}
 	});
 });
+
+// ============================================================================
+// GLOBAL SCOPE EXPOSURE FOR HTML ONCLICK HANDLERS
+// ============================================================================
+// All functions exposed to global scope in one centralized location for maintainability
+
+
+// Core UI functions
+(window as any).sendMessage = sendMessage;
+(window as any).togglePlanMode = togglePlanMode;
+(window as any).toggleThinkingMode = toggleThinkingMode;
+(window as any).enableYoloMode = enableYoloMode;
+
+// File and image selection
+(window as any).showFilePicker = showFilePicker;
+(window as any).hideFilePicker = hideFilePicker;
+(window as any).selectImage = selectImage;
+
+// Session management
+(window as any).newSession = newSession;
+(window as any).toggleConversationHistory = toggleConversationHistory;
+(window as any).restoreToCommit = restoreToCommit;
+(window as any).requestConversationList = requestConversationList;
+(window as any).loadConversation = loadConversation;
+
+// Settings and modal management
+(window as any).toggleSettings = toggleSettings;
+(window as any).updateSettings = updateSettings;
+(window as any).updateServerForm = updateServerForm;
+
+// Modal control functions
+(window as any).showModelSelector = showModelSelector;
+(window as any).hideModelModal = hideModelModal;
+(window as any).showSlashCommandsModal = showSlashCommandsModal;
+(window as any).hideSlashCommandsModal = hideSlashCommandsModal;
+(window as any).hideSettingsModal = hideSettingsModal;
+(window as any).hideThinkingIntensityModal = hideThinkingIntensityModal;
+(window as any).setThinkingIntensity = setThinkingIntensity;
+(window as any).setThinkingIntensityValue = setThinkingIntensityValue;
+(window as any).updateThinkingIntensityDisplay = updateThinkingIntensityDisplay;
+(window as any).confirmThinkingIntensity = confirmThinkingIntensity;
+
+// MCP Server management
+(window as any).showMCPModal = showMCPModal;
+(window as any).hideMCPModal = hideMCPModal;
+(window as any).saveMCPServer = saveMCPServer;
+(window as any).showAddServerForm = showAddServerForm;
+(window as any).hideAddServerForm = hideAddServerForm;
+(window as any).deleteMCPServer = deleteMCPServer;
+(window as any).addPopularServer = addPopularServer;
+(window as any).editMCPServer = editMCPServer;
+
+// Content interaction functions (handled by event delegation, but keeping some for direct calls)
+(window as any).copyMessageContent = copyMessageContent;
+(window as any).copyCodeBlock = copyCodeBlock;
+
+// Model and execution functions
+(window as any).selectModel = selectModel;
+(window as any).stopRequest = stopRequest;
+(window as any).executeSlashCommand = executeSlashCommand;
+(window as any).openModelTerminal = openModelTerminal;
+
+// WSL functions
+(window as any).showWSLAlert = showWSLAlert;
+(window as any).dismissWSLAlert = dismissWSLAlert;
+(window as any).openWSLSettings = openWSLSettings;
+
+// Prompt snippet functions
+(window as any).usePromptSnippet = usePromptSnippet;
+(window as any).showAddSnippetForm = showAddSnippetForm;
+(window as any).hideAddSnippetForm = hideAddSnippetForm;
+(window as any).saveCustomSnippet = saveCustomSnippet;
+(window as any).deleteCustomSnippet = deleteCustomSnippet;
+(window as any).filterSlashCommands = filterSlashCommands;
+(window as any).handleCustomCommandKeydown = handleCustomCommandKeydown;
+
+// Permission management functions
+(window as any).showAddPermissionForm = showAddPermissionForm;
+(window as any).hideAddPermissionForm = hideAddPermissionForm;
+(window as any).addPermission = addPermission;
+(window as any).removePermission = removePermission;
+(window as any).toggleCommandInput = toggleCommandInput;
+(window as any).respondToPermission = respondToPermission;
+(window as any).togglePermissionMenu = togglePermissionMenu;
+(window as any).enableYoloModeFromPermission = enableYoloModeFromPermission;
