@@ -54,44 +54,24 @@ function addMessage(content: string, type = 'claude'): void {
 	const messageDiv = document.createElement('div');
 	messageDiv.className = `message ${type}`;
 
-	// Add header for main message types (excluding system)
+	// Only add copy button for non-system messages, no headers
 	if (type === 'user' || type === 'claude' || type === 'error') {
-		const headerDiv = document.createElement('div');
-		headerDiv.className = 'message-header';
-
-		const iconDiv = document.createElement('div');
-		iconDiv.className = `message-icon ${type}`;
-
-		const labelDiv = document.createElement('div');
-		labelDiv.className = 'message-label';
-
-		// Set icon and label based on type
-		switch(type) {
-			case 'user':
-				iconDiv.textContent = '👤';
-				labelDiv.textContent = 'You';
-				break;
-			case 'claude':
-				iconDiv.textContent = '🤖';
-				labelDiv.textContent = 'Claude';
-				break;
-			case 'error':
-				iconDiv.textContent = '⚠️';
-				labelDiv.textContent = 'Error';
-				break;
-		}
-
-		// Add copy button
+		// Add copy button directly to message div
 		const copyBtn = document.createElement('button');
 		copyBtn.className = 'copy-btn';
 		copyBtn.title = 'Copy message';
 		copyBtn.onclick = () => copyMessageContent(messageDiv);
 		copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
 
-		headerDiv.appendChild(iconDiv);
-		headerDiv.appendChild(labelDiv);
-		headerDiv.appendChild(copyBtn);
-		messageDiv.appendChild(headerDiv);
+		// Position copy button absolutely in top-right
+		copyBtn.style.position = 'absolute';
+		copyBtn.style.top = '8px';
+		copyBtn.style.right = '8px';
+		copyBtn.style.opacity = '0';
+		copyBtn.style.transition = 'opacity 0.2s ease';
+
+		messageDiv.style.position = 'relative';
+		messageDiv.appendChild(copyBtn);
 	}
 
 	// Add content
@@ -393,6 +373,107 @@ function copyMessageContent(messageDiv: HTMLElement): void {
 	}
 }
 
+function addTokenInfoToLastMessage(tokenInfo: string): void {
+	const messagesDiv = document.getElementById('messages')!;
+	const claudeMessages = messagesDiv.querySelectorAll('.message.claude');
+	const lastClaudeMessage = claudeMessages[claudeMessages.length - 1] as HTMLElement;
+
+	if (lastClaudeMessage) {
+		const contentDiv = lastClaudeMessage.querySelector('.message-content');
+		if (contentDiv && !lastClaudeMessage.querySelector('.token-info-icon')) {
+			// Create info icon
+			const infoIcon = document.createElement('span');
+			infoIcon.className = 'token-info-icon';
+			infoIcon.innerHTML = ' <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.5; cursor: pointer; margin-left: 4px; vertical-align: text-bottom;"><circle cx="12" cy="12" r="10"/><path d="m12 6h.01M12 10v6"/></svg>';
+			infoIcon.title = 'Click to view token usage';
+			infoIcon.style.opacity = '0.5';
+			infoIcon.style.cursor = 'pointer';
+
+			// Store token info as data attribute
+			infoIcon.setAttribute('data-token-info', tokenInfo);
+
+			// Add click handler to show token info
+			infoIcon.addEventListener('click', function() {
+				const existingTokenMsg = document.querySelector('.token-info-message');
+				if (existingTokenMsg) {
+					existingTokenMsg.remove();
+				} else {
+					const tokenMsg = document.createElement('div');
+					tokenMsg.className = 'message system token-info-message';
+					tokenMsg.style.fontSize = '11px';
+					tokenMsg.style.opacity = '0.7';
+					tokenMsg.style.marginTop = '4px';
+					tokenMsg.textContent = tokenInfo;
+
+					// Insert after the current message
+					lastClaudeMessage.insertAdjacentElement('afterend', tokenMsg);
+
+					// Auto-hide after 5 seconds
+					setTimeout(() => {
+						if (tokenMsg.parentNode) {
+							tokenMsg.remove();
+						}
+					}, 5000);
+				}
+			});
+
+			// Append to the end of content
+			contentDiv.appendChild(infoIcon);
+		}
+	}
+}
+
+function addFileInfoToLastMessage(filePath: string): void {
+	const messagesDiv = document.getElementById('messages')!;
+	const claudeMessages = messagesDiv.querySelectorAll('.message.claude');
+	const lastClaudeMessage = claudeMessages[claudeMessages.length - 1] as HTMLElement;
+
+	if (lastClaudeMessage) {
+		const contentDiv = lastClaudeMessage.querySelector('.message-content');
+		if (contentDiv && !lastClaudeMessage.querySelector('.file-info-icon')) {
+			// Create file icon
+			const fileIcon = document.createElement('span');
+			fileIcon.className = 'file-info-icon';
+			fileIcon.innerHTML = ' <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.5; cursor: pointer; margin-left: 4px; vertical-align: text-bottom;"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" /></svg>';
+			fileIcon.title = 'Click to view file path';
+			fileIcon.style.opacity = '0.5';
+			fileIcon.style.cursor = 'pointer';
+
+			// Store file path as data attribute
+			fileIcon.setAttribute('data-file-path', filePath);
+
+			// Add click handler to show file path
+			fileIcon.addEventListener('click', function() {
+				const existingFileMsg = document.querySelector('.file-info-message');
+				if (existingFileMsg) {
+					existingFileMsg.remove();
+				} else {
+					const fileMsg = document.createElement('div');
+					fileMsg.className = 'message system file-info-message';
+					fileMsg.style.fontSize = '11px';
+					fileMsg.style.opacity = '0.7';
+					fileMsg.style.marginTop = '4px';
+					fileMsg.style.fontFamily = 'var(--vscode-editor-font-family)';
+					fileMsg.textContent = '📁 ' + filePath;
+
+					// Insert after the current message
+					lastClaudeMessage.insertAdjacentElement('afterend', fileMsg);
+
+					// Auto-hide after 5 seconds
+					setTimeout(() => {
+						if (fileMsg.parentNode) {
+							fileMsg.remove();
+						}
+					}, 5000);
+				}
+			});
+
+			// Append to the end of content
+			contentDiv.appendChild(fileIcon);
+		}
+	}
+}
+
 function showThinkingIntensityModal(): void {
 	// Request current settings from VS Code first
 	vscode.postMessage({
@@ -657,10 +738,10 @@ function formatToolInputUI(input: any): string {
 		}
 		return str;
 	}
-	// Special handling for Read tool with file_path
+	// Special handling for Read tool with file_path - don't show standalone path
 	if (input.file_path && Object.keys(input).length === 1) {
-		const formattedPath = formatFilePath(input.file_path);
-		return '<div class="diff-file-path" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer;">' + formattedPath + '</div>';
+		// Return empty string to avoid showing standalone file path
+		return '';
 	}
 	let result = '';
 	let isFirst = true;
@@ -668,10 +749,10 @@ function formatToolInputUI(input: any): string {
 		const valueStr = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 		if (!isFirst) {result += '\n';}
 		isFirst = false;
-		// Special formatting for file_path in Read tool context
+		// Skip file_path display to avoid duplicate paths (shown in diff headers instead)
 		if (key === 'file_path') {
-			const formattedPath = formatFilePath(valueStr);
-			result += '<div class="diff-file-path" data-file-path="' + escapeHtml(valueStr) + '" style="cursor: pointer;">' + formattedPath + '</div>';
+			// Skip showing file_path to avoid duplication with diff headers
+			continue;
 		} else if (valueStr.length > 100) {
 			const truncated = valueStr.substring(0, 97) + '...';
 			const escapedValue = valueStr.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -693,7 +774,6 @@ function formatEditToolDiff(input: any): string {
 	}
 	// Format file path with better display
 	const formattedPath = formatFilePath(input.file_path);
-	let result = '<div class="diff-file-path" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer;">' + formattedPath + '</div>\n';
 	// Create diff view
 	const oldLines = input.old_string.split('\n');
 	const newLines = input.new_string.split('\n');
@@ -703,8 +783,8 @@ function formatEditToolDiff(input: any): string {
 	const shouldTruncate = allLines.length > maxLines;
 	const visibleLines = shouldTruncate ? allLines.slice(0, maxLines) : allLines;
 	const hiddenLines = shouldTruncate ? allLines.slice(maxLines) : [];
-	result += '<div class="diff-container">';
-	result += '<div class="diff-header">Changes:</div>';
+	let result = '<div class="diff-container">';
+	result += '<div class="diff-header">Changes: <span class="diff-file-path-inline" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer; font-size: 10px; opacity: 0.7; font-weight: normal;">' + formattedPath + '</span></div>';
 	// Create a unique ID for this diff
 	const diffId = 'diff_' + Math.random().toString(36).substr(2, 9);
 	// Show visible lines
@@ -768,7 +848,6 @@ function formatMultiEditToolDiff(input: any): string {
 	}
 	// Format file path with better display
 	const formattedPath = formatFilePath(input.file_path);
-	let result = '<div class="diff-file-path" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer;">' + formattedPath + '</div>\n';
 	// Count total lines across all edits for truncation
 	let totalLines = 0;
 	for (const edit of input.edits) {
@@ -780,8 +859,8 @@ function formatMultiEditToolDiff(input: any): string {
 	}
 	const maxLines = 6;
 	const shouldTruncate = totalLines > maxLines;
-	result += '<div class="diff-container">';
-	result += '<div class="diff-header">Changes (' + input.edits.length + ' edit' + (input.edits.length > 1 ? 's' : '') + '):</div>';
+	let result = '<div class="diff-container">';
+	result += '<div class="diff-header">Changes (' + input.edits.length + ' edit' + (input.edits.length > 1 ? 's' : '') + '): <span class="diff-file-path-inline" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer; font-size: 10px; opacity: 0.7; font-weight: normal;">' + formattedPath + '</span></div>';
 	// Create a unique ID for this diff
 	const diffId = 'multiedit_' + Math.random().toString(36).substr(2, 9);
 	let currentLineCount = 0;
@@ -844,15 +923,14 @@ function formatWriteToolDiff(input: any): string {
 	}
 	// Format file path with better display
 	const formattedPath = formatFilePath(input.file_path);
-	let result = '<div class="diff-file-path" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer;">' + formattedPath + '</div>\n';
 	// Create diff view showing all content as additions
 	const contentLines = input.content.split('\n');
 	const maxLines = 6;
 	const shouldTruncate = contentLines.length > maxLines;
 	const visibleLines = shouldTruncate ? contentLines.slice(0, maxLines) : contentLines;
 	const hiddenLines = shouldTruncate ? contentLines.slice(maxLines) : [];
-	result += '<div class="diff-container">';
-	result += '<div class="diff-header">New file content:</div>';
+	let result = '<div class="diff-container">';
+	result += '<div class="diff-header">New file content: <span class="diff-file-path-inline" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer; font-size: 10px; opacity: 0.7; font-weight: normal;">' + formattedPath + '</span></div>';
 	// Create a unique ID for this diff
 	const diffId = 'write_' + Math.random().toString(36).substr(2, 9);
 	// Show visible lines (all as additions)
@@ -2632,6 +2710,11 @@ document.addEventListener('DOMContentLoaded', function() {
 				console.log('Tool use received');
 				if (typeof message.data === 'object') {
 					addToolUseMessage(message.data);
+					// Check if this tool involves a file and add file info icon
+					if (message.data.rawInput && message.data.rawInput.file_path) {
+						const filePath = message.data.rawInput.file_path;
+						addFileInfoToLastMessage(filePath);
+					}
 				} else if (message.data.trim()) {
 					addMessage(message.data, 'tool');
 				}
@@ -2667,7 +2750,7 @@ document.addEventListener('DOMContentLoaded', function() {
 				// Update status bar immediately
 				updateStatusWithTotals();
 
-				// Show detailed token breakdown for current message
+				// Store token info for the last Claude message
 				const currentTotal = (message.data.currentInputTokens || 0) + (message.data.currentOutputTokens || 0);
 				if (currentTotal > 0) {
 					let tokenBreakdown = `📊 Tokens: ${currentTotal.toLocaleString()}`;
@@ -2683,7 +2766,8 @@ document.addEventListener('DOMContentLoaded', function() {
 						tokenBreakdown += ` • ${cacheInfo.join(' • ')}`;
 					}
 
-					addMessage(tokenBreakdown, 'system');
+					// Add token info icon to last Claude message instead of showing directly
+					addTokenInfoToLastMessage(tokenBreakdown);
 				}
 				break;
 			case 'updateTotals':

@@ -1,5 +1,6 @@
 body {
-    font-family: var(--vscode-font-family);
+    font-family: var(--vscode-editor-font-family);
+    font-size: var(--vscode-editor-font-size);
     background-color: var(--vscode-editor-background);
     color: var(--vscode-editor-foreground);
     margin: 0;
@@ -668,72 +669,38 @@ body {
 
 .messages {
     flex: 1;
-    padding: 10px;
+    padding: 8px 12px;
     overflow-y: auto;
     font-family: var(--vscode-editor-font-family);
     font-size: var(--vscode-editor-font-size);
-    line-height: 1.4;
+    line-height: 1.3;
 }
 
 .message {
-    margin-bottom: 10px;
-    padding: 8px;
-    border-radius: 4px;
+    margin-bottom: 8px;
+    padding: 0;
+    border-radius: 0;
+    font-family: var(--vscode-editor-font-family);
+    font-size: var(--vscode-editor-font-size);
+    color: var(--vscode-editor-foreground);
+    position: relative;
 }
 
 .message.user {
-    border: 1px solid rgba(64, 165, 255, 0.2);
-    border-radius: 8px;
-    color: var(--vscode-editor-foreground);
-    font-family: var(--vscode-editor-font-family);
-    position: relative;
-    overflow: hidden;
-}
-
-.message.user::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background: linear-gradient(180deg, #40a5ff 0%, #0078d4 100%);
+    margin-left: 12px;
+    padding-left: 8px;
+    border-left: 2px solid rgba(100, 100, 100, 0.3);
 }
 
 .message.claude {
-    border: 1px solid rgba(46, 204, 113, 0.1);
-    border-radius: 8px;
-    color: var(--vscode-editor-foreground);
-    position: relative;
-    overflow: hidden;
-}
-
-.message.claude::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background: linear-gradient(180deg, #2ecc71 0%, #27ae60 100%);
+    padding: 4px 0;
 }
 
 .message.error {
-    border: 1px solid rgba(231, 76, 60, 0.3);
-    border-radius: 8px;
-    color: var(--vscode-editor-foreground);
-    position: relative;
-    overflow: hidden;
-}
-
-.message.error::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background: linear-gradient(180deg, #e74c3c 0%, #c0392b 100%);
+    padding: 8px 12px;
+    background-color: rgba(231, 76, 60, 0.1);
+    border-left: 3px solid #e74c3c;
+    border-radius: 4px;
 }
 
 .message.system {
@@ -743,71 +710,34 @@ body {
 }
 
 .message.tool {
-    border: 1px solid rgba(120, 139, 237, 0.12);
-    border-radius: 8px;
-    color: var(--vscode-editor-foreground);
-    position: relative;
-    overflow: hidden;
-}
-
-.message.tool::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background: linear-gradient(180deg, #7c8bed 0%, #5d6fe1 100%);
+    padding: 2px 0;
+    color: var(--vscode-descriptionForeground);
+    font-size: 11px;
+    opacity: 0.8;
+    margin-bottom: 4px;
 }
 
 .message.tool-result {
-    border: 1px solid rgba(28, 192, 140, 0.2);
-    border-radius: 8px;
+    padding: 0;
     color: var(--vscode-editor-foreground);
     font-family: var(--vscode-editor-font-family);
     white-space: pre-wrap;
-    position: relative;
-    overflow: hidden;
-}
-
-.message.tool-result::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background: linear-gradient(180deg, #1cc08c 0%, #16a974 100%);
+    font-size: 12px;
+    opacity: 0.9;
+    margin-top: -4px;
 }
 
 .message.thinking {
-    border: 1px solid rgba(186, 85, 211, 0.2);
-    border-radius: 8px;
-    color: var(--vscode-editor-foreground);
+    padding: 6px 0;
+    color: var(--vscode-descriptionForeground);
     font-family: var(--vscode-editor-font-family);
     font-style: italic;
-    opacity: 0.9;
-    position: relative;
-    overflow: hidden;
-}
-
-.message.thinking::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background: linear-gradient(180deg, #ba55d3 0%, #9932cc 100%);
+    opacity: 0.7;
+    font-size: 12px;
 }
 
 .tool-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: none;
 }
 
 .tool-icon {
@@ -833,13 +763,7 @@ body {
 }
 
 .message-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    position: relative;
+    display: none;
 }
 
 .copy-btn {
@@ -850,11 +774,12 @@ body {
     padding: 2px;
     border-radius: 3px;
     opacity: 0;
-    transition: opacity 0.2s ease;
-    margin-left: auto;
+    transition: opacity 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 20px;
+    height: 20px;
 }
 
 .message:hover .copy-btn {
@@ -905,7 +830,9 @@ body {
 }
 
 .message-content {
-    padding-left: 6px;
+    padding: 0;
+    font-size: var(--vscode-editor-font-size);
+    line-height: 1.4;
 }
 
 /* Code blocks generated by markdown parser only */
@@ -2871,6 +2798,53 @@ pre {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Token info icon styles */
+.token-info-icon {
+    opacity: 0.4;
+    transition: opacity 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 4px;
+    vertical-align: baseline;
+}
+
+.token-info-icon:hover {
+    opacity: 0.8;
+}
+
+.token-info-message {
+    font-size: 11px !important;
+    opacity: 0.7 !important;
+    margin: 4px 0 !important;
+    padding: 4px 8px !important;
+    background-color: rgba(128, 128, 128, 0.1) !important;
+    border-radius: 3px !important;
+    border-left: 2px solid rgba(128, 128, 128, 0.3) !important;
+}
+
+.file-info-icon {
+    opacity: 0.4;
+    transition: opacity 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 4px;
+    vertical-align: baseline;
+}
+
+.file-info-icon:hover {
+    opacity: 0.8;
+}
+
+.file-info-message {
+    font-size: 11px !important;
+    opacity: 0.7 !important;
+    margin: 4px 0 !important;
+    padding: 4px 8px !important;
+    background-color: rgba(64, 165, 255, 0.1) !important;
+    border-radius: 3px !important;
+    border-left: 2px solid rgba(64, 165, 255, 0.3) !important;
 }
 
 /* Editor context styles */
