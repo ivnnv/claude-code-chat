@@ -110,81 +110,32 @@ function addToolUseMessage(data: any): void {
 	if (!messagesDiv) {return;}
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 
-	const messageDiv = document.createElement('div');
-	messageDiv.className = 'message tool';
-
-	// Create modern header with icon
-	const headerDiv = document.createElement('div');
-	headerDiv.className = 'tool-header';
-
-	const iconDiv = document.createElement('div');
-	iconDiv.className = 'tool-icon';
-	iconDiv.textContent = '🔧';
-
-	const toolInfoElement = document.createElement('div');
-	toolInfoElement.className = 'tool-info';
-	let toolName = data.toolInfo.replace('🔧 Executing: ', '');
-	// Replace TodoWrite with more user-friendly name
-	if (toolName === 'TodoWrite') {
-		toolName = 'Update Todos';
-	}
-	toolInfoElement.textContent = toolName;
-
-	headerDiv.appendChild(iconDiv);
-	headerDiv.appendChild(toolInfoElement);
-	messageDiv.appendChild(headerDiv);
-
-	if (data.rawInput) {
-		const inputElement = document.createElement('div');
-		inputElement.className = 'tool-input';
+	// Only show diff content for Edit, MultiEdit, and Write tools - skip everything else
+	if (data.rawInput && (data.toolName === 'Edit' || data.toolName === 'MultiEdit' || data.toolName === 'Write')) {
+		const messageDiv = document.createElement('div');
+		messageDiv.className = 'message tool-result';
 
 		const contentDiv = document.createElement('div');
 		contentDiv.className = 'tool-input-content';
 
-		// Handle TodoWrite specially or format raw input
-		if (data.toolName === 'TodoWrite' && data.rawInput.todos) {
-			let todoHtml = 'Todo List Update:';
-			for (const todo of data.rawInput.todos) {
-				const status = todo.status === 'completed' ? '✅' :
-					todo.status === 'in_progress' ? '🔄' : '⏳';
-				todoHtml += '\n' + status + ' ' + todo.content + ' <span class="priority-badge ' + todo.priority + '">' + todo.priority + '</span>';
-			}
-			contentDiv.innerHTML = todoHtml;
-		} else {
-			// Format raw input with expandable content for long values
-			// Use diff format for Edit, MultiEdit, and Write tools, regular format for others
-			if (data.toolName === 'Edit') {
-				contentDiv.innerHTML = formatEditToolDiff(data.rawInput);
-			} else if (data.toolName === 'MultiEdit') {
-				contentDiv.innerHTML = formatMultiEditToolDiff(data.rawInput);
-			} else if (data.toolName === 'Write') {
-				contentDiv.innerHTML = formatWriteToolDiff(data.rawInput);
-			} else {
-				contentDiv.innerHTML = formatToolInputUI(data.rawInput);
-			}
+		// Show only the diff content without headers or containers
+		let formattedContent = '';
+		if (data.toolName === 'Edit') {
+			formattedContent = formatEditToolDiff(data.rawInput);
+		} else if (data.toolName === 'MultiEdit') {
+			formattedContent = formatMultiEditToolDiff(data.rawInput);
+		} else if (data.toolName === 'Write') {
+			formattedContent = formatWriteToolDiff(data.rawInput);
 		}
 
-		inputElement.appendChild(contentDiv);
-		messageDiv.appendChild(inputElement);
-	} else if (data.toolInput) {
-		// Fallback for pre-formatted input
-		const inputElement = document.createElement('div');
-		inputElement.className = 'tool-input';
-
-		const labelDiv = document.createElement('div');
-		labelDiv.className = 'tool-input-label';
-		labelDiv.textContent = 'INPUT';
-		inputElement.appendChild(labelDiv);
-
-		const contentDiv = document.createElement('div');
-		contentDiv.className = 'tool-input-content';
-		contentDiv.textContent = data.toolInput;
-		inputElement.appendChild(contentDiv);
-		messageDiv.appendChild(inputElement);
+		if (formattedContent.trim()) {
+			contentDiv.innerHTML = formattedContent;
+			messageDiv.appendChild(contentDiv);
+			messagesDiv.appendChild(messageDiv);
+			scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		}
 	}
-
-	messagesDiv.appendChild(messageDiv);
-	scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+	// Skip all other tools (Read, etc.) - no visual output needed
 }
 
 function sendMessage(): void {
