@@ -27,6 +27,6 @@ const jsContent = getCompiledScripts();
 // Combine into a single HTML string
 const html = htmlContent
   .replace('<link rel="stylesheet" href="ui.css">', `<style>${cssContent}</style>`)
-  .replace('<script src="ui.js"></script>', `<script>${jsContent}</script>`);
+  .replace('<script src="ui-scripts.js"></script>', `<script>${jsContent}</script>`);
 
 export default html;

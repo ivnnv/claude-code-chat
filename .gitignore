@@ -3,7 +3,7 @@ dist
 node_modules
 .vscode-test/
 *.vsix
-backup
+*.backup
 
 # Local VS Code configuration
 .vscode/launch.local.json
