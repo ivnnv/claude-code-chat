@@ -17,6 +17,6 @@
 	},
 	"exclude": [
 		"mcp-permissions.js",
-		"claude-code-chat-permissions-mcp"
+		"claude-code-sidebar-permissions-mcp"
 	]
 }

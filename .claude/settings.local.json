@@ -28,7 +28,10 @@
       "Bash(-e '1865s/).*{/) { \\/\\/ MIGRATED/' )",
       "Bash(-e '1869s/).*{/) { \\/\\/ MIGRATED/' )",
       "Bash(-e '1875s/).*{/) { \\/\\/ MIGRATED/' )",
-      "Bash(/Users/ivnnv/Sites/ivnnv/claude-code-chat/src/ui.ts)"
+      "Bash(/Users/ivnnv/Sites/ivnnv/claude-code-sidebar/src/ui.ts)",
+      "Bash(npm install)",
+      "Bash(convert:*)",
+      "Bash(magick:*)"
     ],
     "deny": []
   },

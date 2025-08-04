@@ -214,14 +214,9 @@ function getEditorContextInfo(): string | null {
 	return contextInfo;
 }
 
-function sendStats(eventName: string): void {
-	try {
-		if (typeof (window as any).umami !== 'undefined' && (window as any).umami.track) {
-			(window as any).umami.track(eventName);
-		}
-	} catch (error) {
-		console.error('Error sending stats:', error);
-	}
+function sendStats(_eventName: string): void {
+	// User tracking removed in this fork for privacy
+	// Original extension used Umami analytics to track user interactions
 }
 
 function isPermissionError(content: string): boolean {
@@ -2913,6 +2908,14 @@ document.addEventListener('DOMContentLoaded', function() {
 				vscode.postMessage({
 					type: 'getCustomSnippets'
 				});
+				break;
+			case 'showSettings':
+				// Show settings modal (triggered from native title bar button)
+				toggleSettings();
+				break;
+			case 'showHistory':
+				// Show conversation history (triggered from native title bar button)
+				toggleConversationHistory();
 				break;
 			default:
 				console.log('Unknown message type:', message.type);

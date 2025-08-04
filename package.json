@@ -1,13 +1,13 @@
 {
-  "name": "claude-code-chat",
-  "displayName": "Claude Code Chat",
-  "description": "Beautiful Claude Code Chat Interface for VS Code",
+  "name": "claude-code-sidebar",
+  "displayName": "Claude Code Sidebar",
+  "description": "Clean, modular Claude Code interface for VS Code - Fork with improved architecture",
   "version": "1.1.0",
-  "publisher": "AndrePimenta",
-  "author": "Andre Pimenta",
+  "publisher": "ivnnv",
+  "author": "Ivn Nv <ivnnv@hotmail.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/andrepimenta/claude-code-chat"
+    "url": "https://github.com/ivnnv/claude-code-sidebar"
   },
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
@@ -53,15 +53,30 @@
   "contributes": {
     "commands": [
       {
-        "command": "claude-code-chat.openChat",
-        "title": "Open Claude Code Chat",
-        "category": "Claude Code Chat",
-        "icon": "icon.png"
+        "command": "claude-code-sidebar.openChat",
+        "title": "Open Claude Code Sidebar",
+        "category": "Claude Code Sidebar",
+        "icon": "icon.svg"
+      },
+      {
+        "command": "claude-code-sidebar.settings",
+        "title": "Settings",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "claude-code-sidebar.history",
+        "title": "History",
+        "icon": "$(history)"
+      },
+      {
+        "command": "claude-code-sidebar.newChat",
+        "title": "New Chat",
+        "icon": "$(add)"
       }
     ],
     "keybindings": [
       {
-        "command": "claude-code-chat.openChat",
+        "command": "claude-code-sidebar.openChat",
         "key": "ctrl+shift+c",
         "mac": "cmd+shift+c"
       }
@@ -69,108 +84,111 @@
     "menus": {
       "commandPalette": [
         {
-          "command": "claude-code-chat.openChat"
+          "command": "claude-code-sidebar.openChat"
         }
       ],
       "editor/context": [
         {
-          "command": "claude-code-chat.openChat",
+          "command": "claude-code-sidebar.openChat",
           "group": "claude@1",
           "when": "editorTextFocus"
         }
       ],
-      "editor/title": [
-        {
-          "command": "claude-code-chat.openChat",
-          "group": "navigation@1",
-          "when": "true"
-        }
-      ],
       "editor/title/context": [
         {
-          "command": "claude-code-chat.openChat",
+          "command": "claude-code-sidebar.openChat",
           "group": "claude@1"
         }
       ],
       "explorer/context": [
         {
-          "command": "claude-code-chat.openChat",
+          "command": "claude-code-sidebar.openChat",
           "group": "claude@1"
         }
       ],
       "scm/title": [
         {
-          "command": "claude-code-chat.openChat",
+          "command": "claude-code-sidebar.openChat",
           "group": "navigation@1",
           "when": "true"
         }
       ],
       "view/title": [
         {
-          "command": "claude-code-chat.openChat",
+          "command": "claude-code-sidebar.newChat",
           "group": "navigation@1",
-          "when": "view == workbench.explorer.fileView"
+          "when": "view == claude-code-sidebar.chat"
+        },
+        {
+          "command": "claude-code-sidebar.history",
+          "group": "navigation@2",
+          "when": "view == claude-code-sidebar.chat"
+        },
+        {
+          "command": "claude-code-sidebar.settings",
+          "group": "navigation@3",
+          "when": "view == claude-code-sidebar.chat"
         }
       ],
       "touchBar": [
         {
-          "command": "claude-code-chat.openChat",
+          "command": "claude-code-sidebar.openChat",
           "group": "editing",
           "when": "true"
         }
       ],
       "menuBar/file": [
         {
-          "command": "claude-code-chat.openChat",
+          "command": "claude-code-sidebar.openChat",
           "group": "1_new@1"
         }
       ]
     },
     "views": {
-      "claude-code-chat": [
+      "claude-code-sidebar": [
         {
-          "id": "claude-code-chat.chat",
+          "id": "claude-code-sidebar.chat",
           "type": "webview",
-          "name": "Claude Code Chat",
+          "name": "Chat",
           "when": "true",
-          "icon": "icon.png",
-          "contextualTitle": "Claude Code Chat"
+          "icon": "icon.svg",
+          "contextualTitle": "Claude Code Sidebar"
         }
       ]
     },
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "claude-code-chat",
-          "title": "Claude Code Chat",
-          "icon": "icon.png"
+          "id": "claude-code-sidebar",
+          "title": "Claude Code Sidebar",
+          "icon": "icon.svg"
         }
       ]
     },
     "configuration": {
-      "title": "Claude Code Chat",
+      "title": "Claude Code Sidebar",
       "properties": {
-        "claudeCodeChat.wsl.enabled": {
+        "claudeCodeSidebar.wsl.enabled": {
           "type": "boolean",
           "default": false,
           "description": "Enable WSL integration for running Claude"
         },
-        "claudeCodeChat.wsl.distro": {
+        "claudeCodeSidebar.wsl.distro": {
           "type": "string",
           "default": "Ubuntu",
           "description": "WSL distribution name (e.g., Ubuntu, Debian)"
         },
-        "claudeCodeChat.wsl.nodePath": {
+        "claudeCodeSidebar.wsl.nodePath": {
           "type": "string",
           "default": "/usr/bin/node",
           "description": "Path to Node.js in the WSL distribution"
         },
-        "claudeCodeChat.wsl.claudePath": {
+        "claudeCodeSidebar.wsl.claudePath": {
           "type": "string",
           "default": "/usr/local/bin/claude",
           "description": "Path to Claude executable in the WSL distribution"
         },
-        "claudeCodeChat.thinking.intensity": {
+        "claudeCodeSidebar.thinking.intensity": {
           "type": "string",
           "enum": [
             "think",
@@ -181,7 +199,7 @@
           "default": "think",
           "description": "Thinking mode intensity level. Higher levels provide more detailed reasoning but consume more tokens."
         },
-        "claudeCodeChat.permissions.yoloMode": {
+        "claudeCodeSidebar.permissions.yoloMode": {
           "type": "boolean",
           "default": false,
           "description": "Enable Yolo Mode to skip all permission checks. Use with caution as Claude can execute any command without asking."
