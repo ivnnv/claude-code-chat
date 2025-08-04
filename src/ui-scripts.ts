@@ -271,13 +271,12 @@ function getEditorContextInfo(): string | null {
 
 	let contextInfo = 'in ' + currentEditorContext.fileName;
 
+	// extension provider already provides 1-based line numbers
 	if (currentEditorContext.selection && currentEditorContext.selectedText) {
-		// VS Code already provides 1-based line numbers
 		const startLine = currentEditorContext.selection.start.line;
 		const endLine = currentEditorContext.selection.end.line;
 		contextInfo += ':' + startLine + '-' + endLine;
 	} else {
-		// VS Code already provides 1-based line numbers
 		const cursorLine = currentEditorContext.cursorPosition.line;
 		contextInfo += ':' + cursorLine;
 	}

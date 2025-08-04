@@ -4,6 +4,17 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "npm: compile",
+			"type": "npm",
+			"script": "compile",
+			"group": "build",
+			"presentation": {
+				"reveal": "silent"
+			},
+			"problemMatcher": ["$tsc"]
+		},
+		{
+			"label": "watch",
 			"type": "npm",
 			"script": "watch",
 			"problemMatcher": "$tsc-watch",
@@ -14,6 +25,15 @@
 			"group": {
 				"kind": "build",
 				"isDefault": true
+			}
+		},
+		{
+			"label": "compile-for-debug",
+			"dependsOrder": "sequence",
+			"dependsOn": ["npm: compile"],
+			"group": {
+				"kind": "build",
+				"isDefault": false
 			}
 		}
 	]

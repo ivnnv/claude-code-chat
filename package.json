@@ -191,12 +191,14 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./ && npm run compile-webview && npm run copy-assets",
+    "compile": "npm run lint:fix && tsc -p ./ && npm run compile-webview && npm run copy-assets",
     "compile-webview": "tsc src/ui-scripts.ts --target ES2022 --lib ES2022,DOM --outDir out --sourceMap --module None --skipLibCheck --moduleResolution classic",
     "copy-assets": "cp src/ui.html out/ui.html && cp src/ui.css out/ui.css",
-    "watch": "tsc -watch -p ./",
+    "watch": "npm run compile && tsc -watch -p ./",
+    "watch-webview": "tsc --watch src/ui-scripts.ts --target ES2022 --lib ES2022,DOM --outDir out --sourceMap --module None --skipLibCheck --moduleResolution classic",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "test": "vscode-test"
   },
   "devDependencies": {
