@@ -29,40 +29,40 @@ body {
     display: flex;
     align-items: center;
     gap: 5px;
-}
 
-.btn:hover {
-    background-color: var(--vscode-button-background);
-    border-color: var(--vscode-focusBorder);
-}
+    &:hover {
+        background-color: var(--vscode-button-background);
+        border-color: var(--vscode-focusBorder);
+    }
 
-.btn.outlined {
-    background-color: transparent;
-    color: var(--vscode-foreground);
-    border-color: var(--vscode-panel-border);
-}
+    &.outlined {
+        background-color: transparent;
+        color: var(--vscode-foreground);
+        border-color: var(--vscode-panel-border);
 
-.btn.outlined:hover {
-    background-color: var(--vscode-list-hoverBackground);
-    border-color: var(--vscode-focusBorder);
-}
+        &:hover {
+            background-color: var(--vscode-list-hoverBackground);
+            border-color: var(--vscode-focusBorder);
+        }
+    }
 
-.btn.stop {
-    background-color: transparent;
-    color: var(--vscode-descriptionForeground);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 12px;
-    font-weight: 400;
-    opacity: 0.7;
-}
+    &.stop {
+        background-color: transparent;
+        color: var(--vscode-descriptionForeground);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 12px;
+        font-weight: 400;
+        opacity: 0.7;
 
-.btn.stop:hover {
-    background-color: rgba(231, 76, 60, 0.1);
-    color: #e74c3c;
-    border-color: rgba(231, 76, 60, 0.3);
-    opacity: 1;
+        &:hover {
+            background-color: rgba(231, 76, 60, 0.1);
+            color: #e74c3c;
+            border-color: rgba(231, 76, 60, 0.3);
+            opacity: 1;
+        }
+    }
 }
 
 /* Permission Request */
@@ -680,32 +680,32 @@ body {
     font-size: calc(var(--vscode-editor-font-size) * 0.8);
     color: var(--vscode-editor-foreground);
     position: relative;
-}
 
-.userMessage-header {
-    background-color: var(--vscode-panel-background);
-    border: 1px solid var(--vscode-panel-border);
-    border-bottom: none;
-    border-radius: 4px 4px 0 0;
-    padding: 4px 6px;
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--vscode-descriptionForeground);
-    min-height: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-}
+    &-header {
+        background-color: var(--vscode-panel-background);
+        border: 1px solid var(--vscode-panel-border);
+        border-bottom: none;
+        border-radius: 4px 4px 0 0;
+        padding: 4px 6px;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--vscode-descriptionForeground);
+        min-height: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
 
-.userMessage-content {
-    background-color: var(--vscode-editor-background);
-    border: 1px solid var(--vscode-panel-border);
-    border-top: none;
-    border-radius: 0 0 4px 4px;
-    padding: 4px 6px;
-    text-align: left;
-    word-wrap: break-word;
-    white-space: pre-wrap;
+    &-content {
+        background-color: var(--vscode-editor-background);
+        border: 1px solid var(--vscode-panel-border);
+        border-top: none;
+        border-radius: 0 0 4px 4px;
+        padding: 4px 6px;
+        text-align: left;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+    }
 }
 
 /* New systemMessage styles */
@@ -713,16 +713,20 @@ body {
     margin-bottom: 6px;
     max-width: 90%;
     font-size: calc(var(--vscode-editor-font-size)* 0.8);
-}
 
-.systemMessage-content {
-    background-color: var(--vscode-editor-background);
-    border: 1px solid var(--vscode-panel-border);
-    padding: 4px 6px;
-    word-wrap: break-word;
-    white-space: pre-wrap;
-    border-left: 4px solid var(--vscode-panel-background);
-    color: var(--vscode-descriptionForeground);
+    &-content {
+        background-color: var(--vscode-editor-background);
+        border: 1px solid var(--vscode-panel-border);
+        padding: 4px 6px;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+        border-left: 4px solid var(--vscode-panel-background);
+        color: var(--vscode-descriptionForeground);
+    }
+
+    &:hover .copy-btn {
+        opacity: 0.7;
+    }
 }
 
 .message.claude {
@@ -815,9 +819,6 @@ body {
 
 .message:hover .copy-btn,
 .userMessage:hover .copy-btn,
-.systemMessage:hover .copy-btn {
-    opacity: 0.7;
-}
 
 .copy-btn:hover {
     opacity: 1;
@@ -1408,11 +1409,11 @@ body {
     display: flex;
     align-items: center;
     gap: 4px;
-}
 
-.model-selector:hover {
-    background-color: rgba(128, 128, 128, 0.25);
-    opacity: 1;
+    &:hover {
+        background-color: rgba(128, 128, 128, 0.25);
+        opacity: 1;
+    }
 }
 
 .tools-btn {
@@ -1429,11 +1430,11 @@ body {
     display: flex;
     align-items: center;
     gap: 4px;
-}
 
-.tools-btn:hover {
-    background-color: rgba(128, 128, 128, 0.25);
-    opacity: 1;
+    &:hover {
+        background-color: rgba(128, 128, 128, 0.25);
+        opacity: 1;
+    }
 }
 
 .slash-btn,
@@ -1447,11 +1448,10 @@ body {
     font-size: 13px;
     font-weight: 600;
     transition: all 0.2s ease;
-}
 
-.slash-btn:hover,
-.at-btn:hover {
-    background-color: var(--vscode-list-hoverBackground);
+    &:hover {
+        background-color: var(--vscode-list-hoverBackground);
+    }
 }
 
 .image-btn {

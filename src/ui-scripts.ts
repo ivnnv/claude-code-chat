@@ -1,5 +1,5 @@
-// Import CSS for RSBuild bundling
-import './index.css';
+// Import SCSS for RSBuild bundling
+import './index.scss';
 
 // Complete original JavaScript functionality extracted from ui.ts.back
 declare const acquireVsCodeApi: () => any;
