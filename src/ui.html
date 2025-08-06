@@ -106,15 +106,20 @@
 		</div>
 	</div>
 
-	<div class="status ready" id="status">
-		<div class="status-indicator"></div>
-		<div class="status-text" id="statusText">Initializing...</div>
-		<button class="btn stop" id="stopBtn" onclick="stopRequest()" style="display: none;">
-			<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-				<path d="M6 6h12v12H6z"/>
-			</svg>
-			Stop
-		</button>
+	<!-- Status info popover -->
+	<div id="statusPopover" class="status-popover" style="display: none;">
+		<div class="status-popover-content">
+			<div class="status-info-item">
+				<div class="status-indicator" id="statusIndicator"></div>
+				<div class="status-text" id="statusText">Initializing...</div>
+			</div>
+			<button class="btn stop" id="stopBtn" onclick="stopRequest()" style="display: none;">
+				<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+					<path d="M6 6h12v12H6z"/>
+				</svg>
+				Stop
+			</button>
+		</div>
 	</div>
 
 	<div id="yoloWarning" class="yolo-warning" style="display: none;">

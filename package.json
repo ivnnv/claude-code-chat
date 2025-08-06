@@ -149,10 +149,9 @@
         {
           "id": "claude-code-sidebar.chat",
           "type": "webview",
-          "name": "Chat",
+          "name": "",
           "when": "true",
-          "icon": "icon.svg",
-          "contextualTitle": "Claude Code Sidebar"
+          "icon": "icon.svg"
         }
       ]
     },
@@ -213,6 +212,7 @@
     "compile-webview": "tsc src/ui-scripts.ts --target ES2022 --lib ES2022,DOM --outFile out/ui-scripts.js --skipLibCheck",
     "copy-assets": "cp src/ui.html out/ui.html && cp src/ui.css out/ui.css",
     "watch": "npm run compile && tsc -watch -p ./",
+    "watch-assets": "chokidar 'src/ui.html' 'src/ui.css' -c 'npm run copy-assets'",
     "watch-webview": "tsc --watch src/ui-scripts.ts --target ES2022 --lib ES2022,DOM --outDir out --sourceMap --module None --skipLibCheck --moduleResolution classic",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
@@ -228,6 +228,8 @@
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.5.0",
+    "chokidar-cli": "^3.0.0",
+    "concurrently": "^9.2.0",
     "eslint": "^9.25.1",
     "typescript": "^5.8.3"
   }

@@ -31,7 +31,10 @@
       "Bash(/Users/ivnnv/Sites/ivnnv/claude-code-sidebar/src/ui.ts)",
       "Bash(npm install)",
       "Bash(convert:*)",
-      "Bash(magick:*)"
+      "Bash(magick:*)",
+      "Bash(npm install:*)",
+      "Bash(claude --version)",
+      "Bash(npm run watch:*)"
     ],
     "deny": []
   },
