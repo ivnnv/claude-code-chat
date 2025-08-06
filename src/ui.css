@@ -687,7 +687,7 @@ body {
     border: 1px solid var(--vscode-panel-border);
     border-bottom: none;
     border-radius: 4px 4px 0 0;
-    padding: 6px 12px;
+    padding: 4px 6px;
     font-size: 10px;
     font-weight: 600;
     color: var(--vscode-descriptionForeground);
@@ -702,7 +702,7 @@ body {
     border: 1px solid var(--vscode-panel-border);
     border-top: none;
     border-radius: 0 0 4px 4px;
-    padding: 12px;
+    padding: 4px 6px;
     text-align: left;
     word-wrap: break-word;
     white-space: pre-wrap;

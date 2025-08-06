@@ -72,17 +72,17 @@ function addMessage(content: string, type = 'claude'): void {
 		const headerDiv = document.createElement('div');
 		headerDiv.className = 'userMessage-header';
 
-		// Extract file reference from content instead of currentEditorContext
+		// Extract file reference and user text from content (works with existing backend)
 		let fileReference = '';
 		let userText = content;
 
-		if (content.includes('\n\n')) {
-			// Split by double newline
-			const parts = content.split('\n\n');
-			if (parts.length > 1) {
-				// First part is the file reference, rest is user text
+		// Handle both HTML <br><br> and plain \n\n formats
+		const separator = content.includes('<br><br>') ? '<br><br>' : '\n\n';
+		if (content.includes(separator)) {
+			const parts = content.split(separator);
+			if (parts.length > 1 && parts[0].startsWith('in ')) {
 				fileReference = parts[0].replace(/^in\s+/, ''); // Remove "in " prefix
-				userText = parts.slice(1).join('\n\n');
+				userText = parts.slice(1).join(separator);
 			}
 		}
 
@@ -93,10 +93,10 @@ function addMessage(content: string, type = 'claude'): void {
 		// Keep consistent visual structure even without reference
 		messageDiv.appendChild(headerDiv);
 
-		// Create content with only user text (already extracted above)
+		// Create content with clean user text (extracted above)
 		const contentDiv = document.createElement('div');
 		contentDiv.className = 'userMessage-content';
-		contentDiv.innerHTML = userText;
+		contentDiv.innerHTML = userText; // Clean user text without file reference
 
 		// Add copy button
 		const copyBtn = document.createElement('button');
@@ -233,7 +233,7 @@ function sendMessage(): void {
 	const text = messageInput.value.trim();
 
 	if (text) {
-		// Enhance message with editor context if available
+		// Enhance message with editor context for Claude (backend needs this)
 		let enhancedText = text;
 		const contextInfo = getEditorContextInfo();
 		if (contextInfo) {
@@ -241,13 +241,13 @@ function sendMessage(): void {
 		}
 		sendStats('Send message');
 
-
 		vscode.postMessage({
 			type: 'sendMessage',
-			text: enhancedText,
+			text: enhancedText, // Full enhanced text for Claude
 			planMode: planModeEnabled,
 			thinkingMode: thinkingModeEnabled,
-			editorContext: currentEditorContext
+			editorContext: currentEditorContext, // Also send context for UI
+			originalUserText: text // Send clean user text separately for UI
 		});
 
 		messageInput.value = '';
