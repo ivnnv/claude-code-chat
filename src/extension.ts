@@ -36,6 +36,10 @@ export function activate(context: vscode.ExtensionContext) {
 		webviewProvider.postMessage({ type: 'newSession' });
 	});
 
+	const statusInfoDisposable = vscode.commands.registerCommand('claude-code-sidebar.statusInfo', () => {
+		webviewProvider.postMessage({ type: 'toggleStatusInfo' });
+	});
+
 	// Listen for configuration changes
 	const configChangeDisposable = vscode.workspace.onDidChangeConfiguration(event => {
 		if (event.affectsConfiguration('claudeCodeSidebar.wsl')) {
@@ -51,7 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
 	statusBarItem.command = 'claude-code-sidebar.openChat';
 	statusBarItem.show();
 
-	context.subscriptions.push(disposable, loadConversationDisposable, settingsDisposable, historyDisposable, newChatDisposable, configChangeDisposable, statusBarItem);
+	context.subscriptions.push(disposable, loadConversationDisposable, settingsDisposable, historyDisposable, newChatDisposable, statusInfoDisposable, configChangeDisposable, statusBarItem);
 	console.log('Claude Code Sidebar extension activation completed successfully!');
 }
 
@@ -225,7 +229,7 @@ class ClaudeChatProvider {
 	}
 
 	public _postMessage(message: any) {
-		console.log('Extension posting:', message.type);
+		// console.log('Extension posting:', message.type);
 		if (this._panel && this._panel.webview) {
 			this._panel.webview.postMessage(message);
 		} else if (this._webview) {

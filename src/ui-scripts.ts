@@ -5,8 +5,8 @@ const vscode = acquireVsCodeApi();
 let messagesDiv: HTMLElement;
 let messageInput: HTMLTextAreaElement;
 let sendBtn: HTMLButtonElement;
-let statusDiv: HTMLElement;
 let statusTextDiv: HTMLElement;
+let currentCheckpoint: {sha: string, timestamp: string} | null = null;
 let filePickerModal: HTMLElement;
 let fileSearchInput: HTMLInputElement;
 let fileList: HTMLElement;
@@ -26,8 +26,11 @@ let requestCount = 0;
 let isProcessing = false;
 let requestStartTime: number | null = null;
 let requestTimer: number | null = null;
+let messageCounter = 0;
 
-function shouldAutoScroll(messagesDiv: HTMLElement): boolean {
+function shouldAutoScroll(messagesDiv: HTMLElement | null): boolean {
+	if (!messagesDiv) {return false;}
+
 	const threshold = 100; // pixels from bottom
 	const scrollTop = messagesDiv.scrollTop;
 	const scrollHeight = messagesDiv.scrollHeight;
@@ -36,7 +39,9 @@ function shouldAutoScroll(messagesDiv: HTMLElement): boolean {
 	return (scrollTop + clientHeight >= scrollHeight - threshold);
 }
 
-function scrollToBottomIfNeeded(messagesDiv: HTMLElement, shouldScroll: boolean | null = null): void {
+function scrollToBottomIfNeeded(messagesDiv: HTMLElement | null, shouldScroll: boolean | null = null): void {
+	if (!messagesDiv) {return;}
+
 	// If shouldScroll is not provided, check current scroll position
 	if (shouldScroll === null) {
 		shouldScroll = shouldAutoScroll(messagesDiv);
@@ -48,14 +53,100 @@ function scrollToBottomIfNeeded(messagesDiv: HTMLElement, shouldScroll: boolean 
 }
 
 function addMessage(content: string, type = 'claude'): void {
-	const messagesDiv = document.getElementById('messages')!;
+	const messagesDiv = document.getElementById('chatMessages');
+	if (!messagesDiv) {return;}
+
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 
+	// Generate unique ID for this message
+	messageCounter++;
+	const messageId = `msg-${type}-${messageCounter}`;
+
+	// Handle new userMessage structure
+	if (type === 'user') {
+		const messageDiv = document.createElement('div');
+		messageDiv.id = messageId;
+		messageDiv.className = 'userMessage';
+
+		// Create header (for reference file info if available)
+		const headerDiv = document.createElement('div');
+		headerDiv.className = 'userMessage-header';
+
+		// Extract file reference from content instead of currentEditorContext
+		let fileReference = '';
+		let userText = content;
+
+		if (content.includes('\n\n')) {
+			// Split by double newline
+			const parts = content.split('\n\n');
+			if (parts.length > 1) {
+				// First part is the file reference, rest is user text
+				fileReference = parts[0].replace(/^in\s+/, ''); // Remove "in " prefix
+				userText = parts.slice(1).join('\n\n');
+			}
+		}
+
+		// Set header text
+		if (fileReference) {
+			headerDiv.textContent = fileReference;
+		}
+		// Keep consistent visual structure even without reference
+		messageDiv.appendChild(headerDiv);
+
+		// Create content with only user text (already extracted above)
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'userMessage-content';
+		contentDiv.innerHTML = userText;
+
+		// Add copy button
+		const copyBtn = document.createElement('button');
+		copyBtn.className = 'copy-btn';
+		copyBtn.title = 'Copy message';
+		copyBtn.onclick = () => copyMessageContent(contentDiv);
+		copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+
+		// Position copy button absolutely in content area
+		copyBtn.style.position = 'absolute';
+		copyBtn.style.top = '8px';
+		copyBtn.style.right = '8px';
+		copyBtn.style.opacity = '0';
+		copyBtn.style.transition = 'opacity 0.2s ease';
+
+		contentDiv.style.position = 'relative';
+		contentDiv.appendChild(copyBtn);
+		messageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(messageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
+	// Handle system messages with new structure
+	if (type === 'system') {
+		const messageDiv = document.createElement('div');
+		messageDiv.id = messageId;
+		messageDiv.className = 'systemMessage';
+
+		// This type of message doesnt need a header yet
+
+		// Create content
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'systemMessage-content';
+		contentDiv.innerHTML = content;
+		messageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(messageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
+	// Handle other message types (keep existing structure but add IDs with proper order)
 	const messageDiv = document.createElement('div');
+	messageDiv.id = messageId;
 	messageDiv.className = `message ${type}`;
 
 	// Only add copy button for non-system messages, no headers
-	if (type === 'user' || type === 'claude' || type === 'error') {
+	if (type === 'claude' || type === 'error') {
 		// Add copy button directly to message div
 		const copyBtn = document.createElement('button');
 		copyBtn.className = 'copy-btn';
@@ -78,7 +169,7 @@ function addMessage(content: string, type = 'claude'): void {
 	const contentDiv = document.createElement('div');
 	contentDiv.className = 'message-content';
 
-	if(type === 'user' || type === 'claude' || type === 'thinking'){
+	if(type === 'claude' || type === 'thinking'){
 		contentDiv.innerHTML = content;
 	} else {
 		const preElement = document.createElement('pre');
@@ -106,7 +197,7 @@ function addMessage(content: string, type = 'claude'): void {
 }
 
 function addToolUseMessage(data: any): void {
-	const messagesDiv = document.getElementById('messages');
+	const messagesDiv = document.getElementById('chatMessages');
 	if (!messagesDiv) {return;}
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 
@@ -320,7 +411,9 @@ function copyMessageContent(messageDiv: HTMLElement): void {
 }
 
 function addTokenInfoToLastMessage(tokenInfo: string): void {
-	const messagesDiv = document.getElementById('messages')!;
+	const messagesDiv = document.getElementById('chatMessages');
+	if (!messagesDiv) {return;}
+
 	const claudeMessages = messagesDiv.querySelectorAll('.message.claude');
 	const lastClaudeMessage = claudeMessages[claudeMessages.length - 1] as HTMLElement;
 
@@ -370,7 +463,9 @@ function addTokenInfoToLastMessage(tokenInfo: string): void {
 }
 
 function addFileInfoToLastMessage(filePath: string): void {
-	const messagesDiv = document.getElementById('messages')!;
+	const messagesDiv = document.getElementById('chatMessages');
+	if (!messagesDiv) {return;}
+
 	const claudeMessages = messagesDiv.querySelectorAll('.message.claude');
 	const lastClaudeMessage = claudeMessages[claudeMessages.length - 1] as HTMLElement;
 
@@ -433,7 +528,11 @@ function showThinkingIntensityModal(): void {
 
 function updateStatus(text: string, state = 'ready'): void {
 	statusTextDiv.textContent = text;
-	statusDiv.className = `status ${state}`;
+	// Update indicator in popover
+	const statusIndicator = document.getElementById('statusIndicator');
+	if (statusIndicator) {
+		statusIndicator.className = `status-indicator ${state}`;
+	}
 }
 
 function updateStatusWithTotals(): void {
@@ -730,7 +829,20 @@ function formatEditToolDiff(input: any): string {
 	const visibleLines = shouldTruncate ? allLines.slice(0, maxLines) : allLines;
 	const hiddenLines = shouldTruncate ? allLines.slice(maxLines) : [];
 	let result = '<div class="diff-container">';
-	result += '<div class="diff-header">Changes: <span class="diff-file-path-inline" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer; font-size: 10px; opacity: 0.7; font-weight: normal;">' + formattedPath + '</span></div>';
+	let changesRow = '<div class="diff-changes-row">';
+	changesRow += '<span class="diff-changes-label">Changes:</span>';
+	if (currentCheckpoint) {
+		const timeAgo = new Date(currentCheckpoint.timestamp).toLocaleTimeString();
+		changesRow += '<div class="diff-timestamp-group">';
+		changesRow += '<span class="diff-timestamp">(' + timeAgo + ')</span>';
+		changesRow += '<button class="diff-restore-btn" onclick="restoreToCommit(\'' + currentCheckpoint.sha + '\')" title="Restore checkpoint">↶</button>';
+		changesRow += '</div>';
+	}
+	changesRow += '</div>';
+
+	let filePathRow = '<div class="diff-filepath-row"><span class="diff-file-path-inline" data-file-path="' + escapeHtml(input.file_path) + '">' + formattedPath + '</span></div>';
+
+	result += '<div class="diff-header">' + changesRow + filePathRow + '</div>';
 	// Create a unique ID for this diff
 	const diffId = 'diff_' + Math.random().toString(36).substr(2, 9);
 	// Show visible lines
@@ -1070,6 +1182,17 @@ function toggleSettings(): void {
 	}
 }
 
+function toggleStatusInfo(): void {
+	const statusPopover = document.getElementById('statusPopover');
+	if (statusPopover) {
+		if (statusPopover.style.display === 'none') {
+			statusPopover.style.display = 'block';
+		} else {
+			statusPopover.style.display = 'none';
+		}
+	}
+}
+
 function toggleConversationHistory(): void {
 	const historyDiv = document.getElementById('conversationHistory');
 	const chatContainer = document.getElementById('chatContainer');
@@ -1093,6 +1216,9 @@ function toggleConversationHistory(): void {
 
 function newSession(): void {
 	sendStats('New chat');
+
+	// Clear any existing checkpoint since we're starting fresh
+	currentCheckpoint = null;
 
 	vscode.postMessage({
 		type: 'newSession'
@@ -1406,6 +1532,8 @@ function restoreToCommit(commitSha: string): void {
 		type: 'restoreCommit',
 		commitSha: commitSha
 	});
+	// Clear the checkpoint since it's being restored
+	currentCheckpoint = null;
 }
 
 function requestConversationList(): void {
@@ -1424,22 +1552,13 @@ function loadConversation(filename: string): void {
 }
 
 function showRestoreContainer(data: any): void {
-	const messagesDiv = document.getElementById('messages');
-	if (!messagesDiv) {return;}
-	const shouldScroll = shouldAutoScroll(messagesDiv);
-	const restoreContainer = document.createElement('div');
-	restoreContainer.className = 'restore-container';
-	restoreContainer.id = `restore-${data.sha}`;
-	const timeAgo = new Date(data.timestamp).toLocaleTimeString();
-	const _shortSha = data.sha ? data.sha.substring(0, 8) : 'unknown';
-	restoreContainer.innerHTML = `
-		<button class="restore-btn dark" onclick="restoreToCommit('${data.sha}')">
-			Restore checkpoint
-		</button>
-		<span class="restore-date">${timeAgo}</span>
-	`;
-	messagesDiv.appendChild(restoreContainer);
-	scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+	// Store checkpoint info globally so it can be used in diff headers
+	currentCheckpoint = {
+		sha: data.sha,
+		timestamp: data.timestamp
+	};
+	// No longer need to show a separate restore container
+	// The restore button will appear in diff headers
 }
 
 function _hideRestoreContainer(commitSha: string): void {
@@ -2166,9 +2285,17 @@ function addPermission(): void {
 
 // Permission request handling functions
 function addPermissionRequestMessage(data: any): void {
-	const messagesDiv = document.getElementById('messages')!;
+	const messagesDiv = document.getElementById('chatMessages');
+	if (!messagesDiv) {return;}
+
 	const shouldScroll = shouldAutoScroll(messagesDiv);
+
+	// Generate unique ID for permission request
+	messageCounter++;
+	const messageId = `msg-permission-${messageCounter}`;
+
 	const messageDiv = document.createElement('div');
+	messageDiv.id = messageId;
 	messageDiv.className = 'message permission-request';
 	const toolName = data.tool || 'Unknown Tool';
 	// Create always allow button text with command styling for Bash
@@ -2309,10 +2436,9 @@ function initializeModals(): void {
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', function() {
 	// Initialize DOM elements
-	messagesDiv = document.getElementById('messages') as HTMLElement;
+	messagesDiv = document.getElementById('chatMessages') as HTMLElement;
 	messageInput = document.getElementById('messageInput') as HTMLTextAreaElement;
 	sendBtn = document.getElementById('sendBtn') as HTMLButtonElement;
-	statusDiv = document.getElementById('status') as HTMLElement;
 	statusTextDiv = document.getElementById('statusText') as HTMLElement;
 	filePickerModal = document.getElementById('filePickerModal') as HTMLElement;
 	fileSearchInput = document.getElementById('fileSearchInput') as HTMLInputElement;
@@ -2541,7 +2667,7 @@ document.addEventListener('DOMContentLoaded', function() {
 	});
 
 	window.addEventListener('message', function(event: MessageEvent) {
-		console.log('Received message from extension:', event.data.type);
+		// console.log('Received message from extension:', event.data.type);
 		const message = event.data;
 
 		switch (message.type) {
@@ -2748,7 +2874,9 @@ document.addEventListener('DOMContentLoaded', function() {
 			case 'sessionCleared':
 				console.log('Session cleared');
 				// Clear all messages from UI
-				messagesDiv.innerHTML = '';
+				if (messagesDiv) {
+					messagesDiv.innerHTML = '';
+				}
 				hideSessionInfo();
 				addMessage('🆕 Started new session', 'system');
 				// Reset totals
@@ -2917,6 +3045,10 @@ document.addEventListener('DOMContentLoaded', function() {
 				// Show conversation history (triggered from native title bar button)
 				toggleConversationHistory();
 				break;
+			case 'toggleStatusInfo':
+				// Toggle status info popover (triggered from native title bar button)
+				toggleStatusInfo();
+				break;
 			default:
 				console.log('Unknown message type:', message.type);
 		}
@@ -2949,6 +3081,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Settings and modal management
 (window as any).toggleSettings = toggleSettings;
+(window as any).toggleStatusInfo = toggleStatusInfo;
 (window as any).updateSettings = updateSettings;
 (window as any).updateServerForm = updateServerForm;
 

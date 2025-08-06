@@ -643,14 +643,14 @@ body {
     border-color: rgba(135, 206, 235, 0.6);
 }
 
-.chat-container {
+#chatContainer {
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
-.messages {
+#chatMessages {
     flex: 1;
     padding: 6px 6px;
     overflow-y: auto;
@@ -666,10 +666,63 @@ body {
     position: relative;
 }
 
-.message.user {
-    margin-left: 12px;
-    padding-left: 8px;
-    border-left: 2px solid rgba(100, 100, 100, 0.3);
+/* Old .message.user removed - now using .userMessage structure */
+
+/* New userMessage styles */
+.userMessage {
+    margin-bottom: 12px;
+    max-width: 80%;
+    margin-left: auto;
+    margin-right: 8px;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--vscode-editor-font-family);
+    font-size: calc(var(--vscode-editor-font-size) * 0.8);
+    color: var(--vscode-editor-foreground);
+    position: relative;
+}
+
+.userMessage-header {
+    background-color: var(--vscode-panel-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    padding: 6px 12px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--vscode-descriptionForeground);
+    min-height: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.userMessage-content {
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    padding: 12px;
+    text-align: left;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+/* New systemMessage styles */
+.systemMessage {
+    margin-bottom: 6px;
+    max-width: 90%;
+    font-size: calc(var(--vscode-editor-font-size)* 0.8);
+}
+
+.systemMessage-content {
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    padding: 4px 6px;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    border-left: 4px solid var(--vscode-panel-background);
+    color: var(--vscode-descriptionForeground);
 }
 
 .message.claude {
@@ -683,11 +736,7 @@ body {
     border-radius: 4px;
 }
 
-.message.system {
-    border-left: 4px solid var(--vscode-panel-background);
-    color: var(--vscode-descriptionForeground);
-    padding-left: 2px;
-}
+/* Old .message.system removed - now using .systemMessage structure */
 
 .message.tool {
     padding: 0;
@@ -764,7 +813,9 @@ body {
     height: 20px;
 }
 
-.message:hover .copy-btn {
+.message:hover .copy-btn,
+.userMessage:hover .copy-btn,
+.systemMessage:hover .copy-btn {
     opacity: 0.7;
 }
 
@@ -967,6 +1018,57 @@ body {
     font-weight: 600;
     color: var(--vscode-foreground);
     border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.diff-changes-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.diff-timestamp-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.diff-filepath-row {
+    font-size: 10px;
+    opacity: 0.7;
+    font-weight: normal;
+}
+
+.diff-file-path-inline {
+    cursor: pointer;
+}
+
+.diff-changes-label {
+    font-weight: 600;
+}
+
+.diff-timestamp {
+    font-size: 10px;
+    opacity: 0.7;
+    font-weight: normal;
+}
+
+.diff-restore-btn {
+    background-color: transparent;
+    color: var(--vscode-descriptionForeground);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: 8px;
+}
+
+.diff-restore-btn:hover {
+    background-color: var(--vscode-list-hoverBackground);
+    color: var(--vscode-foreground);
+    border-color: var(--vscode-focusBorder);
 }
 
 .diff-removed,
@@ -2227,23 +2329,22 @@ body {
 }
 
 /* Status popover styles */
-.status-popover {
+#statusPopover {
     position: fixed;
-    bottom: 8px;
-    left: 8px;
+    right: 2%;
+    width: 95%;
     background-color: var(--vscode-panel-background);
     border: 1px solid var(--vscode-panel-border);
-    border-radius: 8px;
+    border-radius: 4px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
-    min-width: 200px;
-    animation: slideUpFade 0.2s ease;
+    z-index: 100;
+    animation: slideDownFade 0.2s ease;
 }
 
-@keyframes slideUpFade {
+@keyframes slideDownFade {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(-10px);
     }
     to {
         opacity: 1;
@@ -2252,14 +2353,13 @@ body {
 }
 
 .status-popover-content {
-    padding: 12px;
+    padding: 4px;
 }
 
 .status-info-item {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 8px;
 }
 
 .status-indicator {

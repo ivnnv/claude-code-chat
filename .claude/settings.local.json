@@ -34,7 +34,8 @@
       "Bash(magick:*)",
       "Bash(npm install:*)",
       "Bash(claude --version)",
-      "Bash(npm run watch:*)"
+      "Bash(npm run watch:*)",
+      "Bash(npm run copy-assets:*)"
     ],
     "deny": []
   },
