@@ -6,6 +6,30 @@
 	"search.exclude": {
 		"out": true // set this to false to include "out" folder in search results
 	},
-	// Turn off tsc task auto detection since we have the necessary tasks as npm scripts
-	"typescript.tsc.autoDetect": "off"
+	// Turn off tsc task auto detection since we have the necessary tasks as pnpm scripts
+	"typescript.tsc.autoDetect": "off",
+	// Enable source maps for debugging
+	"debug.javascript.usePreview": true,
+	// RSBuild dev server settings
+	"liveServer.settings.port": 3001, // Avoid conflict with RSBuild on port 3000
+	"workbench.colorCustomizations": {
+		"activityBar.activeBackground": "#8f2f10",
+		"activityBar.background": "#8f2f10",
+		"activityBar.foreground": "#e7e7e7",
+		"activityBar.inactiveForeground": "#e7e7e799",
+		"activityBarBadge.background": "#031d09",
+		"activityBarBadge.foreground": "#e7e7e7",
+		"commandCenter.border": "#e7e7e799",
+		"sash.hoverBorder": "#8f2f10",
+		"statusBar.background": "#61200b",
+		"statusBar.foreground": "#e7e7e7",
+		"statusBarItem.hoverBackground": "#8f2f10",
+		"statusBarItem.remoteBackground": "#61200b",
+		"statusBarItem.remoteForeground": "#e7e7e7",
+		"titleBar.activeBackground": "#61200b",
+		"titleBar.activeForeground": "#e7e7e7",
+		"titleBar.inactiveBackground": "#61200b99",
+		"titleBar.inactiveForeground": "#e7e7e799"
+	},
+	"peacock.color": "#61200b"
 }

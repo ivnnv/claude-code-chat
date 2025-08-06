@@ -11,3 +11,8 @@ vsc-extension-quickstart.md
 **/.vscode-test.*
 backup
 .claude
+claude-code-sidebar-permissions-mcp/**
+node_modules/**
+rsbuild.config.ts
+pnpm-workspace.yaml
+.nvmrc
