@@ -39,7 +39,9 @@
       "Bash(pnpm run:*)",
       "Bash(timeout:*)",
       "Bash(pnpm tsc:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(git fetch:*)",
+      "Bash(git log:*)"
     ],
     "deny": []
   },

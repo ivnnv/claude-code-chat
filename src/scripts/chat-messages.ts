@@ -320,13 +320,8 @@ export function getEditorContextInfo(): string | null {
 }
 
 export function sendStats(eventName: string): void {
-	try {
-		if (typeof (window as any).umami !== 'undefined' && (window as any).umami.track) {
-			(window as any).umami.track(eventName);
-		}
-	} catch (error) {
-		console.error('Error sending stats:', error);
-	}
+	// No user tracking - privacy first approach
+	console.debug('Stats event (not tracked):', eventName);
 }
 
 export function copyMessageContent(messageDiv: HTMLElement): void {
