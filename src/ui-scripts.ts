@@ -160,6 +160,18 @@ function setupMessageInput() {
         messageInput.style.height = 'auto';
         messageInput.style.height = Math.min(messageInput.scrollHeight, 200) + 'px';
     });
+
+    // Save input text as user types (debounced)
+    let saveInputTimeout: NodeJS.Timeout;
+    messageInput.addEventListener('input', () => {
+        clearTimeout(saveInputTimeout);
+        saveInputTimeout = setTimeout(() => {
+            vscode.postMessage({
+                type: 'saveInputText',
+                text: messageInput.value
+            });
+        }, 500); // Save after 500ms of no typing
+    });
 }
 
 function setupMessageHandler() {
@@ -265,6 +277,15 @@ function setupMessageHandler() {
             case 'updateTokens':
             case 'updateTotals':
                 // Token updates - could enhance token display
+                break;
+
+            case 'restoreInputText':
+                if (messageInput && message.data) {
+                    messageInput.value = message.data;
+                    // Auto-resize the textarea
+                    messageInput.style.height = 'auto';
+                    messageInput.style.height = Math.min(messageInput.scrollHeight, 200) + 'px';
+                }
                 break;
 
             case 'output':
