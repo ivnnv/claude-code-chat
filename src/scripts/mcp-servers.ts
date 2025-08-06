@@ -1,7 +1,7 @@
 // MCP server management functionality
 
-declare const acquireVsCodeApi: () => any;
-const vscode = acquireVsCodeApi();
+// VS Code API will be provided by ui-scripts.ts
+let vscode: any;
 
 // Note: This function will be available at runtime through the main ui-scripts module
 declare function sendStats(eventName: string): void;
@@ -9,7 +9,7 @@ declare function sendStats(eventName: string): void;
 // Global variable for tracking editing state
 let editingServerName: string | null = null;
 
-function updateServerForm(): void {
+export function updateServerForm(): void {
 	const serverType = (document.getElementById('serverType') as HTMLSelectElement)?.value;
 	const commandGroup = document.getElementById('commandGroup');
 	const urlGroup = document.getElementById('urlGroup');
@@ -295,4 +295,24 @@ export function displayMCPServers(servers: any): void {
 
 		serversList.appendChild(serverItem);
 	}
+}
+
+export function initialize(): void {
+	// Expose functions to global scope for HTML onclick handlers
+	Object.assign(window, {
+		showMCPModal,
+		hideMCPModal,
+		showAddServerForm,
+		hideAddServerForm,
+		updateServerForm,
+		saveMCPServer,
+		deleteMCPServer,
+		addPopularServer,
+		editMCPServer
+	});
+}
+
+// Set VS Code API (called from ui-scripts.ts)
+export function setVsCodeApi(api: any): void {
+	vscode = api;
 }

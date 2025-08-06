@@ -38,7 +38,8 @@
       "Bash(npm run copy-assets:*)",
       "Bash(pnpm run:*)",
       "Bash(timeout:*)",
-      "Bash(pnpm tsc:*)"
+      "Bash(pnpm tsc:*)",
+      "Bash(npm run:*)"
     ],
     "deny": []
   },

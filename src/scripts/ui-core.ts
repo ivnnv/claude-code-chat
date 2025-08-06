@@ -1,7 +1,7 @@
 // Core UI functions - initialization, modals, sessions, and file handling
 
-declare const acquireVsCodeApi: () => any;
-const vscode = acquireVsCodeApi();
+// VS Code API will be provided by ui-scripts.ts
+let vscode: any;
 
 // Note: These functions will be available at runtime through the main ui-scripts module
 declare function shouldAutoScroll(messagesDiv: HTMLElement): boolean;
@@ -174,6 +174,14 @@ export function toggleConversationHistory(): void {
 }
 
 export function addToolResultMessage(data: any): void {
+	if (!data) {
+		console.error('No data provided to addToolResultMessage');
+		return;
+	}
+	if (!messagesDiv) {
+		console.error('messagesDiv not found in addToolResultMessage');
+		return;
+	}
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 	// For Read and Edit tools with hidden flag, just hide loading state and show completion message
 	if (data.hidden && (data.toolName === 'Read' || data.toolName === 'Edit' || data.toolName === 'TodoWrite' || data.toolName === 'MultiEdit') && !data.isError) {
@@ -217,7 +225,7 @@ export function addToolResultMessage(data: any): void {
 	const contentDiv = document.createElement('div');
 	contentDiv.className = 'message-content';
 	// Check if it's a tool result and truncate appropriately
-	let content = data.content;
+	let content = data.content || '';
 	if (content.length > 200 && !data.isError) {
 		const truncateAt = 197;
 		const truncated = content.substring(0, truncateAt);
@@ -374,17 +382,18 @@ export function restoreToCommit(commitSha: string): void {
 		type: 'restoreCommit',
 		commitSha: commitSha
 	});
+	// Clear the checkpoint since it's being restored
+	(window as any).currentCheckpoint = null;
 }
 
 export function showRestoreContainer(data: any): void {
-	const messagesDiv = document.getElementById('messages');
+	const messagesDiv = document.getElementById('chatMessages');
 	if (!messagesDiv) {return;}
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 	const restoreContainer = document.createElement('div');
 	restoreContainer.className = 'restore-container';
 	restoreContainer.id = `restore-${data.sha}`;
 	const timeAgo = new Date(data.timestamp).toLocaleTimeString();
-	const _shortSha = data.sha ? data.sha.substring(0, 8) : 'unknown';
 	restoreContainer.innerHTML = `
 		<button class="restore-btn dark" onclick="restoreToCommit('${data.sha}')">
 			Restore checkpoint
@@ -438,7 +447,6 @@ export function hideSessionInfo(): void {
 	// const sessionInfo = document.getElementById('sessionInfo');
 	const sessionStatus = document.getElementById('sessionStatus');
 	const newSessionBtn = document.getElementById('newSessionBtn');
-	const _historyBtn = document.getElementById('historyBtn');
 	if (sessionStatus && newSessionBtn) {
 		// sessionInfo.style.display = 'none';
 		sessionStatus.style.display = 'none';
@@ -518,6 +526,35 @@ export function loadCustomSnippets(snippetsData: any = {}): void {
 	});
 }
 
+export function initialize(): void {
+	// Initialize DOM elements
+	messagesDiv = document.getElementById('chatMessages')!;
+	messageInput = document.getElementById('messageInput') as HTMLTextAreaElement;
+	filePickerModal = document.getElementById('filePickerModal')!;
+	fileSearchInput = document.getElementById('fileSearchInput') as HTMLInputElement;
+
+	// Initialize modals
+	initializeModals();
+
+	// Expose functions to global scope for HTML onclick handlers
+	Object.assign(window, {
+		showModelSelector,
+		hideModelModal,
+		showSlashCommandsModal,
+		hideSlashCommandsModal,
+		showFilePicker,
+		hideFilePicker,
+		selectImage,
+		newSession,
+		toggleConversationHistory,
+		toggleResultExpansion,
+		toggleExpand,
+		toggleDiffExpansion,
+		restoreToCommit,
+		loadConversation
+	});
+}
+
 // Setters for global variables (to be called from ui-scripts.ts)
 export function setMessagesDiv(div: HTMLElement): void {
 	messagesDiv = div;
@@ -541,4 +578,9 @@ export function setSelectedFileIndex(index: number): void {
 
 export function setCurrentModel(model: string): void {
 	currentModel = model;
+}
+
+// Set VS Code API (called from ui-scripts.ts)
+export function setVsCodeApi(api: any): void {
+	vscode = api;
 }

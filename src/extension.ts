@@ -2173,10 +2173,14 @@ class ClaudeChatProvider {
 
 		// Replace relative paths with webview URIs
 		let webviewHtml = html
+			// Replace RSBuild-generated paths
 			.replace('./static/js/index.js', scriptUri.toString())
 			.replace('./static/css/index.css', cssUri.toString())
 			.replace('src="./static/js/index.js"', `src="${scriptUri.toString()}"`)
-			.replace('href="./static/css/index.css"', `href="${cssUri.toString()}"`);
+			.replace('href="./static/css/index.css"', `href="${cssUri.toString()}"`)
+			// Remove old template references (RSBuild handles CSS automatically)
+			.replace('<link rel="stylesheet" href="index.css">', '')
+			.replace('src="index.js"', `src="${scriptUri.toString()}"`);
 
 		return webviewHtml;
 	}

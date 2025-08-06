@@ -1,7 +1,7 @@
 // Chat and message handling functionality
 
-declare const acquireVsCodeApi: () => any;
-const vscode = acquireVsCodeApi();
+// VS Code API will be provided by ui-scripts.ts
+let vscode: any;
 
 // Note: These functions will be available at runtime through the main ui-scripts module
 declare function isPermissionError(content: string): boolean;
@@ -12,6 +12,7 @@ let messageInput: HTMLTextAreaElement;
 let planModeEnabled = false;
 let thinkingModeEnabled = false;
 let currentEditorContext: any = null;
+let messageCounter = 0;
 
 export function shouldAutoScroll(messagesDiv: HTMLElement): boolean {
 	const threshold = 100; // pixels from bottom
@@ -34,57 +35,128 @@ export function scrollToBottomIfNeeded(messagesDiv: HTMLElement, shouldScroll: b
 }
 
 export function addMessage(content: string, type = 'claude'): void {
-	const messagesDiv = document.getElementById('messages')!;
+	console.log('addMessage called with content:', content, 'type:', type);
+	const messagesDiv = document.getElementById('chatMessages');
+	if (!messagesDiv) {
+		console.error('chatMessages div not found!');
+		return;
+	}
+
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 
-	const messageDiv = document.createElement('div');
-	messageDiv.className = `message ${type}`;
+	// Generate unique ID for this message
+	messageCounter++;
+	const messageId = `msg-${type}-${messageCounter}`;
+	console.log('Generated message ID:', messageId);
 
-	// Add header for main message types (excluding system)
-	if (type === 'user' || type === 'claude' || type === 'error') {
+	// Handle new userMessage structure
+	if (type === 'user') {
+		const messageDiv = document.createElement('div');
+		messageDiv.id = messageId;
+		messageDiv.className = 'userMessage';
+
+		// Create header (for reference file info if available)
 		const headerDiv = document.createElement('div');
-		headerDiv.className = 'message-header';
+		headerDiv.className = 'userMessage-header';
 
-		const iconDiv = document.createElement('div');
-		iconDiv.className = `message-icon ${type}`;
+		// Extract file reference and user text from content (works with existing backend)
+		let fileReference = '';
+		let userText = content;
 
-		const labelDiv = document.createElement('div');
-		labelDiv.className = 'message-label';
-
-		// Set icon and label based on type
-		switch(type) {
-			case 'user':
-				iconDiv.textContent = '👤';
-				labelDiv.textContent = 'You';
-				break;
-			case 'claude':
-				iconDiv.textContent = '🤖';
-				labelDiv.textContent = 'Claude';
-				break;
-			case 'error':
-				iconDiv.textContent = '⚠️';
-				labelDiv.textContent = 'Error';
-				break;
+		// Handle both HTML <br><br> and plain \n\n formats
+		const separator = content.includes('<br><br>') ? '<br><br>' : '\n\n';
+		if (content.includes(separator)) {
+			const parts = content.split(separator);
+			if (parts.length > 1 && parts[0].startsWith('in ')) {
+				fileReference = parts[0].replace(/^in\s+/, ''); // Remove "in " prefix
+				userText = parts.slice(1).join(separator);
+			}
 		}
 
+		// Set header text
+		if (fileReference) {
+			headerDiv.textContent = fileReference;
+		}
+		// Keep consistent visual structure even without reference
+		messageDiv.appendChild(headerDiv);
+
+		// Create content with clean user text (extracted above)
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'userMessage-content';
+		contentDiv.innerHTML = userText; // Clean user text without file reference
+
 		// Add copy button
+		const copyBtn = document.createElement('button');
+		copyBtn.className = 'copy-btn';
+		copyBtn.title = 'Copy message';
+		copyBtn.onclick = () => copyMessageContent(contentDiv);
+		copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+
+		// Position copy button absolutely in content area
+		copyBtn.style.position = 'absolute';
+		copyBtn.style.top = '8px';
+		copyBtn.style.right = '8px';
+		copyBtn.style.opacity = '0';
+		copyBtn.style.transition = 'opacity 0.2s ease';
+
+		contentDiv.style.position = 'relative';
+		contentDiv.appendChild(copyBtn);
+		messageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(messageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
+	// Handle system messages with new structure
+	if (type === 'system') {
+		const messageDiv = document.createElement('div');
+		messageDiv.id = messageId;
+		messageDiv.className = 'systemMessage';
+
+		// This type of message doesnt need a header yet
+
+		// Create content
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'systemMessage-content';
+		contentDiv.innerHTML = content;
+		messageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(messageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
+	// Handle other message types (keep existing structure but add IDs with proper order)
+	const messageDiv = document.createElement('div');
+	messageDiv.id = messageId;
+	messageDiv.className = `message ${type}`;
+
+	// Only add copy button for non-system messages, no headers
+	if (type === 'claude' || type === 'error') {
+		// Add copy button directly to message div
 		const copyBtn = document.createElement('button');
 		copyBtn.className = 'copy-btn';
 		copyBtn.title = 'Copy message';
 		copyBtn.onclick = () => copyMessageContent(messageDiv);
 		copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
 
-		headerDiv.appendChild(iconDiv);
-		headerDiv.appendChild(labelDiv);
-		headerDiv.appendChild(copyBtn);
-		messageDiv.appendChild(headerDiv);
+		// Position copy button absolutely in top-right
+		copyBtn.style.position = 'absolute';
+		copyBtn.style.top = '8px';
+		copyBtn.style.right = '8px';
+		copyBtn.style.opacity = '0';
+		copyBtn.style.transition = 'opacity 0.2s ease';
+
+		messageDiv.style.position = 'relative';
+		messageDiv.appendChild(copyBtn);
 	}
 
 	// Add content
 	const contentDiv = document.createElement('div');
 	contentDiv.className = 'message-content';
 
-	if(type === 'user' || type === 'claude' || type === 'thinking'){
+	if(type === 'claude' || type === 'thinking'){
 		contentDiv.innerHTML = content;
 	} else {
 		const preElement = document.createElement('pre');
@@ -112,7 +184,7 @@ export function addMessage(content: string, type = 'claude'): void {
 }
 
 export function addToolUseMessage(data: any): void {
-	const messagesDiv = document.getElementById('messages');
+	const messagesDiv = document.getElementById('chatMessages');
 	if (!messagesDiv) {return;}
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 
@@ -129,7 +201,7 @@ export function addToolUseMessage(data: any): void {
 
 	const toolInfoElement = document.createElement('div');
 	toolInfoElement.className = 'tool-info';
-	let toolName = data.toolInfo.replace('🔧 Executing: ', '');
+	let toolName = (data.toolInfo || '').replace('🔧 Executing: ', '');
 	// Replace TodoWrite with more user-friendly name
 	if (toolName === 'TodoWrite') {
 		toolName = 'Update Todos';
@@ -156,22 +228,33 @@ export function addToolUseMessage(data: any): void {
 				todoHtml += '\n' + status + ' ' + todo.content + ' <span class="priority-badge ' + todo.priority + '">' + todo.priority + '</span>';
 			}
 			contentDiv.innerHTML = todoHtml;
+			inputElement.appendChild(contentDiv);
+			messageDiv.appendChild(inputElement);
+		} else if (data.toolName === 'Edit') {
+			// For Edit tools, show the diff format directly without wrapping in tool-input
+			contentDiv.innerHTML = formatEditToolDiff(data.rawInput);
+			messageDiv.appendChild(contentDiv);
+		} else if (data.toolName === 'MultiEdit') {
+			// For MultiEdit tools, show the diff format directly without wrapping in tool-input
+			contentDiv.innerHTML = formatMultiEditToolDiff(data.rawInput);
+			messageDiv.appendChild(contentDiv);
+		} else if (data.toolName === 'Write') {
+			// For Write tools, show the diff format directly without wrapping in tool-input
+			contentDiv.innerHTML = formatWriteToolDiff(data.rawInput);
+			messageDiv.appendChild(contentDiv);
 		} else {
-			// Format raw input with expandable content for long values
-			// Use diff format for Edit, MultiEdit, and Write tools, regular format for others
-			if (data.toolName === 'Edit') {
-				contentDiv.innerHTML = formatEditToolDiff(data.rawInput);
-			} else if (data.toolName === 'MultiEdit') {
-				contentDiv.innerHTML = formatMultiEditToolDiff(data.rawInput);
-			} else if (data.toolName === 'Write') {
-				contentDiv.innerHTML = formatWriteToolDiff(data.rawInput);
+			// For other tools, check if it's a Read tool with just a file path
+			if (data.toolName === 'Read' && data.rawInput && data.rawInput.file_path && Object.keys(data.rawInput).length === 1) {
+				// Skip showing file path for Read tool - it's redundant when followed by Edit/Write tools
+				// The file path will be shown in the subsequent tool's diff header
+				console.log('Skipping file path display for Read tool to avoid duplication');
 			} else {
+				// For other tools, show the formatted input in the tool-input wrapper
 				contentDiv.innerHTML = formatToolInputUI(data.rawInput);
+				inputElement.appendChild(contentDiv);
+				messageDiv.appendChild(inputElement);
 			}
 		}
-
-		inputElement.appendChild(contentDiv);
-		messageDiv.appendChild(inputElement);
 	} else if (data.toolInput) {
 		// Fallback for pre-formatted input
 		const inputElement = document.createElement('div');
@@ -276,7 +359,7 @@ export function copyCodeBlock(codeId: string): void {
 		const rawCode = codeElement.getAttribute('data-raw-code');
 		if (rawCode) {
 			// Decode HTML entities
-			const decodedCode = rawCode.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+			const decodedCode = (rawCode || '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 			navigator.clipboard.writeText(decodedCode).then(() => {
 				// Show temporary feedback
 				const copyBtn = codeElement.closest('.code-block-container')?.querySelector('.code-copy-btn') as HTMLElement;
@@ -394,7 +477,6 @@ export function formatEditToolDiff(input: any): string {
 	}
 	// Format file path with better display
 	const formattedPath = formatFilePath(input.file_path);
-	let result = '<div class="diff-file-path" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer;">' + formattedPath + '</div>\n';
 	// Create diff view
 	const oldLines = input.old_string.split('\n');
 	const newLines = input.new_string.split('\n');
@@ -404,8 +486,30 @@ export function formatEditToolDiff(input: any): string {
 	const shouldTruncate = allLines.length > maxLines;
 	const visibleLines = shouldTruncate ? allLines.slice(0, maxLines) : allLines;
 	const hiddenLines = shouldTruncate ? allLines.slice(maxLines) : [];
-	result += '<div class="diff-container">';
-	result += '<div class="diff-header">Changes:</div>';
+
+	let result = '<div class="diff-container">';
+
+	// Create header with proper row structure and checkpoint support like monolithic version
+	let changesRow = '<div class="diff-changes-row">';
+	changesRow += '<span class="diff-changes-label">Changes:</span>';
+	const currentCheckpoint = (window as any).currentCheckpoint;
+	console.log('formatEditToolDiff - currentCheckpoint:', currentCheckpoint);
+	if (currentCheckpoint) {
+		console.log('formatEditToolDiff - Adding restore button with checkpoint:', currentCheckpoint);
+		const timeAgo = new Date(currentCheckpoint.timestamp).toLocaleTimeString();
+		changesRow += '<div class="diff-timestamp-group">';
+		changesRow += '<span class="diff-timestamp">(' + timeAgo + ')</span>';
+		changesRow += '<button class="diff-restore-btn" onclick="restoreToCommit(\'' + currentCheckpoint.sha + '\')" title="Restore checkpoint">↶</button>';
+		changesRow += '</div>';
+	} else {
+		console.log('formatEditToolDiff - No currentCheckpoint found, restore button will not be shown');
+	}
+	changesRow += '</div>';
+
+	let filePathRow = '<div class="diff-filepath-row"><span class="diff-file-path-inline" data-file-path="' + escapeHtml(input.file_path) + '">' + formattedPath + '</span></div>';
+
+	result += '<div class="diff-header">' + changesRow + filePathRow + '</div>';
+
 	// Create a unique ID for this diff
 	const diffId = 'diff_' + Math.random().toString(36).substr(2, 9);
 	// Show visible lines
@@ -451,7 +555,6 @@ export function formatMultiEditToolDiff(input: any): string {
 	}
 	// Format file path with better display
 	const formattedPath = formatFilePath(input.file_path);
-	let result = '<div class="diff-file-path" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer;">' + formattedPath + '</div>\n';
 	// Count total lines across all edits for truncation
 	let totalLines = 0;
 	for (const edit of input.edits) {
@@ -463,8 +566,23 @@ export function formatMultiEditToolDiff(input: any): string {
 	}
 	const maxLines = 6;
 	const shouldTruncate = totalLines > maxLines;
-	result += '<div class="diff-container">';
-	result += '<div class="diff-header">Changes (' + input.edits.length + ' edit' + (input.edits.length > 1 ? 's' : '') + '):</div>';
+
+	let result = '<div class="diff-container">';
+
+	// Create header with file path inline and checkpoint info
+	let headerContent = 'Changes (' + input.edits.length + ' edit' + (input.edits.length > 1 ? 's' : '') + '): <span class="diff-file-path-inline" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer; font-size: 10px; opacity: 0.7; font-weight: normal;">' + formattedPath + '</span>';
+
+	// Add checkpoint timestamp and restore button if available
+	const currentCheckpoint = (window as any).currentCheckpoint;
+	if (currentCheckpoint) {
+		const timeAgo = new Date(currentCheckpoint.timestamp).toLocaleTimeString();
+		headerContent += '<div class="diff-timestamp-group" style="float: right;">';
+		headerContent += '<span class="diff-timestamp">(' + timeAgo + ')</span>';
+		headerContent += '<button class="diff-restore-btn" onclick="restoreToCommit(\'' + currentCheckpoint.sha + '\')" title="Restore checkpoint" style="margin-left: 5px;">↶</button>';
+		headerContent += '</div>';
+	}
+
+	result += '<div class="diff-header">' + headerContent + '</div>';
 	// Create a unique ID for this diff
 	const diffId = 'multiedit_' + Math.random().toString(36).substr(2, 9);
 	let currentLineCount = 0;
@@ -527,15 +645,29 @@ export function formatWriteToolDiff(input: any): string {
 	}
 	// Format file path with better display
 	const formattedPath = formatFilePath(input.file_path);
-	let result = '<div class="diff-file-path" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer;">' + formattedPath + '</div>\n';
 	// Create diff view showing all content as additions
 	const contentLines = input.content.split('\n');
 	const maxLines = 6;
 	const shouldTruncate = contentLines.length > maxLines;
 	const visibleLines = shouldTruncate ? contentLines.slice(0, maxLines) : contentLines;
 	const hiddenLines = shouldTruncate ? contentLines.slice(maxLines) : [];
-	result += '<div class="diff-container">';
-	result += '<div class="diff-header">New file content:</div>';
+
+	let result = '<div class="diff-container">';
+
+	// Create header with file path inline and checkpoint info
+	let headerContent = 'New file content: <span class="diff-file-path-inline" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer; font-size: 10px; opacity: 0.7; font-weight: normal;">' + formattedPath + '</span>';
+
+	// Add checkpoint timestamp and restore button if available
+	const currentCheckpoint = (window as any).currentCheckpoint;
+	if (currentCheckpoint) {
+		const timeAgo = new Date(currentCheckpoint.timestamp).toLocaleTimeString();
+		headerContent += '<div class="diff-timestamp-group" style="float: right;">';
+		headerContent += '<span class="diff-timestamp">(' + timeAgo + ')</span>';
+		headerContent += '<button class="diff-restore-btn" onclick="restoreToCommit(\'' + currentCheckpoint.sha + '\')" title="Restore checkpoint" style="margin-left: 5px;">↶</button>';
+		headerContent += '</div>';
+	}
+
+	result += '<div class="diff-header">' + headerContent + '</div>';
 	// Create a unique ID for this diff
 	const diffId = 'write_' + Math.random().toString(36).substr(2, 9);
 	// Show visible lines (all as additions)
@@ -605,4 +737,9 @@ export function setThinkingModeEnabled(enabled: boolean): void {
 
 export function setCurrentEditorContext(context: any): void {
 	currentEditorContext = context;
+}
+
+// Set VS Code API (called from ui-scripts.ts)
+export function setVsCodeApi(api: any): void {
+	vscode = api;
 }

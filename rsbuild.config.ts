@@ -30,7 +30,11 @@ export default defineConfig({
       optimization: {
         // Disable code splitting for single webview bundle
         splitChunks: false,
+        // Disable minification to preserve function names for debugging
+        minimize: false,
       },
+      // Additional options to preserve function names and improve debugging
+      mode: 'development',
     },
   },
   server: {

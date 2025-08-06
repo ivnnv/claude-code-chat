@@ -1,7 +1,7 @@
 // Permission management functionality
 
-declare const acquireVsCodeApi: () => any;
-const vscode = acquireVsCodeApi();
+// VS Code API will be provided by ui-scripts.ts
+let vscode: any;
 
 // Note: These functions will be available at runtime through the main ui-scripts module
 declare function shouldAutoScroll(messagesDiv: HTMLElement): boolean;
@@ -223,7 +223,7 @@ export function togglePermissionMenu(permissionId: string): void {
 }
 
 export function addPermissionRequestMessage(data: any): void {
-	const messagesDiv = document.getElementById('messages')!;
+	const messagesDiv = document.getElementById('chatMessages')!;
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 	const messageDiv = document.createElement('div');
 	messageDiv.className = 'message permission-request';
@@ -234,7 +234,7 @@ export function addPermissionRequestMessage(data: any): void {
 	if (toolName === 'Bash' && data.pattern) {
 		const pattern = data.pattern;
 		// Remove the asterisk for display - show "npm i" instead of "npm i *"
-		const displayPattern = pattern.replace(' *', '');
+		const displayPattern = (pattern || '').replace(' *', '');
 		const truncatedPattern = displayPattern.length > 30 ? displayPattern.substring(0, 30) + '...' : displayPattern;
 		alwaysAllowText = `Always allow <code>${truncatedPattern}</code>`;
 		alwaysAllowTooltip = displayPattern.length > 30 ? `title="${displayPattern}"` : '';
@@ -267,4 +267,22 @@ export function addPermissionRequestMessage(data: any): void {
 	`;
 	messagesDiv.appendChild(messageDiv);
 	scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+}
+
+export function initialize(): void {
+	// Expose functions to global scope for HTML onclick handlers
+	Object.assign(window, {
+		respondToPermission,
+		addPermission,
+		removePermission,
+		toggleCommandInput,
+		showAddPermissionForm,
+		hideAddPermissionForm,
+		enableYoloMode
+	});
+}
+
+// Set VS Code API (called from ui-scripts.ts)
+export function setVsCodeApi(api: any): void {
+	vscode = api;
 }

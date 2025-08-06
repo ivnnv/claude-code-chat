@@ -1,7 +1,7 @@
 // Settings and modal management functionality
 
-declare const acquireVsCodeApi: () => any;
-const vscode = acquireVsCodeApi();
+// VS Code API will be provided by ui-scripts.ts
+let vscode: any;
 
 // Note: This function will be available at runtime through the main ui-scripts module
 declare function sendStats(eventName: string): void;
@@ -203,4 +203,26 @@ export function getPlanModeEnabled(): boolean {
 
 export function getThinkingModeEnabled(): boolean {
 	return thinkingModeEnabled;
+}
+
+export function initialize(): void {
+	// Expose functions to global scope for HTML onclick handlers
+	Object.assign(window, {
+		togglePlanMode,
+		toggleThinkingMode,
+		showThinkingIntensityModal,
+		hideThinkingIntensityModal,
+		setThinkingIntensityValue,
+		updateThinkingIntensityDisplay,
+		confirmThinkingIntensity,
+		updateSettings,
+		updateYoloWarning,
+		showSettingsModal,
+		hideSettingsModal
+	});
+}
+
+// Set VS Code API (called from ui-scripts.ts)
+export function setVsCodeApi(api: any): void {
+	vscode = api;
 }
