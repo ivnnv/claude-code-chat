@@ -11,7 +11,10 @@
   },
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
-    "vscode": "^1.94.0"
+    "vscode": "^1.94.0",
+    "node": ">=22.17",
+    "yarn": "use-pnpm",
+    "pnpm": ">=10.13.1"
   },
   "categories": [
     "Other",
@@ -217,19 +220,19 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "npm run lint:fix && tsc -p ./ && npm run compile-webview && npm run copy-assets",
-    "compile-webview": "npx tsc src/ui-scripts.ts --target ES2022 --lib ES2022,DOM --outFile out/ui-scripts.js --skipLibCheck --module none",
-    "copy-assets": "cp src/ui.html out/ui.html && cp src/ui.css out/ui.css",
-    "watch": "npm run compile && tsc -watch -p ./",
-    "watch-assets": "chokidar 'src/ui.html' 'src/ui.css' -c 'npm run copy-assets'",
-    "watch-webview": "npx tsc --watch src/ui-scripts.ts --target ES2022 --lib ES2022,DOM --outFile out/ui-scripts.js --skipLibCheck --module none",
-    "pretest": "npm run compile && npm run lint",
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "pnpm run lint:fix && tsc -p ./ && pnpm run build:webview",
+    "build:webview": "rsbuild build --mode production",
+    "dev": "rsbuild dev",
+    "dev:extension": "tsc -watch -p ./",
+    "watch": "concurrently \"pnpm run dev:extension\" \"pnpm run dev\"",
+    "pretest": "pnpm run compile && pnpm run lint",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@rsbuild/core": "^1.1.12",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.94.0",
@@ -238,7 +241,6 @@
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.5.0",
-    "chokidar-cli": "^3.0.0",
     "concurrently": "^9.2.0",
     "eslint": "^9.25.1",
     "typescript": "^5.8.3"

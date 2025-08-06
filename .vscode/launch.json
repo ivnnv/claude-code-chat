@@ -6,7 +6,7 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Debug",
+			"name": "DebugExt",
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
@@ -15,7 +15,48 @@
 			"outFiles": [
 				"${workspaceFolder}/out/**/*.js"
 			],
-			"preLaunchTask": "watch"
+			"preLaunchTask": "pnpm: compile",
+			"sourceMaps": true,
+			"env": {
+				"VSCODE_DEBUG": "true"
+			}
+		},
+		{
+			"name": "Debug Extension (No Watch)",
+			"type": "extensionHost",
+			"request": "launch",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}"
+			],
+			"outFiles": [
+				"${workspaceFolder}/out/**/*.js"
+			],
+			"preLaunchTask": "pnpm: compile",
+			"sourceMaps": true
+		},
+		{
+			"name": "Debug Webview (Chrome)",
+			"type": "chrome",
+			"request": "launch",
+			"url": "http://localhost:3000",
+			"webRoot": "${workspaceFolder}/src",
+			"sourceMaps": true,
+			"preLaunchTask": "pnpm: dev",
+			"userDataDir": "${workspaceFolder}/.chrome-debug",
+			"runtimeArgs": [
+				"--remote-debugging-port=9222",
+				"--disable-web-security"
+			]
+		}
+	],
+	"compounds": [
+		{
+			"name": "Debug Extension + Webview",
+			"configurations": [
+				"DebugExt",
+				"Debug Webview (Chrome)"
+			],
+			"stopAll": true
 		}
 	]
 }

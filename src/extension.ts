@@ -2159,7 +2159,26 @@ class ClaudeChatProvider {
 	}
 
 	private _getHtmlForWebview(): string {
-		return html;
+		// Get webview-compatible URIs for the assets
+		const webviewUri = this._panel?.webview || this._webview;
+		if (!webviewUri) {
+			return html;
+		}
+
+		const webviewDir = vscode.Uri.joinPath(this._extensionUri, 'out', 'webview');
+
+		// Get URIs for assets that the webview can access - RSBuild puts them in static/js and static/css
+		const scriptUri = webviewUri.asWebviewUri(vscode.Uri.joinPath(webviewDir, 'static', 'js', 'index.js'));
+		const cssUri = webviewUri.asWebviewUri(vscode.Uri.joinPath(webviewDir, 'static', 'css', 'index.css'));
+
+		// Replace relative paths with webview URIs
+		let webviewHtml = html
+			.replace('./static/js/index.js', scriptUri.toString())
+			.replace('./static/css/index.css', cssUri.toString())
+			.replace('src="./static/js/index.js"', `src="${scriptUri.toString()}"`)
+			.replace('href="./static/css/index.css"', `href="${cssUri.toString()}"`);
+
+		return webviewHtml;
 	}
 
 	private _sendCurrentSettings(): void {

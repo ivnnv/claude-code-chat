@@ -17,6 +17,10 @@
 	},
 	"exclude": [
 		"mcp-permissions.js",
-		"claude-code-sidebar-permissions-mcp"
+		"claude-code-sidebar-permissions-mcp",
+		"rsbuild.config.ts",
+		"out",
+		"dist",
+		"node_modules"
 	]
 }

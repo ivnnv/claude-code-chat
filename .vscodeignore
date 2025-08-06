@@ -12,3 +12,7 @@ vsc-extension-quickstart.md
 backup
 .claude
 claude-code-sidebar-permissions-mcp/**
+node_modules/**
+rsbuild.config.ts
+pnpm-workspace.yaml
+.nvmrc

@@ -6,8 +6,12 @@
 	"search.exclude": {
 		"out": true // set this to false to include "out" folder in search results
 	},
-	// Turn off tsc task auto detection since we have the necessary tasks as npm scripts
+	// Turn off tsc task auto detection since we have the necessary tasks as pnpm scripts
 	"typescript.tsc.autoDetect": "off",
+	// Enable source maps for debugging
+	"debug.javascript.usePreview": true,
+	// RSBuild dev server settings
+	"liveServer.settings.port": 3001, // Avoid conflict with RSBuild on port 3000
 	"workbench.colorCustomizations": {
 		"activityBar.activeBackground": "#8f2f10",
 		"activityBar.background": "#8f2f10",
