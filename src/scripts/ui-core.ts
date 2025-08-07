@@ -185,8 +185,8 @@ export function addToolResultMessage(data: any): void {
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 
 	// Debug logging for Read tool detection in toolResult
-	console.log('addToolResultMessage received data:', data);
-	console.log('toolResult - toolName:', data.toolName, 'rawInput:', data.rawInput);
+	// console.log('addToolResultMessage received data:', data);
+	// console.log('toolResult - toolName:', data.toolName, 'rawInput:', data.rawInput);
 	if (data.rawInput) {
 		console.log('toolResult - rawInput keys:', Object.keys(data.rawInput));
 	}
@@ -221,13 +221,13 @@ export function addToolResultMessage(data: any): void {
 
 	// Handle Bash tool results by appending to the previous bash system message
 	if (data.toolName === 'Bash' && !data.isError) {
-		console.log('Handling Bash tool result, looking for previous system message');
+		// console.log('Handling Bash tool result, looking for previous system message');
 		// Find the most recent systemMessage claudeContext (the bash command)
 		const systemMessages = messagesDiv.querySelectorAll('.systemMessage.claudeContext');
 		const lastSystemMessage = systemMessages[systemMessages.length - 1] as HTMLElement;
 
 		if (lastSystemMessage) {
-			console.log('Found previous bash system message, appending result');
+			// console.log('Found previous bash system message, appending result');
 			const contentDiv = lastSystemMessage.querySelector('.systemMessage-content');
 			if (contentDiv) {
 				// Add the result to the same system message box

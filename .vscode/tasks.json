@@ -72,7 +72,45 @@
 				"panel": "new"
 			},
 			"group": "build",
-			"problemMatcher": []
+			"problemMatcher": [
+				{
+					"owner": "typescript",
+					"source": "tsc",
+					"applyTo": "closedDocuments",
+					"fileLocation": ["relative", "${workspaceFolder}"],
+					"pattern": {
+						"regexp": "^([^\\s].*)\\((\\d+|\\d+,\\d+|\\d+,\\d+,\\d+,\\d+)\\)\\s*:\\s+(error|warning|info)\\s+(TS\\d+)\\s*:\\s*(.*)$",
+						"file": 1,
+						"location": 2,
+						"severity": 3,
+						"code": 4,
+						"message": 5
+					},
+					"background": {
+						"activeOnStart": true,
+						"beginsPattern": "^\\s*\\d{1,2}:\\d{2}:\\d{2}(?: AM| PM)? - File change detected\\. Starting incremental compilation\\.\\.\\.",
+						"endsPattern": "^\\s*\\d{1,2}:\\d{2}:\\d{2}(?: AM| PM)? - (?:Compilation complete\\.|Found \\d+ errors?\\. Watching for file changes\\.)"
+					}
+				},
+				{
+					"owner": "rsbuild",
+					"source": "rsbuild",
+					"fileLocation": ["relative", "${workspaceFolder}"],
+					"pattern": {
+						"regexp": "^(.*):(\\d+):(\\d+): (error|warning): (.*)$",
+						"file": 1,
+						"line": 2,
+						"column": 3,
+						"severity": 4,
+						"message": 5
+					},
+					"background": {
+						"activeOnStart": true,
+						"beginsPattern": "^.*ready.*",
+						"endsPattern": "^.*Local.*"
+					}
+				}
+			]
 		},
 		{
 			"label": "pnpm: clean-compile",

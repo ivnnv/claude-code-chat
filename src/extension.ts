@@ -218,6 +218,9 @@ class ClaudeChatProvider {
 		// Load saved model preference
 		this._selectedModel = this._context.workspaceState.get('claude.selectedModel', 'default');
 
+		// Set up hot reload for development mode
+		this._setupHotReload();
+
 		// Resume session from latest conversation
 		const latestConversation = this._getLatestConversation();
 		this._currentSessionId = latestConversation?.sessionId;
@@ -1330,7 +1333,7 @@ class ClaudeChatProvider {
 
 			// Create or update mcp-servers.json with permissions server, preserving existing servers
 			const mcpConfigPath = path.join(mcpConfigDir, 'mcp-servers.json');
-			const mcpPermissionsPath = this.convertToWSLPath(path.join(this._extensionUri.fsPath, 'out', 'scripts', 'mcp-permissions.js'));
+			const mcpPermissionsPath = this.convertToWSLPath(path.join(this._extensionUri.fsPath, 'out', 'scripts', 'mcp-permissions-bundled.js'));
 			const permissionRequestsPath = this.convertToWSLPath(path.join(storagePath, 'permission-requests'));
 
 			// Load existing config or create new one
@@ -2335,17 +2338,100 @@ class ClaudeChatProvider {
 
 		let html = fs.readFileSync(htmlPath, 'utf8');
 
-		// Convert relative asset paths to webview URIs
+		// Determine if we're in development mode
+		const isDev = process.env.VSCODE_DEBUG === 'true' || process.env.NODE_ENV === 'development';
+
+		// Convert asset paths to webview URIs
 		const webviewDir = vscode.Uri.joinPath(this._extensionUri, 'out', 'webview');
 		const scriptUri = webviewUri.asWebviewUri(vscode.Uri.joinPath(webviewDir, 'static', 'js', 'index.js'));
 		const cssUri = webviewUri.asWebviewUri(vscode.Uri.joinPath(webviewDir, 'static', 'css', 'index.css'));
 
-		// Replace RSBuild's relative paths with webview URIs
+		// Replace RSBuild's asset paths with webview URIs
+		// Handle all path variations: ./static/, /static/, static/
 		html = html
-			.replace(/src="\.\/static\/js\/index\.js"/g, `src="${scriptUri}"`)
-			.replace(/href="\.\/static\/css\/index\.css"/g, `href="${cssUri}"`);
+			.replace(/src="(?:\.\/|\/)?static\/js\/index\.js"/g, `src="${scriptUri}"`)
+			.replace(/href="(?:\.\/|\/)?static\/css\/index\.css"/g, `href="${cssUri}"`);
+
+
+		// Add environment indicator for debugging
+		if (isDev) {
+			html = html.replace('<body>', `<body>\n<!-- Development Mode: ${process.env.VSCODE_DEBUG ? 'VS Code Debug' : 'Dev Environment'} -->`);
+		}
 
 		return html;
+	}
+
+	private _setupHotReload(): void {
+		// Only enable hot reload in development mode
+		const isDev = process.env.VSCODE_DEBUG === 'true' || process.env.NODE_ENV === 'development';
+		if (!isDev) {
+			return;
+		}
+
+
+		// Watch for changes in the webview output directory
+		const webviewPattern = path.join(this._extensionUri.fsPath, 'out', 'webview', '**/*');
+		const fileWatcher = vscode.workspace.createFileSystemWatcher(webviewPattern);
+
+		// Also specifically watch CSS file (fallback)
+		const cssPattern = path.join(this._extensionUri.fsPath, 'out', 'webview', 'static', 'css', 'index.css');
+		const cssWatcher = vscode.workspace.createFileSystemWatcher(cssPattern);
+
+		let refreshTimeout: NodeJS.Timeout | undefined;
+
+		const refreshWebview = () => {
+			// Debounce rapid file changes
+			if (refreshTimeout) {
+				clearTimeout(refreshTimeout);
+			}
+
+			refreshTimeout = setTimeout(() => {
+
+				// Instead of replacing the entire HTML, send a message to webview to reload assets
+				this._postMessage({
+					type: 'hotReload',
+					timestamp: Date.now()
+				});
+			}, 100); // 100ms debounce
+		};
+
+		// Listen for file changes, creations, and deletions
+		fileWatcher.onDidChange(() => refreshWebview());
+		fileWatcher.onDidCreate(() => refreshWebview());
+		fileWatcher.onDidDelete(() => refreshWebview());
+
+		// CSS-specific watcher events
+		cssWatcher.onDidChange(() => refreshWebview());
+
+		// Polling fallback for when FileSystemWatcher doesn't detect RSBuild's atomic writes
+		const cssFile = path.join(this._extensionUri.fsPath, 'out', 'webview', 'static', 'css', 'index.css');
+		let lastModified = 0;
+
+		const pollForChanges = () => {
+			try {
+				const stats = require('fs').statSync(cssFile);
+				const modified = stats.mtime.getTime();
+
+				if (lastModified === 0) {
+					lastModified = modified; // Initialize
+				} else if (modified > lastModified) {
+					lastModified = modified;
+					refreshWebview();
+				}
+			} catch {
+				// File doesn't exist yet, ignore
+			}
+		};
+
+		// Poll every 500ms in development
+		const pollInterval = setInterval(pollForChanges, 500);
+
+		// Clean up when extension is disposed
+		this._disposables.push(
+			fileWatcher,
+			cssWatcher,
+			{ dispose: () => clearInterval(pollInterval) }
+		);
 	}
 
 	private _sendCurrentSettings(): void {

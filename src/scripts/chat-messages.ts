@@ -35,7 +35,7 @@ export function scrollToBottomIfNeeded(messagesDiv: HTMLElement, shouldScroll: b
 }
 
 export function addMessage(content: string, type = 'claude'): void {
-	console.log('addMessage called with content:', content, 'type:', type);
+	// console.log('addMessage called with content:', content, 'type:', type);
 	const messagesDiv = document.getElementById('chatMessages');
 	if (!messagesDiv) {
 		console.error('chatMessages div not found!');
@@ -47,7 +47,7 @@ export function addMessage(content: string, type = 'claude'): void {
 	// Generate unique ID for this message
 	messageCounter++;
 	const messageId = `msg-${type}-${messageCounter}`;
-	console.log('Generated message ID:', messageId);
+	// console.log('Generated message ID:', messageId);
 
 	// Handle new userMessage structure
 	if (type === 'user') {
@@ -219,15 +219,15 @@ export function addToolUseMessage(data: any): void {
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 
 	// Debug logging for Read tool detection
-	console.log('addToolUseMessage received data:', data);
-	console.log('toolName:', data.toolName, 'rawInput:', data.rawInput);
+	// console.log('addToolUseMessage received data:', data);
+	// console.log('toolName:', data.toolName, 'rawInput:', data.rawInput);
 	if (data.rawInput) {
-		console.log('rawInput keys:', Object.keys(data.rawInput));
+		// console.log('rawInput keys:', Object.keys(data.rawInput));
 	}
 
 	// Handle Read tools with special dimmed styling (toolUse has offset/limit, so we check for file_path)
 	if (data.toolName === 'Read' && data.rawInput && data.rawInput.file_path) {
-		console.log('Creating dimmed Read tool file reference in toolUse');
+		// console.log('Creating dimmed Read tool file reference in toolUse');
 		const readMessageDiv = document.createElement('div');
 		readMessageDiv.className = 'systemMessage claudeContext';
 
@@ -243,7 +243,7 @@ export function addToolUseMessage(data: any): void {
 
 	// Handle Bash commands with system message styling
 	if (data.toolName === 'Bash' && data.rawInput && data.rawInput.command) {
-		console.log('Creating styled Bash command execution message');
+		// console.log('Creating styled Bash command execution message');
 		const bashMessageDiv = document.createElement('div');
 		bashMessageDiv.className = 'systemMessage claudeContext';
 

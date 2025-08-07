@@ -34,6 +34,40 @@ if (document.readyState === 'loading') {
     initializeUI();
 }
 
+// Development mode indicator (removed console.log for production)
+
+// Hot reload function to refresh CSS without losing DOM state
+function reloadCSS() {
+    const cssLinks = document.querySelectorAll('link[rel="stylesheet"]');
+    cssLinks.forEach((element) => {
+        const link = element as HTMLLinkElement;
+        if (link.href.includes('index.css')) {
+            const url = new URL(link.href);
+            // Add cache-busting parameter
+            url.searchParams.set('t', Date.now().toString());
+
+            // Create new link element
+            const newLink = document.createElement('link');
+            newLink.rel = 'stylesheet';
+            newLink.href = url.toString();
+
+            // Replace old link with new one
+            newLink.onload = () => {
+                link.remove();
+                console.log('✅ CSS reloaded successfully');
+            };
+
+            newLink.onerror = () => {
+                console.warn('⚠️ CSS reload failed, falling back to full reload');
+                location.reload();
+            };
+
+            // Insert new link before the old one
+            link.parentNode?.insertBefore(newLink, link);
+        }
+    });
+}
+
 function initializeUI() {
     // Get DOM elements
     messageInput = document.getElementById('messageInput') as HTMLTextAreaElement;
@@ -533,6 +567,11 @@ function setupMessageHandler() {
                         });
                     }
                 }
+                break;
+
+            case 'hotReload':
+                // Handle hot reload - refresh CSS without losing DOM state
+                reloadCSS();
                 break;
 
             default:

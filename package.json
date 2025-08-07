@@ -2,7 +2,7 @@
   "name": "claude-code-sidebar",
   "displayName": "Claude Code Sidebar",
   "description": "Clean, modular Claude Code interface for VS Code - Fork with improved architecture",
-  "version": "1.1.1",
+  "version": "1.2.1",
   "publisher": "ivnnv",
   "author": "Ivn Nv <ivnnv@hotmail.com>",
   "repository": {
@@ -16,41 +16,45 @@
     "yarn": "use-pnpm",
     "pnpm": ">=10.13.1"
   },
-  "categories": [
-    "Other",
-    "AI",
-    "Chat",
-    "Machine Learning",
-    "Snippets",
-    "Programming Languages",
-    "Education",
-    "Testing",
-    "Formatters",
-    "Linters"
-  ],
-  "keywords": [
-    "claude code",
-    "code explanation",
-    "code generation",
-    "code summary",
-    "code transform",
-    "vibe coding",
-    "prompt language",
-    "copilot",
-    "claude",
-    "ai",
-    "assistant",
-    "chatbot",
-    "chat",
-    "anthropic",
-    "code",
-    "programming",
-    "development",
-    "productivity"
-  ],
   "icon": "icon.png",
   "main": "./out/extension.js",
-  "activationEvents": [
+  "scripts": {
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "pnpm run lint:fix && tsc -p ./ && pnpm run build:webview && pnpm run bundle:mcp",
+    "bundle:mcp": "esbuild src/scripts/mcp-permissions.ts --bundle --platform=node --target=node16 --outfile=out/scripts/mcp-permissions-bundled.js --external:vscode",
+    "package": "pnpm run compile && npx @vscode/vsce package --no-dependencies",
+    "clean-compile": "rm -rf out && pnpm run compile",
+    "build:webview": "rsbuild build --mode production",
+    "dev": "concurrently \"tsc -watch -p ./\" \"rsbuild dev\"",
+    "dev:webview": "rsbuild dev",
+    "dev:extension": "tsc -watch -p ./",
+    "pretest": "pnpm run compile && pnpm run lint",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "test": "vscode-test"
+  },
+   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.15.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@rsbuild/core": "^1.1.12",
+    "@rsbuild/plugin-sass": "^1.3.4",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.94.0",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.5.0",
+    "concurrently": "^9.2.0",
+    "esbuild": "^0.25.8",
+    "eslint": "^9.25.1",
+    "sass": "^1.90.0",
+    "typescript": "^5.8.3"
+  },
+    "activationEvents": [
     "onStartupFinished"
   ],
   "contributes": {
@@ -214,37 +218,36 @@
       }
     }
   },
-  "scripts": {
-    "vscode:prepublish": "pnpm run compile",
-    "compile": "pnpm run lint:fix && tsc -p ./ && pnpm run build:webview",
-    "clean-compile": "rm -rf out && pnpm run compile",
-    "build:webview": "rsbuild build --mode production",
-    "dev": "rsbuild dev",
-    "dev:extension": "tsc -watch -p ./",
-    "watch": "concurrently \"pnpm run dev:extension\" \"pnpm run dev\"",
-    "pretest": "pnpm run compile && pnpm run lint",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix",
-    "test": "vscode-test"
-  },
-  "devDependencies": {
-    "@rsbuild/core": "^1.1.12",
-    "@rsbuild/plugin-sass": "^1.3.4",
-    "@types/mocha": "^10.0.10",
-    "@types/node": "20.x",
-    "@types/vscode": "^1.94.0",
-    "@typescript-eslint/eslint-plugin": "^8.31.1",
-    "@typescript-eslint/parser": "^8.31.1",
-    "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.5.2",
-    "@vscode/vsce": "^3.5.0",
-    "concurrently": "^9.2.0",
-    "eslint": "^9.25.1",
-    "sass": "^1.90.0",
-    "typescript": "^5.8.3"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.15.1",
-    "zod": "^3.25.76"
-  }
+  "categories": [
+    "Other",
+    "AI",
+    "Chat",
+    "Machine Learning",
+    "Snippets",
+    "Programming Languages",
+    "Education",
+    "Testing",
+    "Formatters",
+    "Linters"
+  ],
+  "keywords": [
+    "claude code",
+    "code explanation",
+    "code generation",
+    "code summary",
+    "code transform",
+    "vibe coding",
+    "prompt language",
+    "copilot",
+    "claude",
+    "ai",
+    "assistant",
+    "chatbot",
+    "chat",
+    "anthropic",
+    "code",
+    "programming",
+    "development",
+    "productivity"
+  ]
 }

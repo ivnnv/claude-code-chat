@@ -1290,8 +1290,8 @@ body {
         position: relative;
 
         &.ready {
-            background-color: #00d26a;
-            box-shadow: 0 0 6px rgba(0, 210, 106, 0.3);
+            background-color: #00aa55;
+            box-shadow: 0 0 6px rgba(0, 170, 85, 0.3);
         }
 
         &.processing {
@@ -2381,22 +2381,6 @@ body {
 
         &-container {
             transform: scale(0.75);
-        }
-
-        &.ready {
-            background-color: #00d26a;
-            box-shadow: 0 0 6px rgba(0, 210, 106, 0.5);
-        }
-
-        &.processing {
-            background-color: #ff9500;
-            box-shadow: 0 0 6px rgba(255, 149, 0, 0.5);
-            animation: pulse 1.5s ease-in-out infinite;
-        }
-
-        &.error {
-            background-color: #ff453a;
-            box-shadow: 0 0 6px rgba(255, 69, 58, 0.5);
         }
     }
 
