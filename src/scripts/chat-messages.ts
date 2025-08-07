@@ -83,7 +83,7 @@ export function addMessage(content: string, type = 'claude'): void {
 		// Create content with clean user text (extracted above)
 		const contentDiv = document.createElement('div');
 		contentDiv.className = 'userMessage-content';
-		contentDiv.innerHTML = userText; // Clean user text without file reference
+		contentDiv.innerHTML = `<span class="userMessage-prompt">${userText}</span>`; // Clean user text without file reference
 
 		// Add copy button
 		const copyBtn = document.createElement('button');
@@ -99,7 +99,6 @@ export function addMessage(content: string, type = 'claude'): void {
 		copyBtn.style.opacity = '0';
 		copyBtn.style.transition = 'opacity 0.2s ease';
 
-		contentDiv.style.position = 'relative';
 		contentDiv.appendChild(copyBtn);
 		messageDiv.appendChild(contentDiv);
 
@@ -180,7 +179,6 @@ export function addMessage(content: string, type = 'claude'): void {
 		copyBtn.style.opacity = '0';
 		copyBtn.style.transition = 'opacity 0.2s ease';
 
-		messageDiv.style.position = 'relative';
 		messageDiv.appendChild(copyBtn);
 	}
 
@@ -235,10 +233,26 @@ export function addToolUseMessage(data: any): void {
 
 		const contentDiv = document.createElement('div');
 		contentDiv.className = 'systemMessage-content';
-		contentDiv.innerHTML = 'R: ' + formatFilePath(data.rawInput.file_path);
+		contentDiv.innerHTML = `<span class="systemMessage-command">R: ${formatFilePath(data.rawInput.file_path)}</span>`;
 		readMessageDiv.appendChild(contentDiv);
 
 		messagesDiv.appendChild(readMessageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
+	// Handle Bash commands with system message styling
+	if (data.toolName === 'Bash' && data.rawInput && data.rawInput.command) {
+		console.log('Creating styled Bash command execution message');
+		const bashMessageDiv = document.createElement('div');
+		bashMessageDiv.className = 'systemMessage claudeContext';
+
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'systemMessage-content';
+		contentDiv.innerHTML = `<span class="systemMessage-command">$ ${data.rawInput.command}</span>`;
+		bashMessageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(bashMessageDiv);
 		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
 		return;
 	}

@@ -219,6 +219,26 @@ export function addToolResultMessage(data: any): void {
 		return;
 	}
 
+	// Handle Bash tool results by appending to the previous bash system message
+	if (data.toolName === 'Bash' && !data.isError) {
+		console.log('Handling Bash tool result, looking for previous system message');
+		// Find the most recent systemMessage claudeContext (the bash command)
+		const systemMessages = messagesDiv.querySelectorAll('.systemMessage.claudeContext');
+		const lastSystemMessage = systemMessages[systemMessages.length - 1] as HTMLElement;
+
+		if (lastSystemMessage) {
+			console.log('Found previous bash system message, appending result');
+			const contentDiv = lastSystemMessage.querySelector('.systemMessage-content');
+			if (contentDiv) {
+				// Add the result to the same system message box
+				contentDiv.innerHTML += `<span class="systemMessage-response">${data.content}</span>`;
+				scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+				return;
+			}
+		}
+		console.log('No previous bash system message found, falling through to regular result');
+	}
+
 	// For Read and Edit tools with hidden flag, just hide loading state and show completion message
 	if (data.hidden && (data.toolName === 'Read' || data.toolName === 'Edit' || data.toolName === 'TodoWrite' || data.toolName === 'MultiEdit') && !data.isError) {
 		return;

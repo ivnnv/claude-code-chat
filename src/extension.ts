@@ -1220,7 +1220,7 @@ class ClaudeChatProvider {
 
 			// Create or update mcp-servers.json with permissions server, preserving existing servers
 			const mcpConfigPath = path.join(mcpConfigDir, 'mcp-servers.json');
-			const mcpPermissionsPath = this.convertToWSLPath(path.join(this._extensionUri.fsPath, 'mcp-permissions.js'));
+			const mcpPermissionsPath = this.convertToWSLPath(path.join(this._extensionUri.fsPath, 'out', 'scripts', 'mcp-permissions.js'));
 			const permissionRequestsPath = this.convertToWSLPath(path.join(storagePath, 'permission-requests'));
 
 			// Load existing config or create new one
