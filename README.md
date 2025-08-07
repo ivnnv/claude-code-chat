@@ -1,25 +1,67 @@
 # 🚀 Claude Code Sidebar - Clean, Modular Claude Code Interface for VS Code
 
-> **Fork Notice**: This is a modernized fork of [claude-code-chat](https://github.com/andrepimenta/claude-code-chat) by Andre Pimenta. Created due to the monolithic architecture being difficult to maintain and limited attention to contributors from the original maintainer.
+> **Independent Fork**: Originally forked from [claude-code-chat](https://github.com/andrepimenta/claude-code-chat) by Andre Pimenta, now evolved into its own project with significant architectural improvements and privacy-first approach.
 
 [![VS Code Extension](https://img.shields.io/badge/VS%20Code-Extension-blue?style=for-the-badge&logo=visual-studio-code)](#)
 [![Claude Code](https://img.shields.io/badge/Powered%20by-Claude%20Code-orange?style=for-the-badge)](https://claude.ai/code)
 [![TypeScript](https://img.shields.io/badge/Built%20with-TypeScript-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 
-> **No more terminal commands. Chat with Claude Code through a clean, minimal interface right inside VS Code.**
+> **Chat with Claude Code through a clean, minimal interface right inside VS Code - no terminal required.**
 
-Experience Claude Code with a modernized, modular architecture and Copilot-like minimal design. This fork focuses on maintainability, clean code structure, and user privacy.
+Experience Claude Code with a completely rewritten modular architecture, Copilot-inspired minimal design, and strict privacy-first principles. We've moved beyond the original codebase to deliver a superior Claude Code experience.
 
 ---
 
-## ✨ **What's Different in This Fork?**
+## ✨ **Why This Project Exists**
 
-🏗️ **Modular Architecture** - Completely refactored from monolithic structure to maintainable modules  
-🎨 **Minimal Design** - Copilot-like clean interface with native VS Code title integration  
-🔒 **Privacy First** - **No user tracking or analytics** (removed from original)  
-⚡ **Better Performance** - Optimized spacing, rendering, and resource usage  
-🛠️ **Maintainable Code** - Split large files into focused, testable modules  
-🔧 **Active Development** - Responsive to community feedback and contributions  
+🏗️ **Modern Architecture** - Completely rewritten with TypeScript modules, SCSS organization, and modern tooling  
+🎨 **Superior UX** - Copilot-inspired minimal design with native VS Code integration  
+🔒 **Privacy First** - **Zero user tracking** - no analytics, no data collection, period  
+⚡ **Performance Focus** - Optimized with RSBuild bundling and efficient rendering  
+🛠️ **Developer Experience** - Modern toolchain (pnpm, RSBuild, modular TypeScript) welcomes contributions  
+🚀 **Independent Direction** - We chart our own course for the best Claude Code experience  
+
+---
+
+## 🏗️ **Modern Architecture & Tooling**
+
+This project represents a complete architectural overhaul from typical VS Code extensions:
+
+### **📁 Modular Structure**
+```
+src/
+├── scripts/           # Focused, single-responsibility modules
+│   ├── chat-messages.ts    # Message rendering & formatting  
+│   ├── ui-core.ts          # Core UI interactions
+│   ├── settings-modals.ts  # Settings & modal management
+│   ├── mcp-servers.ts      # MCP server integration
+│   └── permissions.ts      # Security & permissions
+├── index.scss         # Organized SCSS with nested selectors
+├── index.html         # Clean HTML structure
+└── ui-scripts.ts      # Main entry point & message routing
+```
+
+### **🛠️ Modern Toolchain**
+- **📦 pnpm** - Fast, efficient package management with workspace support
+- **⚡ RSBuild** - Lightning-fast bundling (Rust-based, replaces Webpack)  
+- **🎨 SCSS** - Organized stylesheets with nested selectors and groupings
+- **📘 TypeScript** - Full type safety across all modules
+- **🧹 ESLint** - Consistent code quality and formatting
+
+### **🔄 Development Workflow**
+- **Hot reload** with `pnpm run dev`
+- **Type checking** with `npx tsc --noEmit`  
+- **Linting & fixing** with `pnpm run lint:fix`
+- **Optimized builds** with `pnpm run build:webview`
+
+### **vs. Legacy Approach**
+| Aspect | Legacy Extensions | This Project |
+|--------|------------------|-------------|
+| Structure | Single large files (1000+ lines) | Focused modules (~200 lines) |
+| Bundling | Basic/No bundling | Modern RSBuild optimization |
+| Package Manager | npm (slower) | pnpm (3x faster installs) |
+| Styling | Inline CSS or single file | Organized SCSS with nesting |
+| Type Safety | Minimal/None | Full TypeScript coverage |
 
 ---
 
@@ -32,13 +74,13 @@ Experience Claude Code with a modernized, modular architecture and Copilot-like 
 - Tight spacing between messages and diffs
 - Real-time streaming with optimized rendering
 
-### 🔌 **Full Claude Code Integration**
-- All original Claude Code features maintained
-- MCP Server support with visual management
-- File references with `@` syntax
-- Image support via drag & drop or clipboard
-- Slash commands with modal interface
-- Model selection (Opus, Sonnet, Default)
+### 🔌 **Complete Claude Code Integration**
+- Full Claude Code feature compatibility and beyond
+- Enhanced MCP Server support with visual management
+- Intuitive file references with `@` syntax
+- Seamless image support via drag & drop or clipboard
+- Advanced slash commands with clean modal interface
+- Smart model selection (Opus, Sonnet, Default)
 
 ### 🛠️ **Advanced Tool Integration**
 - Secure permissions system with granular controls
@@ -102,21 +144,35 @@ Configure WSL integration through VS Code Settings:
 
 ## 🤝 **Contributing**
 
-This fork welcomes contributions! We focus on:
+We welcome contributions to make this the best Claude Code experience! Our focus areas:
 
-1. **🏗️ Code Quality** - Maintaining modular, testable architecture
-2. **🎨 User Experience** - Clean, minimal design principles
-3. **🔒 Privacy** - No user tracking, local-first approach
-4. **📚 Documentation** - Clear, helpful documentation
+1. **🏗️ Code Quality** - Maintaining our modular, testable architecture
+2. **🎨 User Experience** - Advancing our clean, minimal design philosophy  
+3. **🔒 Privacy** - Absolute commitment to zero user tracking
+4. **📚 Documentation** - Clear, comprehensive documentation
+5. **🚀 Innovation** - Pushing Claude Code integration forward
 
 ### Development Setup
 ```bash
 git clone https://github.com/ivnnv/claude-code-sidebar
 cd claude-code-sidebar
-npm install
+pnpm install   # Fast installs with pnpm
 
-# Press F5 in VS Code to run the extension
+# Development commands
+pnpm run dev          # Hot reload development
+pnpm run compile      # Full build with linting
+pnpm run lint         # Check code quality
+pnpm run lint:fix     # Auto-fix linting issues
+
+# Press F5 in VS Code to run the extension in debug mode
 ```
+
+### **Project Structure Benefits**
+- **Easy to find code**: Each module has a single, clear responsibility
+- **Easy to test**: Small, focused functions in isolated modules  
+- **Easy to contribute**: Clear separation allows parallel development
+- **Easy to maintain**: Changes are localized to relevant modules
+- **Fast builds**: Modern tooling provides sub-second rebuilds
 
 ---
 
@@ -135,26 +191,28 @@ See the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🆚 **Original vs Fork**
+## 🆚 **This Project vs Others**
 
-| Feature | Original | This Fork |
-|---------|----------|-----------|
-| Architecture | Monolithic | Modular |
-| Design | Custom headers | Native VS Code |
-| Tracking | Analytics included | Privacy-first (removed) |
-| Maintenance | Limited contributor attention | Active development |
-| Code Structure | Large single files | Split into focused modules |
-| UI/UX | Bulky interface | Copilot-like minimal design |
+| Feature | Other Claude Extensions | Claude Code Sidebar |
+|---------|-------------------------|-------------------|
+| Architecture | Monolithic/Legacy | Modern Modular |
+| Design | Custom/Inconsistent | Native VS Code Integration |
+| Privacy | Analytics/Tracking | **Zero Tracking** |
+| Maintenance | Variable/Limited | Active & Responsive |
+| Code Quality | Mixed | Clean, Testable Modules |
+| UI/UX | Bulky/Cluttered | Minimal, Copilot-inspired |
+| Performance | Heavy/Slow | Optimized & Fast |
 
 ---
 
 ## 📞 **Support**
 
 - 🐛 **Issues**: [GitHub Issues](https://github.com/ivnnv/claude-code-sidebar/issues)
-- 💡 **Original Extension**: [claude-code-chat](https://github.com/andrepimenta/claude-code-chat)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/ivnnv/claude-code-sidebar/discussions)
+- 📧 **Contact**: ivnnv@hotmail.com
 
 ---
 
-**Created by Ivn Nv (ivnnv@hotmail.com)**
+**Created by Ivn Nv**
 
-*Forked to provide a cleaner, more maintainable Claude Code experience*
+*Delivering the cleanest, most private Claude Code experience in VS Code*
