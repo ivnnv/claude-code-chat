@@ -75,6 +75,17 @@
 			"problemMatcher": []
 		},
 		{
+			"label": "pnpm: clean-compile",
+			"type": "shell",
+			"command": "pnpm",
+			"args": ["run", "clean-compile"],
+			"group": "build",
+			"presentation": {
+				"reveal": "silent"
+			},
+			"problemMatcher": ["$tsc"]
+		},
+		{
 			"label": "compile-for-debug",
 			"dependsOrder": "sequence",
 			"dependsOn": ["pnpm: compile"],

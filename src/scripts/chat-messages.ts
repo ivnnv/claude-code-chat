@@ -402,9 +402,9 @@ export function formatFilePath(filePath: string): string {
 	return filePath;
 }
 
-export function formatSingleEdit(edit: any, editNumber: number): string {
+export function formatSingleEdit(edit: any, _editNumber: number): string {
 	let result = '<div class="single-edit">';
-	result += '<div class="edit-number">Edit #' + editNumber + '</div>';
+	// Remove edit number since context is now in user message header
 	// Create diff view for this single edit
 	const oldLines = edit.old_string.split('\n');
 	const newLines = edit.new_string.split('\n');
@@ -444,6 +444,11 @@ export function formatToolInputUI(input: any): string {
 	let result = '';
 	let isFirst = true;
 	for (const [key, value] of Object.entries(input)) {
+		// Skip internal parameters that don't need to be shown
+		if (key === 'offset' || key === 'limit') {
+			continue;
+		}
+
 		const valueStr = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 		if (!isFirst) {result += '\n';}
 		isFirst = false;
@@ -564,18 +569,25 @@ export function formatMultiEditToolDiff(input: any): string {
 
 	let result = '<div class="diff-container">';
 
-	// Create header with file path inline and checkpoint info
-	let headerContent = 'Changes (' + input.edits.length + ' edit' + (input.edits.length > 1 ? 's' : '') + '): <span class="diff-file-path-inline" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer; font-size: 10px; opacity: 0.7; font-weight: normal;">' + formattedPath + '</span>';
+	// Create header with proper layout: number + timestamp + button on first row, file path on second row
+	let headerContent = '<div class="diff-header-row" style="display: flex; justify-content: space-between; align-items: center;">';
+	headerContent += '<span class="diff-changes-count">Changes (' + input.edits.length + ')</span>';
 
 	// Add checkpoint timestamp and restore button if available
 	const currentCheckpoint = (window as any).currentCheckpoint;
 	if (currentCheckpoint) {
 		const timeAgo = new Date(currentCheckpoint.timestamp).toLocaleTimeString();
-		headerContent += '<div class="diff-timestamp-group" style="float: right;">';
+		headerContent += '<div class="diff-timestamp-group">';
 		headerContent += '<span class="diff-timestamp">(' + timeAgo + ')</span>';
 		headerContent += '<button class="diff-restore-btn" onclick="restoreToCommit(\'' + currentCheckpoint.sha + '\')" title="Restore checkpoint" style="margin-left: 5px;">↶</button>';
 		headerContent += '</div>';
 	}
+	headerContent += '</div>';
+
+	// Add file path on second row
+	headerContent += '<div class="diff-file-path-row" style="margin-top: 4px;">';
+	headerContent += '<span class="diff-file-path-inline" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer; font-size: 11px; opacity: 0.8;">' + formattedPath + '</span>';
+	headerContent += '</div>';
 
 	result += '<div class="diff-header">' + headerContent + '</div>';
 	// Create a unique ID for this diff

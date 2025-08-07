@@ -41,7 +41,17 @@
       "Bash(pnpm tsc:*)",
       "Bash(npm run:*)",
       "Bash(git fetch:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(npm install:*)",
+      "Bash(pnpm run:*)",
+      "Bash(vsce package:*)",
+      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --list-extensions)",
+      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --uninstall-extension ivnnv.claude-code-sidebar)",
+      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --install-extension /Users/ivnnv/Sites/ivnnv/claude-code-sidebar/claude-code-sidebar-1.1.0.vsix)",
+      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --install-extension /Users/ivnnv/Sites/ivnnv/claude-code-sidebar/claude-code-sidebar-1.1.1.vsix)",
+      "Bash(npx @vscode/vsce package:*)",
+      "Bash(claude config show:*)",
+      "Bash(claude config list:*)"
     ],
     "deny": []
   },

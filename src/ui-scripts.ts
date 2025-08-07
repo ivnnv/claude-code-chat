@@ -17,6 +17,8 @@ let messageInput: HTMLTextAreaElement;
 let isProcessing = false;
 let currentEditorContext: any = null;
 let currentCheckpoint: {sha: string, timestamp: string} | null = null;
+let currentStreamingMessage: HTMLElement | null = null;
+let streamingFilePaths: Set<string> = new Set();
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
@@ -142,6 +144,9 @@ function initializeUI() {
     }
 
     console.log('UI initialization complete, waiting for extension messages...');
+
+    // Request initial editor context
+    vscode.postMessage({ type: 'getEditorContext' });
 }
 
 function setupMessageInput() {
@@ -213,13 +218,26 @@ function setupMessageHandler() {
             case 'editorContext':
                 console.log('Editor context updated');
                 currentEditorContext = message.data;
+                // Also update the chat messages module context
+                chatMessages.setCurrentEditorContext(message.data);
                 updateEditorContextDisplay(message.data);
+                break;
+
+            case 'userInput':
+                console.log('User input received');
+                if (message.data.trim()) {
+                    chatMessages.addMessage(chatMessages.parseSimpleMarkdown(message.data), 'user');
+                }
                 break;
 
             case 'processingComplete':
                 isProcessing = false;
                 enableButtons();
                 hideStopButton();
+
+                // Clean up streaming state
+                currentStreamingMessage = null;
+                streamingFilePaths.clear();
                 break;
 
             case 'sessionCleared':
@@ -229,6 +247,8 @@ function setupMessageHandler() {
                 (window as any).currentCheckpoint = null;
                 // Clear all messages from UI
                 clearMessages();
+                console.log('About to add Claude communication message');
+                chatMessages.addMessage('🤖 Connected to Claude CLI - Ready for interaction', 'system');
                 console.log('About to add Started new session message');
                 chatMessages.addMessage('🆕 Started new session', 'system');
                 console.log('Added Started new session message');
@@ -237,13 +257,6 @@ function setupMessageHandler() {
             case 'configChanged':
             case 'settingsData':
                 // Handle settings updates
-                break;
-
-            case 'userInput':
-                console.log('User input received');
-                if (message.data && message.data.trim()) {
-                    chatMessages.addMessage(chatMessages.parseSimpleMarkdown(message.data), 'user');
-                }
                 break;
 
             case 'showRestoreOption':
@@ -315,14 +328,74 @@ function setupMessageHandler() {
                         displayData = displayData.replace(usageLimitMatch[0], `Claude AI usage limit reached: ${readableDate}`);
                     }
 
-                    chatMessages.addMessage(chatMessages.parseSimpleMarkdown(displayData), 'claude');
+                    // Check if this is file reference output (starts with dots and forward slashes)
+                    const filePathPattern = /^\s*\.\.\./;
+                    if (currentStreamingMessage && filePathPattern.test(displayData)) {
+                        // This is a file path - add it to the system message body
+                        const cleanPath = displayData.trim();
+                        if (!streamingFilePaths.has(cleanPath)) {
+                            streamingFilePaths.add(cleanPath);
+                            const contentDiv = currentStreamingMessage.querySelector('.file-references');
+                            if (contentDiv) {
+                                if (contentDiv.textContent) {
+                                    contentDiv.textContent += '\n' + cleanPath;
+                                } else {
+                                    contentDiv.textContent = cleanPath;
+                                }
+                            }
+                        }
+                    } else {
+                        // This is actual Claude response text - create claudeMessage
+                        const messagesDiv = document.getElementById('chatMessages');
+                        if (messagesDiv) {
+                            const messageDiv = document.createElement('div');
+                            messageDiv.className = 'claudeMessage';
+
+                            const contentDiv = document.createElement('div');
+                            contentDiv.className = 'claudeMessage-content';
+                            contentDiv.innerHTML = chatMessages.parseSimpleMarkdown(displayData);
+                            messageDiv.appendChild(contentDiv);
+
+                            messagesDiv.appendChild(messageDiv);
+                            chatMessages.scrollToBottomIfNeeded(messagesDiv, true);
+                        }
+                    }
+
+                    // Auto-scroll if needed
+                    const messagesDiv = document.getElementById('chatMessages');
+                    if (messagesDiv) {
+                        chatMessages.scrollToBottomIfNeeded(messagesDiv, true);
+                    }
                 }
                 break;
 
             case 'loading':
                 console.log('Loading message received');
                 if (message.data) {
-                    chatMessages.addMessage(message.data, 'system');
+                    // Create system message with header "Claude is working..." and empty body for file paths
+                    const messagesDiv = document.getElementById('chatMessages');
+                    if (messagesDiv) {
+                        const shouldScroll = chatMessages.shouldAutoScroll(messagesDiv);
+
+                        currentStreamingMessage = document.createElement('div');
+                        currentStreamingMessage.className = 'systemMessage';
+                        currentStreamingMessage.id = `working-msg-${Date.now()}`;
+
+                        // Create header
+                        const headerDiv = document.createElement('div');
+                        headerDiv.className = 'systemMessage-header';
+                        headerDiv.textContent = '🔄 Claude is working...';
+                        currentStreamingMessage.appendChild(headerDiv);
+
+                        // Create content for file references
+                        const contentDiv = document.createElement('div');
+                        contentDiv.className = 'systemMessage-content file-references';
+                        currentStreamingMessage.appendChild(contentDiv);
+
+                        messagesDiv.appendChild(currentStreamingMessage);
+                        streamingFilePaths.clear();
+                        chatMessages.scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+                    }
                 }
                 break;
 
@@ -391,6 +464,25 @@ function setupMessageHandler() {
             case 'modelSelected':
                 if (message.model) {
                     uiCore.setCurrentModel(message.model);
+                }
+                break;
+
+            case 'newSession':
+                console.log('New session requested from panel header');
+                uiCore.newSession();
+                break;
+
+            case 'setProcessing':
+                console.log('Processing state changed:', message.data);
+                if (message.data && message.data.isProcessing !== undefined) {
+                    isProcessing = message.data.isProcessing;
+                    if (isProcessing) {
+                        disableButtons();
+                        showStopButton();
+                    } else {
+                        enableButtons();
+                        hideStopButton();
+                    }
                 }
                 break;
 
@@ -465,11 +557,17 @@ function setupMessageHandler() {
 function sendMessage(): void {
     if (!messageInput || isProcessing) {return;}
 
-    const content = messageInput.value.trim();
-    if (!content) {return;}
+    const text = messageInput.value.trim();
+    if (!text) {return;}
 
-    // Add user message
-    chatMessages.addMessage(content, 'user');
+    // Enhance message with editor context if available
+    let enhancedText = text;
+    const contextInfo = chatMessages.getEditorContextInfo();
+    if (contextInfo) {
+        enhancedText = contextInfo + '\n\n' + text;
+    }
+
+    // Don't add user message here - let extension handle it via userInput message
 
     // Clear input
     messageInput.value = '';
@@ -480,10 +578,12 @@ function sendMessage(): void {
     disableButtons();
     showStopButton();
 
+    chatMessages.sendStats('Send message');
+
     // Send to VS Code
     vscode.postMessage({
-        type: 'userMessage',
-        content: content,
+        type: 'sendMessage',
+        text: enhancedText,
         planMode: settingsModals.getPlanModeEnabled(),
         thinkingMode: settingsModals.getThinkingModeEnabled(),
         editorContext: currentEditorContext

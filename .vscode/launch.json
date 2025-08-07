@@ -22,6 +22,23 @@
 			}
 		},
 		{
+			"name": "DebugExtTD",
+			"type": "extensionHost",
+			"request": "launch",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"/Users/ivnnv/Sites/ivnnv/tradingdroid-frontends"
+			],
+			"outFiles": [
+				"${workspaceFolder}/out/**/*.js"
+			],
+			"preLaunchTask": "pnpm: clean-compile",
+			"sourceMaps": true,
+			"env": {
+				"VSCODE_DEBUG": "true"
+			}
+		},
+		{
 			"name": "Debug Extension (No Watch)",
 			"type": "extensionHost",
 			"request": "launch",

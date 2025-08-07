@@ -2,7 +2,7 @@
   "name": "claude-code-sidebar",
   "displayName": "Claude Code Sidebar",
   "description": "Clean, modular Claude Code interface for VS Code - Fork with improved architecture",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "publisher": "ivnnv",
   "author": "Ivn Nv <ivnnv@hotmail.com>",
   "repository": {
@@ -222,6 +222,7 @@
   "scripts": {
     "vscode:prepublish": "pnpm run compile",
     "compile": "pnpm run lint:fix && tsc -p ./ && pnpm run build:webview",
+    "clean-compile": "rm -rf out && pnpm run compile",
     "build:webview": "rsbuild build --mode production",
     "dev": "rsbuild dev",
     "dev:extension": "tsc -watch -p ./",

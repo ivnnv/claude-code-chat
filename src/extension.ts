@@ -281,6 +281,8 @@ class ClaudeChatProvider {
 		switch (message.type) {
 			case 'sendMessage':
 				console.log('Handling sendMessage:', message.text?.substring(0, 50));
+				console.log('Full message:', message);
+				console.log('Plan mode:', message.planMode, 'Thinking mode:', message.thinkingMode);
 				this._sendMessageToClaude(message.text, message.planMode, message.thinkingMode);
 				return;
 			case 'newSession':
@@ -421,8 +423,11 @@ class ClaudeChatProvider {
 		if (latestConversation) {
 			this._loadConversationHistory(latestConversation.filename);
 		} else {
-			// If no conversation to load, send ready immediately
+			// If no conversation to load, start a new session
 			setTimeout(() => {
+				this._postMessage({
+					type: 'sessionCleared'
+				});
 				this._sendReadyMessage();
 			}, 100);
 		}
@@ -520,10 +525,17 @@ class ClaudeChatProvider {
 		} else {
 			// Add MCP configuration for permissions
 			const mcpConfigPath = this.getMCPConfigPath();
+			console.log('MCP config path:', mcpConfigPath);
 			if (mcpConfigPath) {
-				args.push('--mcp-config', this.convertToWSLPath(mcpConfigPath));
+				const convertedPath = this.convertToWSLPath(mcpConfigPath);
+				console.log('Converted MCP path:', convertedPath);
+				// Escape path with quotes to handle spaces
+				args.push('--mcp-config', `"${convertedPath}"`);
 				args.push('--allowedTools', 'mcp__claude-code-sidebar-permissions__approval_prompt');
 				args.push('--permission-prompt-tool', 'mcp__claude-code-sidebar-permissions__approval_prompt');
+				console.log('Added MCP config args to claude command');
+			} else {
+				console.log('No MCP config path available');
 			}
 		}
 
@@ -565,8 +577,22 @@ class ClaudeChatProvider {
 		} else {
 			// Use native claude command
 			console.log('Using native Claude command');
+			console.log('Spawning claude with args:', args);
+			console.log('Working directory:', cwd);
+			console.log('Current PATH:', process.env.PATH);
+			// Debug: check MCP config file contents
+			const mcpConfigPath = this.getMCPConfigPath();
+			if (mcpConfigPath) {
+				try {
+					const fs = require('fs');
+					const mcpContent = fs.readFileSync(mcpConfigPath, 'utf8');
+					console.log('MCP config file contents:', mcpContent);
+				} catch (error) {
+					console.log('Failed to read MCP config file:', error);
+				}
+			}
 			claudeProcess = cp.spawn('claude', args, {
-				shell: process.platform === 'win32',
+				shell: true,
 				cwd: cwd,
 				stdio: ['pipe', 'pipe', 'pipe'],
 				env: {
@@ -580,6 +606,17 @@ class ClaudeChatProvider {
 		// Store process reference for potential termination
 		this._currentClaudeProcess = claudeProcess;
 
+		// Handle spawn errors
+		claudeProcess.on('error', (error) => {
+			console.error('Failed to start Claude process:', error);
+			this._postMessage({
+				type: 'error',
+				data: `Failed to start Claude: ${error.message}. Make sure Claude CLI is installed and accessible.`
+			});
+			this._isProcessing = false;
+			return;
+		});
+
 		// Send the message to Claude's stdin (with mode prefixes if enabled)
 		if (claudeProcess.stdin) {
 			claudeProcess.stdin.write(actualMessage + '\n');
@@ -591,6 +628,7 @@ class ClaudeChatProvider {
 
 		if (claudeProcess.stdout) {
 			claudeProcess.stdout.on('data', (data) => {
+				console.log('Claude stdout data received:', data.toString());
 				rawOutput += data.toString();
 
 				// Process JSON stream line by line
@@ -599,8 +637,10 @@ class ClaudeChatProvider {
 
 				for (const line of lines) {
 					if (line.trim()) {
+						console.log('Processing JSON line:', line.trim());
 						try {
 							const jsonData = JSON.parse(line.trim());
+							console.log('Parsed JSON data:', jsonData);
 							this._processJsonStreamData(jsonData);
 						} catch (error) {
 							console.log('Failed to parse JSON line:', line, error);
@@ -1836,7 +1876,7 @@ class ClaudeChatProvider {
 		if (!storagePath) { return undefined; }
 
 		const configPath = path.join(storagePath, 'mcp', 'mcp-servers.json');
-		return path.join(configPath);
+		return configPath;
 	}
 
 	private _sendAndSaveMessage(message: { type: string, data: any }): void {
