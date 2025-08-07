@@ -251,7 +251,7 @@ function setupMessageHandler() {
 
             case 'configChanged':
             case 'settingsData':
-                // Handle settings updates
+                settingsModals.handleSettingsData(message.data);
                 break;
 
             case 'showRestoreOption':
@@ -465,8 +465,16 @@ function setupMessageHandler() {
                 uiCore.toggleConversationHistory();
                 break;
 
+            case 'showSettings':
+                settingsModals.showSettingsModal();
+                break;
+
             case 'toggleStatusInfo':
                 toggleStatusPopover();
+                break;
+
+            case 'permissionsData':
+                permissions.handlePermissionsData(message.data);
                 break;
 
             case 'conversationList':

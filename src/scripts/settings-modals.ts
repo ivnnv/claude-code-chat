@@ -226,3 +226,60 @@ export function initialize(): void {
 export function setVsCodeApi(api: any): void {
 	vscode = api;
 }
+
+export function handleSettingsData(data: any): void {
+	if (!data) {return;}
+
+	// Update WSL settings
+	const wslEnabledCheckbox = document.getElementById('wsl-enabled') as HTMLInputElement;
+	const wslDistroInput = document.getElementById('wsl-distro') as HTMLInputElement;
+	const wslNodePathInput = document.getElementById('wsl-node-path') as HTMLInputElement;
+	const wslClaudePathInput = document.getElementById('wsl-claude-path') as HTMLInputElement;
+	const yoloModeCheckbox = document.getElementById('yolo-mode') as HTMLInputElement;
+
+	if (wslEnabledCheckbox) {
+		wslEnabledCheckbox.checked = data['wsl.enabled'] || false;
+	}
+	if (wslDistroInput) {
+		wslDistroInput.value = data['wsl.distro'] || 'Ubuntu';
+	}
+	if (wslNodePathInput) {
+		wslNodePathInput.value = data['wsl.nodePath'] || '/usr/bin/node';
+	}
+	if (wslClaudePathInput) {
+		wslClaudePathInput.value = data['wsl.claudePath'] || '/usr/local/bin/claude';
+	}
+	if (yoloModeCheckbox) {
+		yoloModeCheckbox.checked = data['permissions.yoloMode'] || false;
+	}
+
+	// Update WSL options visibility
+	const wslOptions = document.getElementById('wslOptions');
+	if (wslOptions && wslEnabledCheckbox) {
+		wslOptions.style.display = wslEnabledCheckbox.checked ? 'block' : 'none';
+	}
+
+	// Update thinking intensity
+	if (data['thinking.intensity']) {
+		updateThinkingIntensityFromSettings(data['thinking.intensity']);
+	}
+
+	// Update yolo warning banner
+	updateYoloWarning();
+}
+
+function updateThinkingIntensityFromSettings(intensity: string): void {
+	const intensityMap: { [key: string]: number } = {
+		'think': 0,
+		'think-hard': 1,
+		'think-harder': 2,
+		'ultrathink': 3
+	};
+
+	const value = intensityMap[intensity] || 0;
+	const slider = document.getElementById('thinkingIntensitySlider') as HTMLInputElement;
+	if (slider) {
+		slider.value = value.toString();
+		updateThinkingIntensityDisplay(value);
+	}
+}

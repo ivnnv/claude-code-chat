@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as util from 'util';
 import * as path from 'path';
-import html from './ui-html';
+import * as fs from 'fs';
 
 const exec = util.promisify(cp.exec);
 
@@ -2322,30 +2322,30 @@ class ClaudeChatProvider {
 	}
 
 	private _getHtmlForWebview(): string {
-		// Get webview-compatible URIs for the assets
 		const webviewUri = this._panel?.webview || this._webview;
 		if (!webviewUri) {
-			return html;
+			throw new Error('Webview URI not available');
 		}
 
-		const webviewDir = vscode.Uri.joinPath(this._extensionUri, 'out', 'webview');
+		// Read RSBuild's generated HTML and adapt it for webview URIs
+		const htmlPath = path.join(__dirname, 'webview', 'index.html');
+		if (!fs.existsSync(htmlPath)) {
+			throw new Error(`Webview HTML not found at ${htmlPath}. Run "pnpm run compile" to build the extension.`);
+		}
 
-		// Get URIs for assets that the webview can access - RSBuild puts them in static/js and static/css
+		let html = fs.readFileSync(htmlPath, 'utf8');
+
+		// Convert relative asset paths to webview URIs
+		const webviewDir = vscode.Uri.joinPath(this._extensionUri, 'out', 'webview');
 		const scriptUri = webviewUri.asWebviewUri(vscode.Uri.joinPath(webviewDir, 'static', 'js', 'index.js'));
 		const cssUri = webviewUri.asWebviewUri(vscode.Uri.joinPath(webviewDir, 'static', 'css', 'index.css'));
 
-		// Replace relative paths with webview URIs
-		let webviewHtml = html
-			// Replace RSBuild-generated paths
-			.replace('./static/js/index.js', scriptUri.toString())
-			.replace('./static/css/index.css', cssUri.toString())
-			.replace('src="./static/js/index.js"', `src="${scriptUri.toString()}"`)
-			.replace('href="./static/css/index.css"', `href="${cssUri.toString()}"`)
-			// Remove old template references (RSBuild handles CSS automatically)
-			.replace('<link rel="stylesheet" href="index.css">', '')
-			.replace('src="index.js"', `src="${scriptUri.toString()}"`);
+		// Replace RSBuild's relative paths with webview URIs
+		html = html
+			.replace(/src="\.\/static\/js\/index\.js"/g, `src="${scriptUri}"`)
+			.replace(/href="\.\/static\/css\/index\.css"/g, `href="${cssUri}"`);
 
-		return webviewHtml;
+		return html;
 	}
 
 	private _sendCurrentSettings(): void {

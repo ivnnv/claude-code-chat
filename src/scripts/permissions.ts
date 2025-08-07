@@ -286,3 +286,53 @@ export function initialize(): void {
 export function setVsCodeApi(api: any): void {
 	vscode = api;
 }
+
+export function handlePermissionsData(data: any): void {
+	const permissionsList = document.getElementById('permissionsList');
+	if (!permissionsList || !data) {
+		return;
+	}
+
+	// Clear loading message and populate permissions
+	permissionsList.innerHTML = '';
+
+	const permissions = data.alwaysAllow || {};
+	const hasPermissions = Object.keys(permissions).length > 0;
+
+	if (!hasPermissions) {
+		permissionsList.innerHTML = `
+			<div style="text-align: center; padding: 20px; color: var(--vscode-descriptionForeground);">
+				No permissions configured
+			</div>
+		`;
+		return;
+	}
+
+	// Create permissions list
+	for (const [toolName, commands] of Object.entries(permissions)) {
+		if (Array.isArray(commands)) {
+			// Multiple commands for this tool
+			(commands as string[]).forEach(command => {
+				createPermissionItem(permissionsList, toolName, command);
+			});
+		} else if (commands === true) {
+			// All commands allowed for this tool
+			createPermissionItem(permissionsList, toolName, null);
+		}
+	}
+}
+
+function createPermissionItem(container: HTMLElement, toolName: string, command: string | null): void {
+	const item = document.createElement('div');
+	item.className = 'permission-item';
+
+	const displayText = command ? `${toolName}: ${command}` : `${toolName} (all commands)`;
+
+	item.innerHTML = `
+		<span class="permission-text">${escapeHtml(displayText)}</span>
+		<button class="permission-remove-btn" onclick="removePermission('${escapeHtml(toolName)}', ${command ? "'" + escapeHtml(command) + "'" : 'null'})" title="Remove permission">✕</button>
+	`;
+
+	container.appendChild(item);
+}
+
