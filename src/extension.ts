@@ -2146,9 +2146,9 @@ class ClaudeChatProvider {
 
 			// Clear UI messages first, then send all messages to recreate the conversation
 			setTimeout(() => {
-				// Clear existing messages
+				// Clear existing messages when loading conversation history
 				this._postMessage({
-					type: 'sessionCleared'
+					type: 'sessionLoading'
 				});
 
 				let requestStartTime: number;

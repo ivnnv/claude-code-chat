@@ -127,13 +127,45 @@ export function addMessage(content: string, type = 'claude'): void {
 		return;
 	}
 
+	// Handle Claude messages with special styling
+	if (type === 'claude') {
+		const messageDiv = document.createElement('div');
+		messageDiv.id = messageId;
+		messageDiv.className = 'claudeMessage';
+
+		// Add copy button for Claude messages
+		const copyBtn = document.createElement('button');
+		copyBtn.className = 'copy-btn';
+		copyBtn.title = 'Copy message';
+		copyBtn.onclick = () => copyMessageContent(messageDiv);
+		copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+
+		// Position copy button absolutely in top-right
+		copyBtn.style.position = 'absolute';
+		copyBtn.style.top = '8px';
+		copyBtn.style.right = '8px';
+		copyBtn.style.opacity = '0';
+		copyBtn.style.transition = 'opacity 0.2s ease';
+
+		messageDiv.appendChild(copyBtn);
+
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'claudeMessage-content';
+		contentDiv.innerHTML = parseSimpleMarkdown(content);
+		messageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(messageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
 	// Handle other message types (keep existing structure but add IDs with proper order)
 	const messageDiv = document.createElement('div');
 	messageDiv.id = messageId;
 	messageDiv.className = `message ${type}`;
 
-	// Only add copy button for non-system messages, no headers
-	if (type === 'claude' || type === 'error') {
+	// Only add copy button for error messages (claude handled separately above)
+	if (type === 'error') {
 		// Add copy button directly to message div
 		const copyBtn = document.createElement('button');
 		copyBtn.className = 'copy-btn';
@@ -187,6 +219,29 @@ export function addToolUseMessage(data: any): void {
 	const messagesDiv = document.getElementById('chatMessages');
 	if (!messagesDiv) {return;}
 	const shouldScroll = shouldAutoScroll(messagesDiv);
+
+	// Debug logging for Read tool detection
+	console.log('addToolUseMessage received data:', data);
+	console.log('toolName:', data.toolName, 'rawInput:', data.rawInput);
+	if (data.rawInput) {
+		console.log('rawInput keys:', Object.keys(data.rawInput));
+	}
+
+	// Handle Read tools with special dimmed styling (toolUse has offset/limit, so we check for file_path)
+	if (data.toolName === 'Read' && data.rawInput && data.rawInput.file_path) {
+		console.log('Creating dimmed Read tool file reference in toolUse');
+		const readMessageDiv = document.createElement('div');
+		readMessageDiv.className = 'systemMessage claudeContext';
+
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'systemMessage-content';
+		contentDiv.innerHTML = 'R: ' + formatFilePath(data.rawInput.file_path);
+		readMessageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(readMessageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
 
 	const messageDiv = document.createElement('div');
 	messageDiv.className = 'message tool';
@@ -243,17 +298,10 @@ export function addToolUseMessage(data: any): void {
 			contentDiv.innerHTML = formatWriteToolDiff(data.rawInput);
 			messageDiv.appendChild(contentDiv);
 		} else {
-			// For other tools, check if it's a Read tool with just a file path
-			if (data.toolName === 'Read' && data.rawInput && data.rawInput.file_path && Object.keys(data.rawInput).length === 1) {
-				// Skip showing file path for Read tool - it's redundant when followed by Edit/Write tools
-				// The file path will be shown in the subsequent tool's diff header
-				console.log('Skipping file path display for Read tool to avoid duplication');
-			} else {
-				// For other tools, show the formatted input in the tool-input wrapper
-				contentDiv.innerHTML = formatToolInputUI(data.rawInput);
-				inputElement.appendChild(contentDiv);
-				messageDiv.appendChild(inputElement);
-			}
+			// For other tools, show the formatted input in the tool-input wrapper
+			contentDiv.innerHTML = formatToolInputUI(data.rawInput);
+			inputElement.appendChild(contentDiv);
+			messageDiv.appendChild(inputElement);
 		}
 	} else if (data.toolInput) {
 		// Fallback for pre-formatted input
@@ -325,7 +373,7 @@ export function sendStats(eventName: string): void {
 }
 
 export function copyMessageContent(messageDiv: HTMLElement): void {
-	const contentDiv = messageDiv.querySelector('.message-content');
+	const contentDiv = messageDiv.querySelector('.message-content, .claudeMessage-content, .userMessage-content, .systemMessage-content');
 	if (contentDiv) {
 		// Get text content, preserving line breaks
 		const text = contentDiv.textContent || '';
@@ -391,7 +439,8 @@ export function parseSimpleMarkdown(markdown: string): string {
 		.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
 		.replace(/\*(.*?)\*/g, '<em>$1</em>')
 		.replace(/`(.*?)`/g, '<code>$1</code>')
-		.replace(/\n/g, '<br>');
+		.replace(/\n\n/g, '<br><br>') // Double line breaks become paragraph breaks
+		.replace(/\n/g, '<br>'); // Single line breaks become line breaks
 }
 
 export function formatFilePath(filePath: string): string {

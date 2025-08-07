@@ -3000,7 +3000,7 @@ pre {
     font-size: calc(var(--vscode-editor-font-size) * 0.85);
 }
 
-/* Claude conversation message with anthropic orange border */
+/* Claude conversation message with Claude orange border */
 .claudeMessage {
     margin-bottom: 4px;
     padding: 0;
@@ -3009,10 +3009,24 @@ pre {
     font-size: calc(var(--vscode-editor-font-size) * 0.8);
     color: var(--vscode-editor-foreground);
     position: relative;
-    border-left: 3px solid #ff8c42; /* Anthropic orange */
+    border-left: 2px solid #da7757; /* Claude orange */
     padding-left: 8px;
 }
 
 .claudeMessage-content {
     line-height: 1.4;
+}
+
+/* Read tool file references - dimmed and integrated styling */
+.systemMessage.claudeContext {
+    border-left: 2px solid #b85a40 !important; /* Darker shade of orange - override system border */
+    margin-bottom: 2px; /* Reduced margin */
+    padding: 0; /* No padding */
+    opacity: 0.6; /* Dimmed */
+    font-size: 0.85em; /* Smaller font */
+}
+
+.systemMessage.claudeContext .systemMessage-content {
+    padding-left: 6px; /* Minimal padding */
+    opacity: 0.8; /* Additional dimming for content */
 }

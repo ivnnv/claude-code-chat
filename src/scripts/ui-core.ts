@@ -183,6 +183,42 @@ export function addToolResultMessage(data: any): void {
 		return;
 	}
 	const shouldScroll = shouldAutoScroll(messagesDiv);
+
+	// Debug logging for Read tool detection in toolResult
+	console.log('addToolResultMessage received data:', data);
+	console.log('toolResult - toolName:', data.toolName, 'rawInput:', data.rawInput);
+	if (data.rawInput) {
+		console.log('toolResult - rawInput keys:', Object.keys(data.rawInput));
+	}
+
+	// Handle Read tools with special dimmed styling (toolResult doesn't have rawInput, but we can show file context)
+	if (false && data.toolName === 'Read' && !data.isError) { // Skip toolResult for Read tools - visual context shows it's a read operation
+		// Try to extract file path from content or use a generic indicator
+		let filePath = 'file read';
+		if (data.content && typeof data.content === 'string') {
+			// Look for file path patterns in the content
+			const contentLines = data.content.split('\n');
+			const firstLine = contentLines[0] || '';
+			// If content starts with line numbers, it's likely a file
+			if (firstLine.match(/^\s*\d+→/)) {
+				filePath = 'read file content';
+			}
+		}
+
+		console.log('Creating dimmed Read tool file reference in toolResult');
+		const readMessageDiv = document.createElement('div');
+		readMessageDiv.className = 'systemMessage claudeContext';
+
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'systemMessage-content';
+		contentDiv.innerHTML = filePath;
+		readMessageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(readMessageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
 	// For Read and Edit tools with hidden flag, just hide loading state and show completion message
 	if (data.hidden && (data.toolName === 'Read' || data.toolName === 'Edit' || data.toolName === 'TodoWrite' || data.toolName === 'MultiEdit') && !data.isError) {
 		return;

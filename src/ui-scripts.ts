@@ -17,8 +17,6 @@ let messageInput: HTMLTextAreaElement;
 let isProcessing = false;
 let currentEditorContext: any = null;
 let currentCheckpoint: {sha: string, timestamp: string} | null = null;
-let currentStreamingMessage: HTMLElement | null = null;
-let streamingFilePaths: Set<string> = new Set();
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
@@ -235,9 +233,7 @@ function setupMessageHandler() {
                 enableButtons();
                 hideStopButton();
 
-                // Clean up streaming state
-                currentStreamingMessage = null;
-                streamingFilePaths.clear();
+                // Processing completed
                 break;
 
             case 'sessionCleared':
@@ -247,11 +243,21 @@ function setupMessageHandler() {
                 (window as any).currentCheckpoint = null;
                 // Clear all messages from UI
                 clearMessages();
-                console.log('About to add Claude communication message');
-                chatMessages.addMessage('🤖 Connected to Claude CLI - Ready for interaction', 'system');
                 console.log('About to add Started new session message');
                 chatMessages.addMessage('🆕 Started new session', 'system');
                 console.log('Added Started new session message');
+                break;
+
+            case 'sessionLoading':
+                console.log('Session loading - loading previous conversation');
+                // Clear any existing checkpoint when loading previous session
+                currentCheckpoint = null;
+                (window as any).currentCheckpoint = null;
+                // Clear all messages from UI
+                clearMessages();
+                console.log('About to add Loaded last session message');
+                chatMessages.addMessage('📝 Loaded last session', 'system');
+                console.log('Added Loaded last session message');
                 break;
 
             case 'configChanged':
@@ -328,38 +334,15 @@ function setupMessageHandler() {
                         displayData = displayData.replace(usageLimitMatch[0], `Claude AI usage limit reached: ${readableDate}`);
                     }
 
-                    // Check if this is file reference output (starts with dots and forward slashes)
-                    const filePathPattern = /^\s*\.\.\./;
-                    if (currentStreamingMessage && filePathPattern.test(displayData)) {
-                        // This is a file path - add it to the system message body
-                        const cleanPath = displayData.trim();
-                        if (!streamingFilePaths.has(cleanPath)) {
-                            streamingFilePaths.add(cleanPath);
-                            const contentDiv = currentStreamingMessage.querySelector('.file-references');
-                            if (contentDiv) {
-                                if (contentDiv.textContent) {
-                                    contentDiv.textContent += '\n' + cleanPath;
-                                } else {
-                                    contentDiv.textContent = cleanPath;
-                                }
-                            }
-                        }
-                    } else {
-                        // This is actual Claude response text - create claudeMessage
-                        const messagesDiv = document.getElementById('chatMessages');
-                        if (messagesDiv) {
-                            const messageDiv = document.createElement('div');
-                            messageDiv.className = 'claudeMessage';
-
-                            const contentDiv = document.createElement('div');
-                            contentDiv.className = 'claudeMessage-content';
-                            contentDiv.innerHTML = chatMessages.parseSimpleMarkdown(displayData);
-                            messageDiv.appendChild(contentDiv);
-
-                            messagesDiv.appendChild(messageDiv);
-                            chatMessages.scrollToBottomIfNeeded(messagesDiv, true);
-                        }
+                    // Skip standalone file reference outputs (they'll be shown in tool diffs)
+                    const filePathPattern = /^\s*\.\.\..*\.(ts|js|json|py|css|scss|html|md)$/;
+                    const trimmedData = displayData.trim();
+                    console.log('Output data:', JSON.stringify(trimmedData), 'matches file pattern:', filePathPattern.test(trimmedData));
+                    if (!filePathPattern.test(trimmedData)) {
+                        // This is actual Claude response text - use addMessage to ensure proper ID assignment
+                        chatMessages.addMessage(displayData, 'claude');
                     }
+                    // File paths are skipped - they'll appear in Changes diffs instead
 
                     // Auto-scroll if needed
                     const messagesDiv = document.getElementById('chatMessages');
@@ -372,30 +355,10 @@ function setupMessageHandler() {
             case 'loading':
                 console.log('Loading message received');
                 if (message.data) {
-                    // Create system message with header "Claude is working..." and empty body for file paths
-                    const messagesDiv = document.getElementById('chatMessages');
-                    if (messagesDiv) {
-                        const shouldScroll = chatMessages.shouldAutoScroll(messagesDiv);
+                    // Create system message using the same approach as "Started new session"
+                    chatMessages.addMessage('🔄 Claude is working...', 'system');
 
-                        currentStreamingMessage = document.createElement('div');
-                        currentStreamingMessage.className = 'systemMessage';
-                        currentStreamingMessage.id = `working-msg-${Date.now()}`;
-
-                        // Create header
-                        const headerDiv = document.createElement('div');
-                        headerDiv.className = 'systemMessage-header';
-                        headerDiv.textContent = '🔄 Claude is working...';
-                        currentStreamingMessage.appendChild(headerDiv);
-
-                        // Create content for file references
-                        const contentDiv = document.createElement('div');
-                        contentDiv.className = 'systemMessage-content file-references';
-                        currentStreamingMessage.appendChild(contentDiv);
-
-                        messagesDiv.appendChild(currentStreamingMessage);
-                        streamingFilePaths.clear();
-                        chatMessages.scrollToBottomIfNeeded(messagesDiv, shouldScroll);
-                    }
+                    // System message created
                 }
                 break;
 
