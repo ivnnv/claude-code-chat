@@ -79,7 +79,7 @@
       {
         "command": "claude-code-sidebar.statusInfo",
         "title": "Status Info",
-        "icon": "$(info)"
+        "icon": "$(credit-card)"
       }
     ],
     "keybindings": [
@@ -130,11 +130,6 @@
         {
           "command": "claude-code-sidebar.history",
           "group": "navigation@2",
-          "when": "view == claude-code-sidebar.chat"
-        },
-        {
-          "command": "claude-code-sidebar.statusInfo",
-          "group": "navigation@3",
           "when": "view == claude-code-sidebar.chat"
         },
         {

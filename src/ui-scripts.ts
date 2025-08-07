@@ -16,6 +16,15 @@ const vscode = acquireVsCodeApi();
 let messageInput: HTMLTextAreaElement;
 let isProcessing = false;
 let currentEditorContext: any = null;
+
+// Global totals tracking
+let totalCost = 0;
+let totalTokensInput = 0;
+let totalTokensOutput = 0;
+let _requestCount = 0;
+let lastRequestCost = 0;
+let lastRequestTokens = 0;
+let currentStatus = 'ready'; // 'ready', 'processing', 'error'
 let currentCheckpoint: {sha: string, timestamp: string} | null = null;
 
 // Initialize when DOM is ready
@@ -120,28 +129,22 @@ function initializeUI() {
         hideThinkingIntensityModal: settingsModals.hideThinkingIntensityModal,
 
         // Snippet functions
-        usePromptSnippet: function() { console.log('usePromptSnippet called'); },
-        _deleteCustomSnippet: function() { console.log('_deleteCustomSnippet called'); },
-        executeSlashCommand: function() { console.log('executeSlashCommand called'); },
+        usePromptSnippet: function() {},
+        _deleteCustomSnippet: function() {},
+        executeSlashCommand: function() {},
+
+        // Status functions
+        toggleStatusPopover,
 
         // Placeholder for extension functions
         _enableYoloMode: function() {
-            console.log('_enableYoloMode called - forwarding to enableYoloMode');
             permissions.enableYoloMode();
         }
     });
 
-    console.log('UI initialized with modular architecture');
-    // Debug: Check if chatMessages div exists
-    const chatMessagesDiv = document.getElementById('chatMessages');
-    if (chatMessagesDiv) {
-        console.log('chatMessages div found, ready for content');
-        console.log('Initial chatMessages innerHTML:', chatMessagesDiv.innerHTML);
-    } else {
-        console.error('chatMessages div not found!');
-    }
 
-    console.log('UI initialization complete, waiting for extension messages...');
+    // Initialize status indicator
+    updateInputStatusIndicator();
 
     // Request initial editor context
     vscode.postMessage({ type: 'getEditorContext' });
@@ -180,17 +183,13 @@ function setupMessageInput() {
 function setupMessageHandler() {
     window.addEventListener('message', (event) => {
         const message = event.data;
-        console.log('Received message:', message.type, message);
 
         switch (message.type) {
             case 'addMessage':
-                console.log('Received addMessage:', message);
-                console.log('Content:', message.content, 'Type:', message.messageType);
                 chatMessages.addMessage(message.content, message.messageType);
                 break;
 
             case 'toolUse':
-                console.log('Tool use received');
                 if (typeof message.data === 'object') {
                     chatMessages.addToolUseMessage(message.data);
                     // Check if this tool involves a file and add file info icon
@@ -204,17 +203,14 @@ function setupMessageHandler() {
                 break;
 
             case 'addToolUse':
-                console.log('Add tool use received');
                 chatMessages.addToolUseMessage(message.data);
                 break;
 
             case 'toolResult':
-                console.log('Tool result received');
                 uiCore.addToolResultMessage(message.data);
                 break;
 
             case 'editorContext':
-                console.log('Editor context updated');
                 currentEditorContext = message.data;
                 // Also update the chat messages module context
                 chatMessages.setCurrentEditorContext(message.data);
@@ -222,7 +218,6 @@ function setupMessageHandler() {
                 break;
 
             case 'userInput':
-                console.log('User input received');
                 if (message.data.trim()) {
                     chatMessages.addMessage(chatMessages.parseSimpleMarkdown(message.data), 'user');
                 }
@@ -237,27 +232,21 @@ function setupMessageHandler() {
                 break;
 
             case 'sessionCleared':
-                console.log('Session cleared - should show Started new session message');
                 // Clear any existing checkpoint since we're starting fresh
                 currentCheckpoint = null;
                 (window as any).currentCheckpoint = null;
                 // Clear all messages from UI
                 clearMessages();
-                console.log('About to add Started new session message');
                 chatMessages.addMessage('🆕 Started new session', 'system');
-                console.log('Added Started new session message');
                 break;
 
             case 'sessionLoading':
-                console.log('Session loading - loading previous conversation');
                 // Clear any existing checkpoint when loading previous session
                 currentCheckpoint = null;
                 (window as any).currentCheckpoint = null;
                 // Clear all messages from UI
                 clearMessages();
-                console.log('About to add Loaded last session message');
                 chatMessages.addMessage('📝 Loaded last session', 'system');
-                console.log('Added Loaded last session message');
                 break;
 
             case 'configChanged':
@@ -266,8 +255,6 @@ function setupMessageHandler() {
                 break;
 
             case 'showRestoreOption':
-                console.log('Received showRestoreOption message:', message);
-                console.log('Message data:', message.data);
                 // Check if sha is in message.data instead of message directly
                 const sha = message.sha || (message.data && message.data.sha);
                 const timestamp = message.timestamp || (message.data && message.data.timestamp);
@@ -278,12 +265,8 @@ function setupMessageHandler() {
                         timestamp: timestamp || new Date().toISOString()
                     };
                     (window as any).currentCheckpoint = currentCheckpoint;
-                    console.log('Set currentCheckpoint:', currentCheckpoint);
-                    console.log('window.currentCheckpoint:', (window as any).currentCheckpoint);
                     // No longer need to show a separate restore container
                     // The restore button will appear in diff headers
-                } else {
-                    console.log('showRestoreOption message missing sha. Full message:', JSON.stringify(message));
                 }
                 break;
 
@@ -294,8 +277,34 @@ function setupMessageHandler() {
                 break;
 
             case 'updateTokens':
+                // Calculate last request tokens (difference from previous total)
+                const updatedTokensInput = message.data.totalTokensInput || 0;
+                const updatedTokensOutput = message.data.totalTokensOutput || 0;
+                const updatedTotalTokens = updatedTokensInput + updatedTokensOutput;
+                const currentTotalTokens = totalTokensInput + totalTokensOutput;
+                if (updatedTotalTokens > currentTotalTokens) {
+                    lastRequestTokens = updatedTotalTokens - currentTotalTokens;
+                }
+                // Update token totals in real-time
+                totalTokensInput = updatedTokensInput;
+                totalTokensOutput = updatedTokensOutput;
+                break;
+
             case 'updateTotals':
-                // Token updates - could enhance token display
+                // Calculate last request cost (difference from previous total)
+                const newTotalCost = message.data.totalCost || 0;
+                const newTotalTokensInput = message.data.totalTokensInput || 0;
+                const newTotalTokensOutput = message.data.totalTokensOutput || 0;
+
+                if (newTotalCost > totalCost) {
+                    lastRequestCost = newTotalCost - totalCost;
+                }
+
+                // Update local tracking variables
+                if (newTotalCost > 0) {totalCost = newTotalCost;} // Only update if extension provides real cost
+                totalTokensInput = newTotalTokensInput;
+                totalTokensOutput = newTotalTokensOutput;
+                _requestCount = message.data.requestCount || 0;
                 break;
 
             case 'restoreInputText':
@@ -308,7 +317,6 @@ function setupMessageHandler() {
                 break;
 
             case 'output':
-                console.log('Received output message:', message);
                 if (message.data && message.data.trim()) {
                     let displayData = message.data;
 
@@ -337,7 +345,6 @@ function setupMessageHandler() {
                     // Skip standalone file reference outputs (they'll be shown in tool diffs)
                     const filePathPattern = /^\s*\.\.\..*\.(ts|js|json|py|css|scss|html|md)$/;
                     const trimmedData = displayData.trim();
-                    console.log('Output data:', JSON.stringify(trimmedData), 'matches file pattern:', filePathPattern.test(trimmedData));
                     if (!filePathPattern.test(trimmedData)) {
                         // This is actual Claude response text - use addMessage to ensure proper ID assignment
                         chatMessages.addMessage(displayData, 'claude');
@@ -353,17 +360,13 @@ function setupMessageHandler() {
                 break;
 
             case 'loading':
-                console.log('Loading message received');
                 if (message.data) {
                     // Create system message using the same approach as "Started new session"
                     chatMessages.addMessage('🔄 Claude is working...', 'system');
-
-                    // System message created
                 }
                 break;
 
             case 'clearLoading':
-                console.log('Clear loading received');
                 // Remove the last loading message
                 const messages = document.getElementById('chatMessages');
                 if (messages && messages.children.length > 0) {
@@ -375,7 +378,8 @@ function setupMessageHandler() {
                 break;
 
             case 'error':
-                console.log('Error received');
+                currentStatus = 'error';
+                updateInputStatusIndicator();
                 if (message.data && message.data.trim()) {
                     // Check if this is an install required error
                     if (message.data.includes('Install claude code first') ||
@@ -388,21 +392,18 @@ function setupMessageHandler() {
                 break;
 
             case 'thinking':
-                console.log('Thinking received');
                 if (message.data && message.data.trim()) {
                     chatMessages.addMessage('💭 Thinking...' + chatMessages.parseSimpleMarkdown(message.data), 'thinking');
                 }
                 break;
 
             case 'sessionInfo':
-                console.log('Session info received');
                 if (message.data && message.data.sessionId) {
                     uiCore.showSessionInfo(message.data.sessionId);
                 }
                 break;
 
             case 'sessionResumed':
-                console.log('Session resumed:', message.data);
                 if (message.data && message.data.sessionId) {
                     uiCore.showSessionInfo(message.data.sessionId);
                     chatMessages.addMessage(`📝 Resumed previous session\n🆔 Session ID: ${message.data.sessionId}\n💡 Your conversation history is preserved`, 'system');
@@ -410,7 +411,6 @@ function setupMessageHandler() {
                 break;
 
             case 'conversationStarted':
-                console.log('Conversation started:', message);
                 if (message.data) {
                     const startMessage = `🚀 **Started conversation**\n\n📅 **${new Date().toLocaleString()}**\n\n💬 Ready to help with your coding tasks!`;
                     chatMessages.addMessage(startMessage, 'system');
@@ -418,8 +418,9 @@ function setupMessageHandler() {
                 break;
 
             case 'ready':
-                console.log('Extension ready');
                 isProcessing = false;
+                currentStatus = 'ready';
+                updateInputStatusIndicator();
                 enableButtons();
                 hideStopButton();
                 break;
@@ -431,14 +432,21 @@ function setupMessageHandler() {
                 break;
 
             case 'newSession':
-                console.log('New session requested from panel header');
+                // Reset totals
+                totalCost = 0;
+                totalTokensInput = 0;
+                totalTokensOutput = 0;
+                _requestCount = 0;
+                lastRequestCost = 0;
+                lastRequestTokens = 0;
                 uiCore.newSession();
                 break;
 
             case 'setProcessing':
-                console.log('Processing state changed:', message.data);
                 if (message.data && message.data.isProcessing !== undefined) {
                     isProcessing = message.data.isProcessing;
+                    currentStatus = isProcessing ? 'processing' : 'ready';
+                    updateInputStatusIndicator();
                     if (isProcessing) {
                         disableButtons();
                         showStopButton();
@@ -454,23 +462,23 @@ function setupMessageHandler() {
                 break;
 
             case 'showHistory':
-                console.log('Show history command received');
                 uiCore.toggleConversationHistory();
                 break;
 
+            case 'toggleStatusInfo':
+                toggleStatusPopover();
+                break;
+
             case 'conversationList':
-                console.log('Received conversation list:', message.data);
                 displayConversationList(message.data);
                 break;
 
             case 'conversationHistory':
-                console.log('Received conversation history:', message);
                 if (message.messages && Array.isArray(message.messages)) {
                     // Clear existing messages first
                     clearMessages();
                     // Add each message from history
                     message.messages.forEach((msg: any) => {
-                        console.log('Adding history message:', msg);
                         if (msg.type === 'user' && msg.content) {
                             chatMessages.addMessage(msg.content, 'user');
                         } else if (msg.type === 'claude' || msg.type === 'assistant') {
@@ -485,14 +493,12 @@ function setupMessageHandler() {
                 break;
 
             case 'restoreConversation':
-                console.log('Received restore conversation:', message);
                 // Handle conversation restoration
                 if (message.conversation) {
                     clearMessages();
                     // Process the conversation data
                     if (message.conversation.messages) {
                         message.conversation.messages.forEach((msg: any) => {
-                            console.log('Restoring message:', msg);
                             switch (msg.role || msg.type) {
                                 case 'user':
                                     if (msg.content) {
@@ -522,7 +528,7 @@ function setupMessageHandler() {
                 break;
 
             default:
-                console.log('Unhandled message type:', message.type);
+                break;
         }
     });
 }
@@ -593,7 +599,7 @@ function displayConversationList(conversations: any[]): void {
         const time = new Date(conv.startTime).toLocaleTimeString();
         item.innerHTML = `
             <div class="conversation-title">${conv.firstUserMessage.substring(0, 60)}${conv.firstUserMessage.length > 60 ? '...' : ''}</div>
-            <div class="conversation-meta">${date} at ${time} • ${conv.messageCount} messages • $${conv.totalCost.toFixed(3)}</div>
+            <div class="conversation-meta">${date} at ${time} • ${conv.messageCount} messages • $${conv.totalCost.toFixed(2)}</div>
             <div class="conversation-preview">Last: ${conv.lastUserMessage.substring(0, 80)}${conv.lastUserMessage.length > 80 ? '...' : ''}</div>
         `;
         listDiv.appendChild(item);
@@ -607,6 +613,54 @@ function loadConversation(filename: string): void {
     });
     // Hide conversation history and show chat
     uiCore.toggleConversationHistory();
+}
+
+function toggleStatusPopover(): void {
+    const statusPopover = document.getElementById('statusPopover');
+    if (!statusPopover) {return;}
+
+    if (statusPopover.style.display === 'none' || !statusPopover.style.display) {
+        // Show popover with current status info
+        updateStatusPopoverContent();
+        statusPopover.style.display = 'block';
+
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            statusPopover.style.display = 'none';
+        }, 5000);
+    } else {
+        statusPopover.style.display = 'none';
+    }
+}
+
+function updateStatusPopoverContent(): void {
+    const statusPopover = document.getElementById('statusPopover');
+    if (!statusPopover) {return;}
+
+    const totalTokens = totalTokensInput + totalTokensOutput;
+    const statusText = currentStatus === 'ready' ? 'Ready' : currentStatus === 'processing' ? 'Processing' : 'Error';
+
+    // Format costs with 2 decimals and pad to align with total tokens
+    const lastCostStr = lastRequestCost > 0 ? lastRequestCost.toFixed(2) : '0.00';
+    const totalCostStr = totalCost > 0 ? totalCost.toFixed(2) : '0.00';
+    const totalTokensStr = totalTokens.toLocaleString();
+
+    statusPopover.innerHTML = `
+        <div class="status-popover-content">
+            <table class="status-table">
+                <tr>
+                    <td>${statusText}:</td>
+                    <td>$${lastCostStr}</td>
+                    <td>${lastRequestTokens.toLocaleString()} tk</td>
+                </tr>
+                <tr>
+                    <td>Session total:</td>
+                    <td>$${totalCostStr}</td>
+                    <td>${totalTokensStr} tk</td>
+                </tr>
+            </table>
+        </div>
+    `;
 }
 
 function updateEditorContextDisplay(contextData: any): void {
@@ -666,4 +720,15 @@ function hideStopButton(): void {
     if (stopBtn) {
         stopBtn.style.display = 'none';
     }
+}
+
+function updateInputStatusIndicator(): void {
+    const inputIndicator = document.getElementById('inputStatusIndicator');
+    if (!inputIndicator) {return;}
+
+    // Remove all status classes
+    inputIndicator.classList.remove('ready', 'processing', 'error');
+
+    // Add current status class
+    inputIndicator.classList.add(currentStatus);
 }

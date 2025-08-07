@@ -149,8 +149,58 @@ class ClaudeChatProvider {
 	private _selectedModel: string = 'default'; // Default model
 	private _editorChangeListener: vscode.Disposable | undefined;
 	private _selectionChangeListener: vscode.Disposable | undefined;
+
+	// 2025 Claude API Pricing (per million tokens)
+	private readonly _pricingModel = {
+		'sonnet': {
+			input: 3.00,    // $3 per million input tokens
+			output: 15.00   // $15 per million output tokens
+		},
+		'opus': {
+			input: 15.00,   // $15 per million input tokens
+			output: 75.00   // $75 per million output tokens
+		},
+		'haiku': {
+			input: 0.80,    // $0.80 per million input tokens (3.5 Haiku)
+			output: 4.00    // $4.00 per million output tokens (3.5 Haiku)
+		},
+		'default': {
+			input: 3.00,    // Assume Sonnet pricing for default
+			output: 15.00
+		}
+	};
 	private _isProcessing: boolean | undefined;
 	private _draftMessage: string = '';
+
+	// Calculate cost based on token usage and current model
+	private _calculateCost(inputTokens: number, outputTokens: number, cacheCreationTokens: number = 0, cacheReadTokens: number = 0): number {
+		const model = this._selectedModel;
+		const pricing = this._pricingModel[model as keyof typeof this._pricingModel] || this._pricingModel.default;
+
+		// Convert tokens to millions and calculate cost
+		const inputCost = (inputTokens / 1_000_000) * pricing.input;
+		const outputCost = (outputTokens / 1_000_000) * pricing.output;
+
+		// Cache tokens are typically priced at a fraction of input tokens (25% for creation, 10% for reads)
+		const cacheCreationCost = (cacheCreationTokens / 1_000_000) * pricing.input * 0.25;
+		const cacheReadCost = (cacheReadTokens / 1_000_000) * pricing.input * 0.10;
+
+		const totalCost = inputCost + outputCost + cacheCreationCost + cacheReadCost;
+
+		console.log(`💰 Cost calculation for model '${model}':`, {
+			inputTokens,
+			outputTokens,
+			cacheCreationTokens,
+			cacheReadTokens,
+			inputCost: inputCost.toFixed(6),
+			outputCost: outputCost.toFixed(6),
+			cacheCreationCost: cacheCreationCost.toFixed(6),
+			cacheReadCost: cacheReadCost.toFixed(6),
+			totalCost: totalCost.toFixed(6)
+		});
+
+		return totalCost;
+	}
 
 	constructor(
 		private readonly _extensionUri: vscode.Uri,
@@ -728,6 +778,16 @@ class ClaudeChatProvider {
 	}
 
 	private _processJsonStreamData(jsonData: any) {
+		// Debug logging to see what we're receiving from Claude CLI
+		console.log('🔍 _processJsonStreamData received:', {
+			type: jsonData.type,
+			subtype: jsonData.subtype,
+			total_cost_usd: jsonData.total_cost_usd,
+			usage: jsonData.usage,
+			has_message: !!jsonData.message,
+			message_usage: jsonData.message?.usage
+		});
+
 		switch (jsonData.type) {
 			case 'system':
 				if (jsonData.subtype === 'init') {
@@ -752,8 +812,18 @@ class ClaudeChatProvider {
 				if (jsonData.message && jsonData.message.content) {
 					// Track token usage in real-time if available
 					if (jsonData.message.usage) {
-						this._totalTokensInput += jsonData.message.usage.input_tokens || 0;
-						this._totalTokensOutput += jsonData.message.usage.output_tokens || 0;
+						const currentInputTokens = jsonData.message.usage.input_tokens || 0;
+						const currentOutputTokens = jsonData.message.usage.output_tokens || 0;
+						const cacheCreationTokens = jsonData.message.usage.cache_creation_input_tokens || 0;
+						const cacheReadTokens = jsonData.message.usage.cache_read_input_tokens || 0;
+
+						// Update cumulative token counts
+						this._totalTokensInput += currentInputTokens;
+						this._totalTokensOutput += currentOutputTokens;
+
+						// Calculate cost for this request
+						const requestCost = this._calculateCost(currentInputTokens, currentOutputTokens, cacheCreationTokens, cacheReadTokens);
+						this._totalCost += requestCost;
 
 						// Send real-time token update to webview
 						this._sendAndSaveMessage({
@@ -761,10 +831,10 @@ class ClaudeChatProvider {
 							data: {
 								totalTokensInput: this._totalTokensInput,
 								totalTokensOutput: this._totalTokensOutput,
-								currentInputTokens: jsonData.message.usage.input_tokens || 0,
-								currentOutputTokens: jsonData.message.usage.output_tokens || 0,
-								cacheCreationTokens: jsonData.message.usage.cache_creation_input_tokens || 0,
-								cacheReadTokens: jsonData.message.usage.cache_read_input_tokens || 0
+								currentInputTokens: currentInputTokens,
+								currentOutputTokens: currentOutputTokens,
+								cacheCreationTokens: cacheCreationTokens,
+								cacheReadTokens: cacheReadTokens
 							}
 						});
 					}
@@ -910,25 +980,65 @@ class ClaudeChatProvider {
 
 					// Update cumulative tracking
 					this._requestCount++;
-					if (jsonData.total_cost_usd) {
-						this._totalCost += jsonData.total_cost_usd;
+
+					// Process final usage information if available and not already processed
+					if (jsonData.usage) {
+						console.log('🔍 Processing final usage data from result:', jsonData.usage);
+						const finalInputTokens = jsonData.usage.input_tokens || 0;
+						const finalOutputTokens = jsonData.usage.output_tokens || 0;
+						const cacheCreationTokens = jsonData.usage.cache_creation_input_tokens || 0;
+						const cacheReadTokens = jsonData.usage.cache_read_input_tokens || 0;
+
+						// Check if our running totals match the final usage
+						if (finalInputTokens !== this._totalTokensInput || finalOutputTokens !== this._totalTokensOutput) {
+							console.log('🔍 Token mismatch - updating to final values:', {
+								currentInput: this._totalTokensInput,
+								currentOutput: this._totalTokensOutput,
+								finalInput: finalInputTokens,
+								finalOutput: finalOutputTokens
+							});
+
+							// Update to final values and recalculate cost
+							this._totalTokensInput = finalInputTokens;
+							this._totalTokensOutput = finalOutputTokens;
+
+							// Recalculate total cost based on final usage
+							this._totalCost = this._calculateCost(finalInputTokens, finalOutputTokens, cacheCreationTokens, cacheReadTokens);
+						}
+					}
+
+					// Use provided cost if available, otherwise rely on our calculated cost from token usage
+					const providedCost = jsonData.total_cost_usd;
+					if (providedCost && providedCost > 0) {
+						// Compare CLI provided cost with our calculation
+						console.log('💰 Cost comparison:', {
+							providedCost: providedCost,
+							calculatedCost: this._totalCost,
+							model: this._selectedModel,
+							tokens: { input: this._totalTokensInput, output: this._totalTokensOutput }
+						});
+
+						// Use the provided cost since it's the authoritative source
+						this._totalCost = providedCost;
 					}
 
 					console.log('Result received:', {
-						cost: jsonData.total_cost_usd,
+						providedCost: providedCost,
+						calculatedTotalCost: this._totalCost,
 						duration: jsonData.duration_ms,
-						turns: jsonData.num_turns
+						turns: jsonData.num_turns,
+						totalTokens: this._totalTokensInput + this._totalTokensOutput
 					});
 
 					// Send updated totals to webview
 					this._postMessage({
 						type: 'updateTotals',
 						data: {
-							totalCost: this._totalCost,
+							totalCost: this._totalCost, // Use our calculated cost
 							totalTokensInput: this._totalTokensInput,
 							totalTokensOutput: this._totalTokensOutput,
 							requestCount: this._requestCount,
-							currentCost: jsonData.total_cost_usd,
+							currentCost: providedCost || 0, // Show provided cost for comparison
 							currentDuration: jsonData.duration_ms,
 							currentTurns: jsonData.num_turns
 						}
@@ -2089,14 +2199,20 @@ class ClaudeChatProvider {
 		const firstUserMessage = userMessages.length > 0 ? userMessages[0].data : 'No user message';
 		const lastUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1].data : firstUserMessage;
 
-		// Create or update index entry
+		// Create or update index entry with cost estimation if needed
+		let displayCost = conversationData.totalCost || 0;
+		if (displayCost === 0 && conversationData.totalTokens && (conversationData.totalTokens.input > 0 || conversationData.totalTokens.output > 0)) {
+			// Estimate cost for historical conversations
+			displayCost = this._calculateCost(conversationData.totalTokens.input, conversationData.totalTokens.output, 0, 0);
+		}
+
 		const indexEntry = {
 			filename: filename,
 			sessionId: conversationData.sessionId,
 			startTime: conversationData.startTime || '',
 			endTime: conversationData.endTime,
 			messageCount: conversationData.messageCount,
-			totalCost: conversationData.totalCost,
+			totalCost: displayCost,
 			firstUserMessage: firstUserMessage.substring(0, 100), // Truncate for storage
 			lastUserMessage: lastUserMessage.substring(0, 100)
 		};
@@ -2143,6 +2259,13 @@ class ClaudeChatProvider {
 			this._totalCost = conversationData.totalCost || 0;
 			this._totalTokensInput = conversationData.totalTokens?.input || 0;
 			this._totalTokensOutput = conversationData.totalTokens?.output || 0;
+
+			// If no cost but we have tokens, estimate the cost for historical conversations
+			if (this._totalCost === 0 && (this._totalTokensInput > 0 || this._totalTokensOutput > 0)) {
+				const estimatedCost = this._calculateCost(this._totalTokensInput, this._totalTokensOutput, 0, 0);
+				this._totalCost = estimatedCost;
+				console.log(`📊 Estimated cost for historical conversation: $${estimatedCost.toFixed(2)} (${this._totalTokensInput + this._totalTokensOutput} tokens)`);
+			}
 
 			// Clear UI messages first, then send all messages to recreate the conversation
 			setTimeout(() => {

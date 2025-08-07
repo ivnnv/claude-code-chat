@@ -1274,6 +1274,51 @@ body {
         background-color: var(--vscode-button-foreground);
     }
 
+    .status-indicator-container {
+        display: flex;
+        align-items: center;
+        margin-left: auto;
+    }
+
+    .status-indicator-container .status-indicator {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+        position: relative;
+
+        &.ready {
+            background-color: #00d26a;
+            box-shadow: 0 0 6px rgba(0, 210, 106, 0.3);
+        }
+
+        &.processing {
+            background-color: #ff9500;
+            box-shadow: 0 0 6px rgba(255, 149, 0, 0.3);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        &.error {
+            background-color: #ff453a;
+            box-shadow: 0 0 6px rgba(255, 69, 58, 0.3);
+        }
+
+        &:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(0, 210, 106, 0.5);
+        }
+
+        &.processing:hover {
+            box-shadow: 0 0 10px rgba(255, 149, 0, 0.5);
+        }
+
+        &.error:hover {
+            box-shadow: 0 0 10px rgba(255, 69, 58, 0.5);
+        }
+    }
+
     .textarea-container {
         display: flex;
         gap: 10px;
@@ -2271,15 +2316,16 @@ body {
 
 /* Overlay Status and Alert Elements */
 #statusPopover {
-    position: fixed;
-    right: 2%;
-    width: 95%;
     background-color: var(--vscode-panel-background);
     border: 1px solid var(--vscode-panel-border);
-    border-radius: 4px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 100;
-    animation: slideDownFade 0.2s ease;
+    border-radius: 6px;
+    width: 270px;
+    animation: .2s slideDownFade;
+    position: absolute;
+    bottom: 136px;
+    right: 4px;
+    box-shadow: 0 4px 16px #0003;
 
     @keyframes slideDownFade {
         from {
@@ -2293,13 +2339,38 @@ body {
     }
 
     .status-popover-content {
-        padding: 4px;
+        padding: 4px 6px;
     }
 
-    .status-info-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
+    .status-table {
+        font-family: var(--vscode-editor-font-family);
+        font-size: calc(var(--vscode-editor-font-size) * 0.75);
+        border-collapse: separate;
+        border-spacing: 4px 6px;
+        width: 100%;
+    }
+
+    .status-table td {
+        padding: 0;
+    }
+
+    .status-table td:first-child {
+        text-align: left;
+        border-right: 1px solid var(--vscode-widget-border);
+        padding-right: 4px;
+        color: var(--vscode-descriptionForeground);
+    }
+
+    .status-table td:nth-child(2) {
+        text-align: right;
+        border-right: 1px solid var(--vscode-widget-border);
+        padding: 0 4px;
+        color: var(--vscode-foreground);
+    }
+
+    .status-table td:last-child {
+        text-align: right;
+        color: var(--vscode-foreground);
     }
 
     .status-indicator {
@@ -2307,6 +2378,10 @@ body {
         height: 8px;
         border-radius: 50%;
         flex-shrink: 0;
+
+        &-container {
+            transform: scale(0.75);
+        }
 
         &.ready {
             background-color: #00d26a;
