@@ -261,25 +261,27 @@ export function addToolResultMessage(data: any): void {
 		return addMessage("File has not been read yet. Let me read it first before writing to it.", 'system');
 	}
 	const messageDiv = document.createElement('div');
-	messageDiv.className = data.isError ? 'message error' : 'message tool-result';
-	// Create header
-	const headerDiv = document.createElement('div');
-	headerDiv.className = 'message-header';
-	const iconDiv = document.createElement('div');
-	iconDiv.className = data.isError ? 'message-icon error' : 'message-icon';
-	iconDiv.style.background = data.isError ?
-		'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)' :
-		'linear-gradient(135deg, #1cc08c 0%, #16a974 100%)';
-	iconDiv.textContent = data.isError ? '❌' : '✅';
-	const labelDiv = document.createElement('div');
-	labelDiv.className = 'message-label';
-	labelDiv.textContent = data.isError ? 'Error' : 'Result';
-	headerDiv.appendChild(iconDiv);
-	headerDiv.appendChild(labelDiv);
-	messageDiv.appendChild(headerDiv);
-	// Add content
+	messageDiv.className = data.isError ? 'systemMessage error' : 'message tool-result';
+
+	if (!data.isError) {
+		// Create header for regular tool results
+		const headerDiv = document.createElement('div');
+		headerDiv.className = 'message-header';
+		const iconDiv = document.createElement('div');
+		iconDiv.className = 'message-icon';
+		iconDiv.style.background = 'linear-gradient(135deg, #1cc08c 0%, #16a974 100%)';
+		iconDiv.textContent = '✅';
+		const labelDiv = document.createElement('div');
+		labelDiv.className = 'message-label';
+		labelDiv.textContent = 'Result';
+		headerDiv.appendChild(iconDiv);
+		headerDiv.appendChild(labelDiv);
+		messageDiv.appendChild(headerDiv);
+	}
+
+	// Add content (systemMessage structure for errors, regular structure for results)
 	const contentDiv = document.createElement('div');
-	contentDiv.className = 'message-content';
+	contentDiv.className = data.isError ? 'systemMessage-content' : 'message-content';
 	// Check if it's a tool result and truncate appropriately
 	let content = data.content || '';
 	if (content.length > 200 && !data.isError) {

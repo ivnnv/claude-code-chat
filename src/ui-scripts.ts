@@ -453,6 +453,16 @@ function setupMessageHandler() {
                 // Platform info - could be used for WSL detection
                 break;
 
+            case 'showHistory':
+                console.log('Show history command received');
+                uiCore.toggleConversationHistory();
+                break;
+
+            case 'conversationList':
+                console.log('Received conversation list:', message.data);
+                displayConversationList(message.data);
+                break;
+
             case 'conversationHistory':
                 console.log('Received conversation history:', message);
                 if (message.messages && Array.isArray(message.messages)) {
@@ -565,6 +575,38 @@ function clearMessages(): void {
     if (messagesDiv) {
         messagesDiv.innerHTML = '';
     }
+}
+
+function displayConversationList(conversations: any[]): void {
+    const listDiv = document.getElementById('conversationList');
+    if (!listDiv) {return;}
+    listDiv.innerHTML = '';
+    if (conversations.length === 0) {
+        listDiv.innerHTML = '<p style="text-align: center; color: var(--vscode-descriptionForeground);">No conversations found</p>';
+        return;
+    }
+    conversations.forEach(conv => {
+        const item = document.createElement('div');
+        item.className = 'conversation-item';
+        item.onclick = () => loadConversation(conv.filename);
+        const date = new Date(conv.startTime).toLocaleDateString();
+        const time = new Date(conv.startTime).toLocaleTimeString();
+        item.innerHTML = `
+            <div class="conversation-title">${conv.firstUserMessage.substring(0, 60)}${conv.firstUserMessage.length > 60 ? '...' : ''}</div>
+            <div class="conversation-meta">${date} at ${time} • ${conv.messageCount} messages • $${conv.totalCost.toFixed(3)}</div>
+            <div class="conversation-preview">Last: ${conv.lastUserMessage.substring(0, 80)}${conv.lastUserMessage.length > 80 ? '...' : ''}</div>
+        `;
+        listDiv.appendChild(item);
+    });
+}
+
+function loadConversation(filename: string): void {
+    vscode.postMessage({
+        type: 'loadConversation',
+        filename: filename
+    });
+    // Hide conversation history and show chat
+    uiCore.toggleConversationHistory();
 }
 
 function updateEditorContextDisplay(contextData: any): void {
