@@ -392,12 +392,12 @@ export function addToolUseMessage(data: any): void {
 }
 
 export function sendMessage(): void {
-	if (!messageInput || window.isProcessing) {return;}
+	if (!messageInput) {return;}
 
 	const text = messageInput.value.trim();
 	if (!text) {return;}
 
-	// Enhance message with editor context if available
+	// Only add editor context if there's an actual selection
 	let enhancedText = text;
 	const contextInfo = getEditorContextInfo();
 	if (contextInfo) {
@@ -410,11 +410,16 @@ export function sendMessage(): void {
 	messageInput.value = '';
 	messageInput.style.height = 'auto';
 
-	// Set processing state - use UI core functions
-	window.isProcessing = true;
-	if (uiCoreRef) {
-		uiCoreRef.disableButtons();
-		uiCoreRef.showStopButton();
+	// Set processing state only if not already processing (first message in session)
+	if (!window.isProcessing) {
+		console.log('📤 Starting new processing session');
+		window.isProcessing = true;
+		if (uiCoreRef) {
+			uiCoreRef.disableButtons();
+			uiCoreRef.showStopButton();
+		}
+	} else {
+		console.log('📤 Sending additional message while processing');
 	}
 
 	sendStats('Send message');
@@ -445,23 +450,23 @@ export function clearMessages(): void {
 	}
 }
 
+
 export function getEditorContextInfo(): string | null {
 	if (!currentEditorContext) {
 		return null;
 	}
 
-	let contextInfo = 'in ' + currentEditorContext.fileName;
-
-	// extension provider already provides 1-based line numbers
+	// Only provide context if there's an actual text selection
 	if (currentEditorContext.selection && currentEditorContext.selectedText) {
+		let contextInfo = 'in ' + currentEditorContext.fileName;
 		const startLine = currentEditorContext.selection.start.line;
 		const endLine = currentEditorContext.selection.end.line;
 		contextInfo += ':' + startLine + '-' + endLine;
-	} else {
-		const cursorLine = currentEditorContext.cursorPosition.line;
-		contextInfo += ':' + cursorLine;
+		return contextInfo;
 	}
-	return contextInfo;
+
+	// No selection = no context
+	return null;
 }
 
 export function sendStats(eventName: string): void {

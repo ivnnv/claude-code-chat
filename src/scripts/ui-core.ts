@@ -176,11 +176,9 @@ export function toggleConversationHistory(): void {
 
 export function addToolResultMessage(data: any): void {
 	if (!data) {
-		console.error('No data provided to addToolResultMessage');
 		return;
 	}
 	if (!messagesDiv) {
-		console.error('messagesDiv not found in addToolResultMessage');
 		return;
 	}
 	const shouldScroll = shouldAutoScroll(messagesDiv);
@@ -759,7 +757,7 @@ export function updateInputStatusIndicator(): void {
 }
 
 export function disableButtons(): void {
-	const buttons = document.querySelectorAll('button:not(#stopBtn)');
+	const buttons = document.querySelectorAll('button:not(#stopBtn):not(#sendBtn)');
 	buttons.forEach(btn => {
 		(btn as HTMLButtonElement).disabled = true;
 	});

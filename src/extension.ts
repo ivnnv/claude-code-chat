@@ -101,8 +101,7 @@ class ClaudeChatWebviewProvider implements vscode.WebviewViewProvider {
 			if (webviewView.visible) {
 				// Close main panel when sidebar becomes visible
 				if (this._chatProvider._panel) {
-					console.log('Closing main panel because sidebar became visible');
-					this._chatProvider._panel.dispose();
+						this._chatProvider._panel.dispose();
 					this._chatProvider._panel = undefined;
 				}
 				this._chatProvider.reinitializeWebview();
@@ -186,18 +185,6 @@ class ClaudeChatProvider {
 		const cacheReadCost = (cacheReadTokens / 1_000_000) * pricing.input * 0.10;
 
 		const totalCost = inputCost + outputCost + cacheCreationCost + cacheReadCost;
-
-		console.log(`💰 Cost calculation for model '${model}':`, {
-			inputTokens,
-			outputTokens,
-			cacheCreationTokens,
-			cacheReadTokens,
-			inputCost: inputCost.toFixed(6),
-			outputCost: outputCost.toFixed(6),
-			cacheCreationCost: cacheCreationCost.toFixed(6),
-			cacheReadCost: cacheReadCost.toFixed(6),
-			totalCost: totalCost.toFixed(6)
-		});
 
 		return totalCost;
 	}
@@ -450,7 +437,6 @@ class ClaudeChatProvider {
 	public showInWebview(webview: vscode.Webview, webviewView?: vscode.WebviewView) {
 		// Close main panel if it's open
 		if (this._panel) {
-			console.log('Closing main panel because sidebar is opening');
 			this._panel.dispose();
 			this._panel = undefined;
 		}
@@ -496,6 +482,51 @@ class ClaudeChatProvider {
 	}
 
 	private async _sendMessageToClaude(message: string, planMode?: boolean, thinkingMode?: boolean) {
+		// Check if Claude is already processing and we can send additional messages
+		if (this._currentClaudeProcess && this._currentClaudeProcess.stdin && !this._currentClaudeProcess.stdin.destroyed) {
+
+			// Prepare message with mode prefixes if enabled
+			let actualMessage = message;
+			if (planMode) {
+				actualMessage = 'PLAN FIRST FOR THIS MESSAGE ONLY: Plan first before making any changes. Show me in detail what you will change and wait for my explicit approval in a separate message before proceeding. Do not implement anything until I confirm. This planning requirement applies ONLY to this current message. \n\n' + message;
+			}
+			if (thinkingMode) {
+				const config = vscode.workspace.getConfiguration('claudeCodeSidebar');
+				const thinkingIntensity = config.get<string>('thinking.intensity', 'think');
+				let thinkingPrompt = '';
+				const thinkingMessage = ' THROUGH THIS STEP BY STEP: \n';
+				switch (thinkingIntensity) {
+					case 'think':
+						thinkingPrompt = 'THINK';
+						break;
+					case 'think-hard':
+						thinkingPrompt = 'THINK HARD';
+						break;
+					case 'think-harder':
+						thinkingPrompt = 'THINK HARDER';
+						break;
+					case 'ultrathink':
+						thinkingPrompt = 'ULTRATHINK';
+						break;
+					default:
+						thinkingPrompt = 'THINK';
+						break;
+				}
+				actualMessage = thinkingPrompt + thinkingMessage + message;
+				console.log('Sending additional message in thinking mode:', actualMessage);
+			}
+
+			// Send the additional message to the existing process
+			this._postMessage({
+				type: 'userInput',
+				data: message
+			});
+
+			// For now, just acknowledge the additional message - stdin is closed after first message
+			// TODO: Implement proper message queuing or session continuity
+			return;
+		}
+
 		const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 		const cwd = workspaceFolder ? workspaceFolder.uri.fsPath : process.cwd();
 
@@ -552,7 +583,7 @@ class ClaudeChatProvider {
 			await this._createBackupCommit(message);
 		}
 		catch (e) {
-			console.log("error", e);
+			console.error('Error creating backup commit:', e);
 		}
 
 		// Show loading indicator
@@ -577,18 +608,14 @@ class ClaudeChatProvider {
 		} else {
 			// Add MCP configuration for permissions
 			const mcpConfigPath = this.getMCPConfigPath();
-			console.log('MCP config path:', mcpConfigPath);
 			if (mcpConfigPath) {
 				const convertedPath = this.convertToWSLPath(mcpConfigPath);
-				console.log('Converted MCP path:', convertedPath);
 				// Escape path with quotes to handle spaces
 				args.push('--mcp-config', `"${convertedPath}"`);
 				args.push('--allowedTools', 'mcp__claude-code-sidebar-permissions__approval_prompt');
 				args.push('--permission-prompt-tool', 'mcp__claude-code-sidebar-permissions__approval_prompt');
-				console.log('Added MCP config args to claude command');
 			} else {
-				console.log('No MCP config path available');
-			}
+				}
 		}
 
 		// Add model selection if not using default
@@ -599,12 +626,9 @@ class ClaudeChatProvider {
 		// Add session resume if we have a current session
 		if (this._currentSessionId) {
 			args.push('--resume', this._currentSessionId);
-			console.log('Resuming session:', this._currentSessionId);
 		} else {
-			console.log('Starting new session');
 		}
 
-		console.log('Claude command args:', args);
 		const wslEnabled = config.get<boolean>('wsl.enabled', false);
 		const wslDistro = config.get<string>('wsl.distro', 'Ubuntu');
 		const nodePath = config.get<string>('wsl.nodePath', '/usr/bin/node');
@@ -614,7 +638,6 @@ class ClaudeChatProvider {
 
 		if (wslEnabled) {
 			// Use WSL with bash -ic for proper environment loading
-			console.log('Using WSL configuration:', { wslDistro, nodePath, claudePath });
 			const wslCommand = `"${nodePath}" --no-warnings --enable-source-maps "${claudePath}" ${args.join(' ')}`;
 
 			claudeProcess = cp.spawn('wsl', ['-d', wslDistro, 'bash', '-ic', wslCommand], {
@@ -628,21 +651,11 @@ class ClaudeChatProvider {
 			});
 		} else {
 			// Use native claude command
-			console.log('Using native Claude command');
-			console.log('Spawning claude with args:', args);
-			console.log('Working directory:', cwd);
-			console.log('Current PATH:', process.env.PATH);
-			// Debug: check MCP config file contents
-			const mcpConfigPath = this.getMCPConfigPath();
-			if (mcpConfigPath) {
-				try {
-					const fs = require('fs');
-					const mcpContent = fs.readFileSync(mcpConfigPath, 'utf8');
-					console.log('MCP config file contents:', mcpContent);
-				} catch (error) {
-					console.log('Failed to read MCP config file:', error);
-				}
-			}
+			// console.log('Using native Claude command');
+			// console.log('Spawning claude with args:', args);
+			// console.log('Working directory:', cwd);
+			// console.log('Current PATH:', process.env.PATH);
+
 			claudeProcess = cp.spawn('claude', args, {
 				shell: true,
 				cwd: cwd,
@@ -672,7 +685,9 @@ class ClaudeChatProvider {
 		// Send the message to Claude's stdin (with mode prefixes if enabled)
 		if (claudeProcess.stdin) {
 			claudeProcess.stdin.write(actualMessage + '\n');
+			// Close stdin to signal end of input - Claude CLI needs this to start processing
 			claudeProcess.stdin.end();
+		} else {
 		}
 
 		let rawOutput = '';
@@ -691,7 +706,7 @@ class ClaudeChatProvider {
 						try {
 							const jsonData = JSON.parse(line.trim());
 							this._processJsonStreamData(jsonData);
-						} catch (error) {
+						} catch {
 							// Skip invalid JSON lines
 						}
 					}
@@ -706,11 +721,14 @@ class ClaudeChatProvider {
 		}
 
 		claudeProcess.on('close', (code) => {
-			console.log('Claude process closed with code:', code);
-			console.log('Claude stderr output:', errorOutput);
 
 			if (!this._currentClaudeProcess) {
 				return;
+			}
+
+			// End stdin if it's still open
+			if (this._currentClaudeProcess.stdin && !this._currentClaudeProcess.stdin.destroyed) {
+				this._currentClaudeProcess.stdin.end();
 			}
 
 			// Clear process reference
@@ -740,7 +758,6 @@ class ClaudeChatProvider {
 		});
 
 		claudeProcess.on('error', (error) => {
-			console.log('Claude process error:', error.message);
 
 			if (!this._currentClaudeProcess) {
 				return;
@@ -938,16 +955,6 @@ class ClaudeChatProvider {
 
 					// Capture session ID from final result
 					if (jsonData.session_id) {
-						const isNewSession = !this._currentSessionId;
-						const sessionChanged = this._currentSessionId && this._currentSessionId !== jsonData.session_id;
-
-						console.log('Session ID found in result:', {
-							sessionId: jsonData.session_id,
-							isNewSession,
-							sessionChanged,
-							currentSessionId: this._currentSessionId
-						});
-
 						this._currentSessionId = jsonData.session_id;
 
 						// Show session info in UI
@@ -1128,7 +1135,6 @@ class ClaudeChatProvider {
 				console.error('No workspace storage available');
 				return;
 			}
-			console.log('Workspace storage path:', storagePath);
 			this._backupRepoPath = path.join(storagePath, 'backups', '.git');
 
 			// Create backup git directory if it doesn't exist
@@ -1144,7 +1150,6 @@ class ClaudeChatProvider {
 				await exec(`git --git-dir="${this._backupRepoPath}" config user.name "Claude Code Sidebar"`);
 				await exec(`git --git-dir="${this._backupRepoPath}" config user.email "claude@anthropic.com"`);
 
-				console.log(`Initialized backup repository at: ${this._backupRepoPath}`);
 			}
 		} catch (error: any) {
 			console.error('Failed to initialize backup repository:', error.message);
@@ -1206,7 +1211,6 @@ class ClaudeChatProvider {
 				data: commitInfo
 			});
 
-			console.log(`Created backup commit: ${commitInfo.sha.substring(0, 8)} - ${actualMessage}`);
 		} catch (error: any) {
 			console.error('Failed to create backup commit:', error.message);
 		}
@@ -1275,7 +1279,6 @@ class ClaudeChatProvider {
 				await vscode.workspace.fs.stat(vscode.Uri.file(this._conversationsPath));
 			} catch {
 				await vscode.workspace.fs.createDirectory(vscode.Uri.file(this._conversationsPath));
-				console.log(`Created conversations directory at: ${this._conversationsPath}`);
 			}
 		} catch (error: any) {
 			console.error('Failed to initialize conversations directory:', error.message);
@@ -1293,7 +1296,6 @@ class ClaudeChatProvider {
 				await vscode.workspace.fs.stat(vscode.Uri.file(mcpConfigDir));
 			} catch {
 				await vscode.workspace.fs.createDirectory(vscode.Uri.file(mcpConfigDir));
-				console.log(`Created MCP config directory at: ${mcpConfigDir}`);
 			}
 
 			// Create or update mcp-servers.json with permissions server, preserving existing servers
@@ -1308,9 +1310,7 @@ class ClaudeChatProvider {
 			try {
 				const existingContent = await vscode.workspace.fs.readFile(mcpConfigUri);
 				mcpConfig = JSON.parse(new TextDecoder().decode(existingContent));
-				console.log('Loaded existing MCP config, preserving user servers');
 			} catch {
-				console.log('No existing MCP config found. creating new one');
 			}
 
 			// Ensure mcpServers exists
@@ -1330,7 +1330,6 @@ class ClaudeChatProvider {
 			const configContent = new TextEncoder().encode(JSON.stringify(mcpConfig, null, 2));
 			await vscode.workspace.fs.writeFile(mcpConfigUri, configContent);
 
-			console.log(`Updated MCP config at: ${mcpConfigPath}`);
 		} catch (error: any) {
 			console.error('Failed to initialize MCP config:', error.message);
 		}
@@ -1353,10 +1352,8 @@ class ClaudeChatProvider {
 				await vscode.workspace.fs.stat(vscode.Uri.file(this._permissionRequestsPath));
 			} catch {
 				await vscode.workspace.fs.createDirectory(vscode.Uri.file(this._permissionRequestsPath));
-				console.log(`Created permission requests directory at: ${this._permissionRequestsPath}`);
 			}
 
-			console.log("DIRECTORY-----", this._permissionRequestsPath);
 
 			// Set up file watcher for *.request files
 			this._permissionWatcher = vscode.workspace.createFileSystemWatcher(
@@ -1364,7 +1361,6 @@ class ClaudeChatProvider {
 			);
 
 			this._permissionWatcher.onDidCreate(async (uri) => {
-				console.log("----file", uri);
 				// Only handle file scheme URIs, ignore vscode-userdata scheme
 				if (uri.scheme === 'file') {
 					await this._handlePermissionRequest(uri);
@@ -1508,7 +1504,6 @@ class ClaudeChatProvider {
 			const permissionsContent = new TextEncoder().encode(JSON.stringify(permissions, null, 2));
 			await vscode.workspace.fs.writeFile(permissionsUri, permissionsContent);
 
-			console.log(`Saved always-allow permission for ${toolName}`);
 		} catch (error) {
 			console.error('Error saving always-allow permission:', error);
 		}
@@ -1682,7 +1677,6 @@ class ClaudeChatProvider {
 			// Send updated permissions to UI
 			this._sendPermissions();
 
-			console.log(`Removed permission for ${toolName}${command ? ` command: ${command}` : ''}`);
 		} catch (error) {
 			console.error('Error removing permission:', error);
 		}
@@ -1747,7 +1741,6 @@ class ClaudeChatProvider {
 			// Send updated permissions to UI
 			this._sendPermissions();
 
-			console.log(`Added permission for ${toolName}${command ? ` command: ${command}` : ' (all commands)'}`);
 		} catch (error) {
 			console.error('Error adding permission:', error);
 		}
@@ -1768,8 +1761,8 @@ class ClaudeChatProvider {
 				const content = await vscode.workspace.fs.readFile(mcpConfigUri);
 				mcpConfig = JSON.parse(new TextDecoder().decode(content));
 			} catch (error) {
-				console.log('MCP config file not found or error reading:', error);
 				// File doesn't exist, return empty servers
+				console.error('Error loading MCP config:', error);
 			}
 
 			// Filter out internal servers before sending to UI
@@ -1823,7 +1816,6 @@ class ClaudeChatProvider {
 			await vscode.workspace.fs.writeFile(mcpConfigUri, configContent);
 
 			this._postMessage({ type: 'mcpServerSaved', data: { name } });
-			console.log(`Saved MCP server: ${name}`);
 		} catch (error) {
 			console.error('Error saving MCP server:', error);
 			this._postMessage({ type: 'mcpServerError', data: { error: 'Failed to save MCP server' } });
@@ -1860,7 +1852,6 @@ class ClaudeChatProvider {
 				await vscode.workspace.fs.writeFile(mcpConfigUri, configContent);
 
 				this._postMessage({ type: 'mcpServerDeleted', data: { name } });
-				console.log(`Deleted MCP server: ${name}`);
 			} else {
 				this._postMessage({ type: 'mcpServerError', data: { error: `Server '${name}' not found` } });
 			}
@@ -1898,7 +1889,6 @@ class ClaudeChatProvider {
 				data: { snippet }
 			});
 
-			console.log('Saved custom snippet:', snippet.name);
 		} catch (error) {
 			console.error('Error saving custom snippet:', error);
 			this._postMessage({
@@ -1921,7 +1911,6 @@ class ClaudeChatProvider {
 					data: { snippetId }
 				});
 
-				console.log('Deleted custom snippet:', snippetId);
 			} else {
 				this._postMessage({
 					type: 'error',
@@ -2020,7 +2009,6 @@ class ClaudeChatProvider {
 			// Update conversation index
 			this._updateConversationIndex(filename, conversationData);
 
-			console.log(`Saved conversation: ${filename}`, this._conversationsPath);
 		} catch (error: any) {
 			console.error('Failed to save conversation:', error.message);
 		}
@@ -2118,7 +2106,6 @@ class ClaudeChatProvider {
 	}
 
 	private _stopClaudeProcess(): void {
-		console.log('Stop request received');
 
 		this._isProcessing = false;
 
@@ -2129,7 +2116,6 @@ class ClaudeChatProvider {
 		});
 
 		if (this._currentClaudeProcess) {
-			console.log('Terminating Claude process...');
 
 			// Try graceful termination first
 			this._currentClaudeProcess.kill('SIGTERM');
@@ -2137,7 +2123,6 @@ class ClaudeChatProvider {
 			// Force kill after 2 seconds if still running
 			setTimeout(() => {
 				if (this._currentClaudeProcess && !this._currentClaudeProcess.killed) {
-					console.log('Force killing Claude process...');
 					this._currentClaudeProcess.kill('SIGKILL');
 				}
 			}, 2000);
@@ -2155,9 +2140,7 @@ class ClaudeChatProvider {
 				data: '⏹️ Claude code was stopped.'
 			});
 
-			console.log('Claude process termination initiated');
 		} else {
-			console.log('No Claude process running to stop');
 		}
 	}
 
@@ -2205,12 +2188,10 @@ class ClaudeChatProvider {
 	}
 
 	private async _loadConversationHistory(filename: string): Promise<void> {
-		console.log("_loadConversationHistory");
 		if (!this._conversationsPath) { return; }
 
 		try {
 			const filePath = path.join(this._conversationsPath, filename);
-			console.log("filePath", filePath);
 
 			let conversationData: ConversationData;
 			try {
@@ -2232,7 +2213,6 @@ class ClaudeChatProvider {
 			if (this._totalCost === 0 && (this._totalTokensInput > 0 || this._totalTokensOutput > 0)) {
 				const estimatedCost = this._calculateCost(this._totalTokensInput, this._totalTokensOutput, 0, 0);
 				this._totalCost = estimatedCost;
-				console.log(`📊 Estimated cost for historical conversation: $${estimatedCost.toFixed(2)} (${this._totalTokensInput + this._totalTokensOutput} tokens)`);
 			}
 
 			// Clear UI messages first, then send all messages to recreate the conversation
@@ -2255,7 +2235,7 @@ class ClaudeChatProvider {
 							try {
 								requestStartTime = new Date(message.timestamp).getTime();
 							} catch (e) {
-								console.log(e);
+								console.error('Error parsing user input timestamp:', e);
 							}
 						}
 					}
@@ -2283,7 +2263,6 @@ class ClaudeChatProvider {
 				}, 50);
 			}, 100); // Small delay to ensure webview is ready
 
-			console.log(`Loaded conversation history: ${filename}`);
 		} catch (error: any) {
 			console.error('Failed to load conversation history:', error.message);
 		}
@@ -2503,7 +2482,6 @@ class ClaudeChatProvider {
 				}
 			}
 
-			console.log('Settings updated:', settings);
 		} catch (error) {
 			console.error('Failed to update settings:', error);
 			vscode.window.showErrorMessage('Failed to update settings');
@@ -2527,7 +2505,6 @@ class ClaudeChatProvider {
 		const validModels = ['opus', 'sonnet', 'default'];
 		if (validModels.includes(model)) {
 			this._selectedModel = model;
-			console.log('Model selected:', model);
 
 			// Store the model preference in workspace state
 			this._context.workspaceState.update('claude.selectedModel', model);

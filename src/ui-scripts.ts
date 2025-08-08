@@ -367,7 +367,6 @@ function setupMessageHandler() {
 
             case 'loading':
                 if (message.data) {
-                    // Create system message using the same approach as "Started new session"
                     chatMessages.addMessage('🔄 Claude is working...', 'system');
                 }
                 break;
