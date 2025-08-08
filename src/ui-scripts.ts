@@ -48,7 +48,9 @@ function initializeUI() {
     // Set VS Code API for all modules
     chatMessages.setVsCodeApi(vscode);
     chatMessages.setModuleReferences(uiCore, settingsModals);
+    chatMessages.setMessageInput(messageInput);
     uiCore.setVsCodeApi(vscode);
+    uiCore.setMessageInput(messageInput);
     settingsModals.setVsCodeApi(vscode);
     mcpServers.setVsCodeApi(vscode);
     permissions.setVsCodeApi(vscode);
@@ -547,14 +549,12 @@ function setupMessageHandler() {
             case 'hotReload':
                 // Handle hot reload - for JS changes, request webview recreation; for CSS, just refresh CSS
                 if (message.reloadType === 'full') {
-                    console.log('📦 JS modified, reloading webview');
                     vscode.postMessage({
                         type: 'recreateWebview',
                         reason: 'jsHotReload',
                         timestamp: message.timestamp
                     });
                 } else if (message.reloadType === 'css') {
-                    console.log('🎨 CSS modified, reloading styles');
                     uiCore.reloadCSS();
                 } else {
                     vscode.postMessage({

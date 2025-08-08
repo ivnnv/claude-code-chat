@@ -330,12 +330,8 @@ class ClaudeChatProvider {
 	}
 
 	private _handleWebviewMessage(message: any) {
-		console.log('Extension received:', message.type);
 		switch (message.type) {
 			case 'sendMessage':
-				console.log('Handling sendMessage:', message.text?.substring(0, 50));
-				console.log('Full message:', message);
-				console.log('Plan mode:', message.planMode, 'Thinking mode:', message.thinkingMode);
 				this._sendMessageToClaude(message.text, message.planMode, message.thinkingMode);
 				return;
 			case 'newSession':
@@ -684,7 +680,6 @@ class ClaudeChatProvider {
 
 		if (claudeProcess.stdout) {
 			claudeProcess.stdout.on('data', (data) => {
-				console.log('Claude stdout data received:', data.toString());
 				rawOutput += data.toString();
 
 				// Process JSON stream line by line
@@ -693,13 +688,11 @@ class ClaudeChatProvider {
 
 				for (const line of lines) {
 					if (line.trim()) {
-						console.log('Processing JSON line:', line.trim());
 						try {
 							const jsonData = JSON.parse(line.trim());
-							console.log('Parsed JSON data:', jsonData);
 							this._processJsonStreamData(jsonData);
 						} catch (error) {
-							console.log('Failed to parse JSON line:', line, error);
+							// Skip invalid JSON lines
 						}
 					}
 				}
@@ -784,21 +777,11 @@ class ClaudeChatProvider {
 	}
 
 	private _processJsonStreamData(jsonData: any) {
-		// Debug logging to see what we're receiving from Claude CLI
-		console.log('🔍 _processJsonStreamData received:', {
-			type: jsonData.type,
-			subtype: jsonData.subtype,
-			total_cost_usd: jsonData.total_cost_usd,
-			usage: jsonData.usage,
-			has_message: !!jsonData.message,
-			message_usage: jsonData.message?.usage
-		});
 
 		switch (jsonData.type) {
 			case 'system':
 				if (jsonData.subtype === 'init') {
 					// System initialization message - session ID will be captured from final result
-					console.log('System initialized');
 					this._currentSessionId = jsonData.session_id;
 					//this._sendAndSaveMessage({ type: 'init', data: { sessionId: jsonData.session_id; } })
 
@@ -989,7 +972,6 @@ class ClaudeChatProvider {
 
 					// Process final usage information if available and not already processed
 					if (jsonData.usage) {
-						console.log('🔍 Processing final usage data from result:', jsonData.usage);
 						const finalInputTokens = jsonData.usage.input_tokens || 0;
 						const finalOutputTokens = jsonData.usage.output_tokens || 0;
 						const cacheCreationTokens = jsonData.usage.cache_creation_input_tokens || 0;
@@ -997,13 +979,6 @@ class ClaudeChatProvider {
 
 						// Check if our running totals match the final usage
 						if (finalInputTokens !== this._totalTokensInput || finalOutputTokens !== this._totalTokensOutput) {
-							console.log('🔍 Token mismatch - updating to final values:', {
-								currentInput: this._totalTokensInput,
-								currentOutput: this._totalTokensOutput,
-								finalInput: finalInputTokens,
-								finalOutput: finalOutputTokens
-							});
-
 							// Update to final values and recalculate cost
 							this._totalTokensInput = finalInputTokens;
 							this._totalTokensOutput = finalOutputTokens;
@@ -1017,24 +992,11 @@ class ClaudeChatProvider {
 					const providedCost = jsonData.total_cost_usd;
 					if (providedCost && providedCost > 0) {
 						// Compare CLI provided cost with our calculation
-						console.log('💰 Cost comparison:', {
-							providedCost: providedCost,
-							calculatedCost: this._totalCost,
-							model: this._selectedModel,
-							tokens: { input: this._totalTokensInput, output: this._totalTokensOutput }
-						});
 
 						// Use the provided cost since it's the authoritative source
 						this._totalCost = providedCost;
 					}
 
-					console.log('Result received:', {
-						providedCost: providedCost,
-						calculatedTotalCost: this._totalCost,
-						duration: jsonData.duration_ms,
-						turns: jsonData.num_turns,
-						totalTokens: this._totalTokensInput + this._totalTokensOutput
-					});
 
 					// Send updated totals to webview
 					this._postMessage({
@@ -2390,7 +2352,6 @@ class ClaudeChatProvider {
 
 		// Watch for changes in the webview output directory
 		const webviewPattern = path.join(this._extensionUri.fsPath, 'out', 'webview', '**/*');
-		console.log(`🔍 Setting up file watcher with pattern: ${webviewPattern}`);
 		const fileWatcher = vscode.workspace.createFileSystemWatcher(webviewPattern);
 
 		// Also specifically watch CSS file (fallback)
@@ -2399,7 +2360,6 @@ class ClaudeChatProvider {
 
 		// Also specifically watch JS file (fallback)
 		const jsPattern = path.join(this._extensionUri.fsPath, 'out', 'webview', 'static', 'js', 'index.js');
-		console.log(`🔍 Setting up JS file watcher with pattern: ${jsPattern}`);
 		const jsWatcher = vscode.workspace.createFileSystemWatcher(jsPattern);
 
 		let refreshTimeout: NodeJS.Timeout | undefined;

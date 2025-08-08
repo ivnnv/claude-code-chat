@@ -40,7 +40,6 @@ export function scrollToBottomIfNeeded(messagesDiv: HTMLElement, shouldScroll: b
 }
 
 export function addMessage(content: string, type = 'claude'): void {
-	// console.log('addMessage called with content:', content, 'type:', type);
 	const messagesDiv = document.getElementById('chatMessages');
 	if (!messagesDiv) {
 		console.error('chatMessages div not found!');
@@ -52,13 +51,12 @@ export function addMessage(content: string, type = 'claude'): void {
 	// Generate unique ID for this message
 	messageCounter++;
 	const messageId = `msg-${type}-${messageCounter}`;
-	// console.log('Generated message ID:', messageId);
 
 	// Handle new userMessage structure
 	if (type === 'user') {
 		const messageDiv = document.createElement('div');
-		messageDiv.id = messageId;
 		messageDiv.className = 'userMessage';
+		messageDiv.id = messageId;
 
 		// Create header (for reference file info if available)
 		const headerDiv = document.createElement('div');
@@ -88,23 +86,24 @@ export function addMessage(content: string, type = 'claude'): void {
 		// Create content with clean user text (extracted above)
 		const contentDiv = document.createElement('div');
 		contentDiv.className = 'userMessage-content';
-		contentDiv.innerHTML = `<span class="userMessage-prompt">${userText}</span>`; // Clean user text without file reference
+		contentDiv.innerHTML = `<span>${userText}</span>`;
 
 		// Add copy button
-		const copyBtn = document.createElement('button');
-		copyBtn.className = 'copy-btn';
-		copyBtn.title = 'Copy message';
-		copyBtn.onclick = () => copyMessageContent(contentDiv);
-		copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+		// const copyBtn = document.createElement('button');
+		// copyBtn.className = 'copy-btn';
+		// copyBtn.title = 'Copy message';
+		// copyBtn.onclick = () => copyMessageContent(contentDiv);
+		// copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
 
-		// Position copy button absolutely in content area
-		copyBtn.style.position = 'absolute';
-		copyBtn.style.top = '8px';
-		copyBtn.style.right = '8px';
-		copyBtn.style.opacity = '0';
-		copyBtn.style.transition = 'opacity 0.2s ease';
+		// // Position copy button absolutely in content area
+		// copyBtn.style.position = 'absolute';
+		// copyBtn.style.top = '8px';
+		// copyBtn.style.right = '8px';
+		// copyBtn.style.opacity = '0';
+		// copyBtn.style.transition = 'opacity 0.2s ease';
 
-		contentDiv.appendChild(copyBtn);
+		// contentDiv.appendChild(copyBtn);
+
 		messageDiv.appendChild(contentDiv);
 
 		messagesDiv.appendChild(messageDiv);
@@ -115,8 +114,8 @@ export function addMessage(content: string, type = 'claude'): void {
 	// Handle system messages with new structure
 	if (type === 'system') {
 		const messageDiv = document.createElement('div');
-		messageDiv.id = messageId;
 		messageDiv.className = 'systemMessage';
+		messageDiv.id = messageId;
 
 		// This type of message doesnt need a header yet
 
@@ -134,7 +133,6 @@ export function addMessage(content: string, type = 'claude'): void {
 	// Handle Claude messages with special styling
 	if (type === 'claude') {
 		const messageDiv = document.createElement('div');
-		messageDiv.id = messageId;
 
 		// Detect structured file/path content for special styling
 		const hasPathInfo = content.includes('path: /') || content.includes('pattern: ') || content.includes('No files found');
@@ -146,22 +144,23 @@ export function addMessage(content: string, type = 'claude'): void {
 		}
 
 		messageDiv.className = className;
+		messageDiv.id = messageId;
 
 		// Add copy button for Claude messages
-		const copyBtn = document.createElement('button');
-		copyBtn.className = 'copy-btn';
-		copyBtn.title = 'Copy message';
-		copyBtn.onclick = () => copyMessageContent(messageDiv);
-		copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+		// const copyBtn = document.createElement('button');
+		// copyBtn.className = 'copy-btn';
+		// copyBtn.title = 'Copy message';
+		// copyBtn.onclick = () => copyMessageContent(messageDiv);
+		// copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
 
 		// Position copy button absolutely in top-right
-		copyBtn.style.position = 'absolute';
-		copyBtn.style.top = '8px';
-		copyBtn.style.right = '8px';
-		copyBtn.style.opacity = '0';
-		copyBtn.style.transition = 'opacity 0.2s ease';
+		// copyBtn.style.position = 'absolute';
+		// copyBtn.style.top = '8px';
+		// copyBtn.style.right = '8px';
+		// copyBtn.style.opacity = '0';
+		// copyBtn.style.transition = 'opacity 0.2s ease';
 
-		messageDiv.appendChild(copyBtn);
+		// messageDiv.appendChild(copyBtn);
 
 		const contentDiv = document.createElement('div');
 		contentDiv.className = 'claudeMessage-content';
@@ -175,26 +174,26 @@ export function addMessage(content: string, type = 'claude'): void {
 
 	// Handle other message types (keep existing structure but add IDs with proper order)
 	const messageDiv = document.createElement('div');
-	messageDiv.id = messageId;
 	messageDiv.className = `message ${type}`;
+	messageDiv.id = messageId;
 
 	// Only add copy button for error messages (claude handled separately above)
 	if (type === 'error') {
 		// Add copy button directly to message div
-		const copyBtn = document.createElement('button');
-		copyBtn.className = 'copy-btn';
-		copyBtn.title = 'Copy message';
-		copyBtn.onclick = () => copyMessageContent(messageDiv);
-		copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+		// const copyBtn = document.createElement('button');
+		// copyBtn.className = 'copy-btn';
+		// copyBtn.title = 'Copy message';
+		// copyBtn.onclick = () => copyMessageContent(messageDiv);
+		// copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
 
 		// Position copy button absolutely in top-right
-		copyBtn.style.position = 'absolute';
-		copyBtn.style.top = '8px';
-		copyBtn.style.right = '8px';
-		copyBtn.style.opacity = '0';
-		copyBtn.style.transition = 'opacity 0.2s ease';
+		// copyBtn.style.position = 'absolute';
+		// copyBtn.style.top = '8px';
+		// copyBtn.style.right = '8px';
+		// copyBtn.style.opacity = '0';
+		// copyBtn.style.transition = 'opacity 0.2s ease';
 
-		messageDiv.appendChild(copyBtn);
+		// messageDiv.appendChild(copyBtn);
 	}
 
 	// Add content
@@ -233,16 +232,12 @@ export function addToolUseMessage(data: any): void {
 	if (!messagesDiv) {return;}
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 
-	// Debug logging for Read tool detection
-	// console.log('addToolUseMessage received data:', data);
-	// console.log('toolName:', data.toolName, 'rawInput:', data.rawInput);
 	if (data.rawInput) {
-		// console.log('rawInput keys:', Object.keys(data.rawInput));
+		// Check if rawInput contains necessary data
 	}
 
 	// Handle Read tools with special dimmed styling (toolUse has offset/limit, so we check for file_path)
 	if (data.toolName === 'Read' && data.rawInput && data.rawInput.file_path) {
-		// console.log('Creating dimmed Read tool file reference in toolUse');
 		const readMessageDiv = document.createElement('div');
 		readMessageDiv.className = 'systemMessage claudeContext';
 
@@ -258,7 +253,6 @@ export function addToolUseMessage(data: any): void {
 
 	// Handle Bash commands with system message styling
 	if (data.toolName === 'Bash' && data.rawInput && data.rawInput.command) {
-		// console.log('Creating styled Bash command execution message');
 		const bashMessageDiv = document.createElement('div');
 		bashMessageDiv.className = 'systemMessage claudeContext';
 
@@ -538,12 +532,22 @@ export function parseSimpleMarkdown(markdown: string): string {
 	}
 
 	// Convert basic markdown to HTML
-	return markdown
+	let result = markdown;
+
+	// Handle code blocks first (before inline code)
+	result = result.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, language, code) => {
+		return `<pre>${escapeHtml(code.trim())}</pre>`;
+	});
+
+	// Handle other markdown elements
+	result = result
 		.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
 		.replace(/\*(.*?)\*/g, '<em>$1</em>')
-		.replace(/`(.*?)`/g, '<code>$1</code>')
+		.replace(/`(.*?)`/g, '<code>$1</code>') // Inline code
 		.replace(/\n\n/g, '<br><br>') // Double line breaks become paragraph breaks
 		.replace(/\n/g, '<br>'); // Single line breaks become line breaks
+
+	return result;
 }
 
 export function formatFilePath(filePath: string): string {
@@ -645,16 +649,12 @@ export function formatEditToolDiff(input: any): string {
 	let changesRow = '<div class="diff-changes-row">';
 	changesRow += '<span class="diff-changes-label">Changes:</span>';
 	const currentCheckpoint = window.currentCheckpoint;
-	console.log('formatEditToolDiff - currentCheckpoint:', currentCheckpoint);
 	if (currentCheckpoint) {
-		console.log('formatEditToolDiff - Adding restore button with checkpoint:', currentCheckpoint);
 		const timeAgo = new Date(currentCheckpoint.timestamp).toLocaleTimeString();
 		changesRow += '<div class="diff-timestamp-group">';
 		changesRow += '<span class="diff-timestamp">(' + timeAgo + ')</span>';
 		changesRow += '<button class="diff-restore-btn" onclick="restoreToCommit(\'' + currentCheckpoint.sha + '\')" title="Restore checkpoint">↶</button>';
 		changesRow += '</div>';
-	} else {
-		console.log('formatEditToolDiff - No currentCheckpoint found, restore button will not be shown');
 	}
 	changesRow += '</div>';
 
@@ -743,7 +743,7 @@ export function formatMultiEditToolDiff(input: any): string {
 
 	result += '<div class="diff-header">' + headerContent + '</div>';
 	// Create a unique ID for this diff
-	const diffId = 'multiedit_' + Math.random().toString(36).substr(2, 9);
+	const diffId = 'multiEdit_' + Math.random().toString(36).substr(2, 9);
 	let currentLineCount = 0;
 	const visibleEdits = [];
 	const hiddenEdits = [];

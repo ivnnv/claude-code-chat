@@ -185,13 +185,6 @@ export function addToolResultMessage(data: any): void {
 	}
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 
-	// Debug logging for Read tool detection in toolResult
-	// console.log('addToolResultMessage received data:', data);
-	// console.log('toolResult - toolName:', data.toolName, 'rawInput:', data.rawInput);
-	if (data.rawInput) {
-		console.log('toolResult - rawInput keys:', Object.keys(data.rawInput));
-	}
-
 	// Handle Read tools with special dimmed styling (toolResult doesn't have rawInput, but we can show file context)
 	if (false && data.toolName === 'Read' && !data.isError) { // Skip toolResult for Read tools - visual context shows it's a read operation
 		// Try to extract file path from content or use a generic indicator
@@ -206,7 +199,6 @@ export function addToolResultMessage(data: any): void {
 			}
 		}
 
-		console.log('Creating dimmed Read tool file reference in toolResult');
 		const readMessageDiv = document.createElement('div');
 		readMessageDiv.className = 'systemMessage claudeContext';
 
@@ -222,13 +214,11 @@ export function addToolResultMessage(data: any): void {
 
 	// Handle Bash tool results by appending to the previous bash system message
 	if (data.toolName === 'Bash' && !data.isError) {
-		// console.log('Handling Bash tool result, looking for previous system message');
 		// Find the most recent systemMessage claudeContext (the bash command)
 		const systemMessages = messagesDiv.querySelectorAll('.systemMessage.claudeContext');
 		const lastSystemMessage = systemMessages[systemMessages.length - 1] as HTMLElement;
 
 		if (lastSystemMessage) {
-			// console.log('Found previous bash system message, appending result');
 			const contentDiv = lastSystemMessage.querySelector('.systemMessage-content');
 			if (contentDiv) {
 				// Add the result to the same system message box
@@ -237,7 +227,6 @@ export function addToolResultMessage(data: any): void {
 				return;
 			}
 		}
-		console.log('No previous bash system message found, falling through to regular result');
 	}
 
 	// For Read and Edit tools with hidden flag, just hide loading state and show completion message
@@ -464,7 +453,6 @@ export function displayConversationList(conversations: any[]): void {
 }
 
 export function restoreToCommit(commitSha: string): void {
-	console.log('Restore button clicked for commit:', commitSha);
 	vscode.postMessage({
 		type: 'restoreCommit',
 		commitSha: commitSha
@@ -724,15 +712,18 @@ export function updateStatusPopoverContent(): void {
 }
 
 export function setupMessageInput(): void {
-	if (!messageInput) {return;}
+	if (!messageInput) {
+		return;
+	}
 
-	// Handle enter key
+	// Handle keyboard shortcuts
 	messageInput.addEventListener('keydown', (e) => {
 		if (e.key === 'Enter' && !e.shiftKey) {
+			// Enter alone = send message
 			e.preventDefault();
-			// Use global sendMessage function
 			window.sendMessage();
 		}
+		// Shift+Enter = new line (default behavior)
 	});
 
 	// Auto-resize textarea
