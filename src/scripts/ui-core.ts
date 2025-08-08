@@ -1,4 +1,5 @@
 // Core UI functions - initialization, modals, sessions, and file handling
+import '../types/global';
 
 // VS Code API will be provided by ui-scripts.ts
 let vscode: any;
@@ -441,7 +442,7 @@ export function restoreToCommit(commitSha: string): void {
 		commitSha: commitSha
 	});
 	// Clear the checkpoint since it's being restored
-	(window as any).currentCheckpoint = null;
+	window.currentCheckpoint = null;
 }
 
 export function showRestoreContainer(data: any): void {
@@ -636,6 +637,198 @@ export function setSelectedFileIndex(index: number): void {
 
 export function setCurrentModel(model: string): void {
 	currentModel = model;
+}
+
+export function toggleStatusPopover(): void {
+	const statusPopover = document.getElementById('statusPopover');
+	if (!statusPopover) {return;}
+
+	if (statusPopover.style.display === 'none' || !statusPopover.style.display) {
+		// Show popover with current status info
+		updateStatusPopoverContent();
+		statusPopover.style.display = 'block';
+
+		// Auto-hide after 5 seconds
+		setTimeout(() => {
+			statusPopover.style.display = 'none';
+		}, 5000);
+	} else {
+		statusPopover.style.display = 'none';
+	}
+}
+
+export function updateStatusPopoverContent(): void {
+	const statusPopover = document.getElementById('statusPopover');
+	if (!statusPopover) {return;}
+
+	// Get status data from global window properties
+	const totalTokensInput = window.totalTokensInput || 0;
+	const totalTokensOutput = window.totalTokensOutput || 0;
+	const totalCost = window.totalCost || 0;
+	const lastRequestCost = window.lastRequestCost || 0;
+	const lastRequestTokens = window.lastRequestTokens || 0;
+	const currentStatus = window.currentStatus || 'ready';
+
+	const totalTokens = totalTokensInput + totalTokensOutput;
+	const statusText = currentStatus === 'ready' ? 'Ready' : currentStatus === 'processing' ? 'Processing' : 'Error';
+
+	// Format costs with 2 decimals and pad to align with total tokens
+	const lastCostStr = lastRequestCost > 0 ? lastRequestCost.toFixed(2) : '0.00';
+	const totalCostStr = totalCost > 0 ? totalCost.toFixed(2) : '0.00';
+	const totalTokensStr = totalTokens.toLocaleString();
+
+	statusPopover.innerHTML = `
+		<div class="status-popover-content">
+			<table class="status-table">
+				<tr>
+					<td>${statusText}:</td>
+					<td>$${lastCostStr}</td>
+					<td>${lastRequestTokens.toLocaleString()} tk</td>
+				</tr>
+				<tr>
+					<td>Session total:</td>
+					<td>$${totalCostStr}</td>
+					<td>${totalTokensStr} tk</td>
+				</tr>
+			</table>
+		</div>
+	`;
+}
+
+export function setupMessageInput(): void {
+	if (!messageInput) {return;}
+
+	// Handle enter key
+	messageInput.addEventListener('keydown', (e) => {
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			// Use global sendMessage function
+			window.sendMessage();
+		}
+	});
+
+	// Auto-resize textarea
+	messageInput.addEventListener('input', () => {
+		messageInput.style.height = 'auto';
+		messageInput.style.height = Math.min(messageInput.scrollHeight, 200) + 'px';
+	});
+
+	// Save input text as user types (debounced)
+	let saveInputTimeout: NodeJS.Timeout;
+	messageInput.addEventListener('input', () => {
+		clearTimeout(saveInputTimeout);
+		saveInputTimeout = setTimeout(() => {
+			vscode.postMessage({
+				type: 'saveInputText',
+				text: messageInput.value
+			});
+		}, 500); // Save after 500ms of no typing
+	});
+}
+
+export function updateInputStatusIndicator(): void {
+	const inputIndicator = document.getElementById('inputStatusIndicator');
+	if (!inputIndicator) {return;}
+
+	const currentStatus = window.currentStatus || 'ready';
+
+	// Remove all status classes
+	inputIndicator.classList.remove('ready', 'processing', 'error');
+
+	// Add current status class
+	inputIndicator.classList.add(currentStatus);
+}
+
+export function disableButtons(): void {
+	const buttons = document.querySelectorAll('button:not(#stopBtn)');
+	buttons.forEach(btn => {
+		(btn as HTMLButtonElement).disabled = true;
+	});
+}
+
+export function enableButtons(): void {
+	const buttons = document.querySelectorAll('button');
+	buttons.forEach(btn => {
+		(btn as HTMLButtonElement).disabled = false;
+	});
+}
+
+export function showStopButton(): void {
+	const stopBtn = document.getElementById('stopBtn');
+	if (stopBtn) {
+		stopBtn.style.display = 'flex';
+	}
+}
+
+export function hideStopButton(): void {
+	const stopBtn = document.getElementById('stopBtn');
+	if (stopBtn) {
+		stopBtn.style.display = 'none';
+	}
+}
+
+// Hot reload function to refresh CSS without losing DOM state
+export function reloadCSS(): void {
+	const cssLinks = document.querySelectorAll('link[rel="stylesheet"]');
+	cssLinks.forEach((element) => {
+		const link = element as HTMLLinkElement;
+		if (link.href.includes('index.css')) {
+			const url = new URL(link.href);
+			// Add cache-busting parameter
+			url.searchParams.set('t', Date.now().toString());
+
+			// Create new link element
+			const newLink = document.createElement('link');
+			newLink.rel = 'stylesheet';
+			newLink.href = url.toString();
+
+			// Replace old link with new one
+			newLink.onload = () => {
+				link.remove();
+				console.log('✅ CSS reloaded successfully');
+			};
+
+			newLink.onerror = () => {
+				console.warn('⚠️ CSS reload failed, falling back to full reload');
+				location.reload();
+			};
+
+			// Insert new link before the old one
+			link.parentNode?.insertBefore(newLink, link);
+		}
+	});
+}
+
+export function updateEditorContextDisplay(contextData: any): void {
+	const editorContextLine = document.getElementById('editorContextLine');
+	if (!editorContextLine) {
+		return;
+	}
+
+	// Get current editor context from global if not passed as parameter
+	const currentEditorContext = contextData || window.currentEditorContext;
+
+	if (!currentEditorContext || !currentEditorContext.hasActiveFile) {
+		editorContextLine.style.display = 'none';
+		return;
+	}
+
+	// Build simple context line
+	let contextText = 'in ' + currentEditorContext.fileName;
+
+	if (currentEditorContext.selection && currentEditorContext.selectedText) {
+		// VS Code already provides 1-based line numbers
+		const startLine = currentEditorContext.selection.start.line;
+		const endLine = currentEditorContext.selection.end.line;
+		contextText += ':' + startLine + '-' + endLine;
+	} else if (currentEditorContext.cursorPosition) {
+		// VS Code already provides 1-based line numbers
+		const cursorLine = currentEditorContext.cursorPosition.line;
+		contextText += ':' + cursorLine;
+	}
+
+	editorContextLine.textContent = contextText;
+	editorContextLine.style.display = 'block';
 }
 
 // Set VS Code API (called from ui-scripts.ts)

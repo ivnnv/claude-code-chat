@@ -1,5 +1,6 @@
 // Entry point for webview - imports SCSS and modular scripts
 import './index.scss';
+import './types/global';
 
 // Import all modular script files
 import * as chatMessages from './scripts/chat-messages';
@@ -24,7 +25,7 @@ let totalTokensOutput = 0;
 let _requestCount = 0;
 let lastRequestCost = 0;
 let lastRequestTokens = 0;
-let currentStatus = 'ready'; // 'ready', 'processing', 'error'
+let currentStatus: 'ready' | 'processing' | 'error' = 'ready';
 let currentCheckpoint: {sha: string, timestamp: string} | null = null;
 
 // Initialize when DOM is ready
@@ -36,37 +37,6 @@ if (document.readyState === 'loading') {
 
 // Development mode indicator (removed console.log for production)
 
-// Hot reload function to refresh CSS without losing DOM state
-function reloadCSS() {
-    const cssLinks = document.querySelectorAll('link[rel="stylesheet"]');
-    cssLinks.forEach((element) => {
-        const link = element as HTMLLinkElement;
-        if (link.href.includes('index.css')) {
-            const url = new URL(link.href);
-            // Add cache-busting parameter
-            url.searchParams.set('t', Date.now().toString());
-
-            // Create new link element
-            const newLink = document.createElement('link');
-            newLink.rel = 'stylesheet';
-            newLink.href = url.toString();
-
-            // Replace old link with new one
-            newLink.onload = () => {
-                link.remove();
-                console.log('✅ CSS reloaded successfully');
-            };
-
-            newLink.onerror = () => {
-                console.warn('⚠️ CSS reload failed, falling back to full reload');
-                location.reload();
-            };
-
-            // Insert new link before the old one
-            link.parentNode?.insertBefore(newLink, link);
-        }
-    });
-}
 
 function initializeUI() {
     // Get DOM elements
@@ -74,13 +44,14 @@ function initializeUI() {
 
     // Set VS Code API for all modules
     chatMessages.setVsCodeApi(vscode);
+    chatMessages.setModuleReferences(uiCore, settingsModals);
     uiCore.setVsCodeApi(vscode);
     settingsModals.setVsCodeApi(vscode);
     mcpServers.setVsCodeApi(vscode);
     permissions.setVsCodeApi(vscode);
 
     // Set up message input handling
-    setupMessageInput();
+    uiCore.setupMessageInput();
 
     // Initialize core UI functionality
     uiCore.initialize();
@@ -96,7 +67,7 @@ function initializeUI() {
     // Expose core functions to global scope for HTML handlers
     Object.assign(window, {
         // Core messaging functions
-        sendMessage,
+        sendMessage: chatMessages.sendMessage,
         copyMessageContent: chatMessages.copyMessageContent,
         copyCodeBlock: chatMessages.copyCodeBlock,
 
@@ -105,7 +76,7 @@ function initializeUI() {
         selectImage: uiCore.selectImage,
 
         // Modal functions
-        stopRequest,
+        stopRequest: chatMessages.stopRequest,
 
         // Chat message functions
         addMessage: chatMessages.addMessage,
@@ -168,7 +139,7 @@ function initializeUI() {
         executeSlashCommand: function() {},
 
         // Status functions
-        toggleStatusPopover,
+        toggleStatusPopover: uiCore.toggleStatusPopover,
 
         // Placeholder for extension functions
         _enableYoloMode: function() {
@@ -178,41 +149,26 @@ function initializeUI() {
 
 
     // Initialize status indicator
-    updateInputStatusIndicator();
+    uiCore.updateInputStatusIndicator();
+
+    // Expose global state variables for modular functions to access
+    Object.assign(window, {
+        totalCost,
+        totalTokensInput,
+        totalTokensOutput,
+        lastRequestCost,
+        lastRequestTokens,
+        currentStatus,
+        currentEditorContext,
+        isProcessing,
+        uiCore,
+        settingsModals
+    });
 
     // Request initial editor context
     vscode.postMessage({ type: 'getEditorContext' });
 }
 
-function setupMessageInput() {
-    if (!messageInput) {return;}
-
-    // Handle enter key
-    messageInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-
-    // Auto-resize textarea
-    messageInput.addEventListener('input', () => {
-        messageInput.style.height = 'auto';
-        messageInput.style.height = Math.min(messageInput.scrollHeight, 200) + 'px';
-    });
-
-    // Save input text as user types (debounced)
-    let saveInputTimeout: NodeJS.Timeout;
-    messageInput.addEventListener('input', () => {
-        clearTimeout(saveInputTimeout);
-        saveInputTimeout = setTimeout(() => {
-            vscode.postMessage({
-                type: 'saveInputText',
-                text: messageInput.value
-            });
-        }, 500); // Save after 500ms of no typing
-    });
-}
 
 function setupMessageHandler() {
     window.addEventListener('message', (event) => {
@@ -246,9 +202,10 @@ function setupMessageHandler() {
 
             case 'editorContext':
                 currentEditorContext = message.data;
+                window.currentEditorContext = currentEditorContext;
                 // Also update the chat messages module context
                 chatMessages.setCurrentEditorContext(message.data);
-                updateEditorContextDisplay(message.data);
+                uiCore.updateEditorContextDisplay(message.data);
                 break;
 
             case 'userInput':
@@ -259,8 +216,9 @@ function setupMessageHandler() {
 
             case 'processingComplete':
                 isProcessing = false;
-                enableButtons();
-                hideStopButton();
+                window.isProcessing = isProcessing;
+                uiCore.enableButtons();
+                uiCore.hideStopButton();
 
                 // Processing completed
                 break;
@@ -268,18 +226,18 @@ function setupMessageHandler() {
             case 'sessionCleared':
                 // Clear any existing checkpoint since we're starting fresh
                 currentCheckpoint = null;
-                (window as any).currentCheckpoint = null;
+                window.currentCheckpoint = null;
                 // Clear all messages from UI
-                clearMessages();
+                chatMessages.clearMessages();
                 chatMessages.addMessage('🆕 Started new session', 'system');
                 break;
 
             case 'sessionLoading':
                 // Clear any existing checkpoint when loading previous session
                 currentCheckpoint = null;
-                (window as any).currentCheckpoint = null;
+                window.currentCheckpoint = null;
                 // Clear all messages from UI
-                clearMessages();
+                chatMessages.clearMessages();
                 chatMessages.addMessage('📝 Loaded last session', 'system');
                 break;
 
@@ -298,7 +256,7 @@ function setupMessageHandler() {
                         sha: sha,
                         timestamp: timestamp || new Date().toISOString()
                     };
-                    (window as any).currentCheckpoint = currentCheckpoint;
+                    window.currentCheckpoint = currentCheckpoint;
                     // No longer need to show a separate restore container
                     // The restore button will appear in diff headers
                 }
@@ -318,10 +276,13 @@ function setupMessageHandler() {
                 const currentTotalTokens = totalTokensInput + totalTokensOutput;
                 if (updatedTotalTokens > currentTotalTokens) {
                     lastRequestTokens = updatedTotalTokens - currentTotalTokens;
+                    window.lastRequestTokens = lastRequestTokens;
                 }
                 // Update token totals in real-time
                 totalTokensInput = updatedTokensInput;
                 totalTokensOutput = updatedTokensOutput;
+                window.totalTokensInput = totalTokensInput;
+                window.totalTokensOutput = totalTokensOutput;
                 break;
 
             case 'updateTotals':
@@ -332,12 +293,18 @@ function setupMessageHandler() {
 
                 if (newTotalCost > totalCost) {
                     lastRequestCost = newTotalCost - totalCost;
+                    window.lastRequestCost = lastRequestCost;
                 }
 
                 // Update local tracking variables
-                if (newTotalCost > 0) {totalCost = newTotalCost;} // Only update if extension provides real cost
+                if (newTotalCost > 0) {
+                    totalCost = newTotalCost;
+                    window.totalCost = totalCost;
+                } // Only update if extension provides real cost
                 totalTokensInput = newTotalTokensInput;
                 totalTokensOutput = newTotalTokensOutput;
+                window.totalTokensInput = totalTokensInput;
+                window.totalTokensOutput = totalTokensOutput;
                 _requestCount = message.data.requestCount || 0;
                 break;
 
@@ -413,7 +380,8 @@ function setupMessageHandler() {
 
             case 'error':
                 currentStatus = 'error';
-                updateInputStatusIndicator();
+                window.currentStatus = currentStatus;
+                uiCore.updateInputStatusIndicator();
                 if (message.data && message.data.trim()) {
                     // Check if this is an install required error
                     if (message.data.includes('Install claude code first') ||
@@ -454,9 +422,11 @@ function setupMessageHandler() {
             case 'ready':
                 isProcessing = false;
                 currentStatus = 'ready';
-                updateInputStatusIndicator();
-                enableButtons();
-                hideStopButton();
+                window.isProcessing = isProcessing;
+                window.currentStatus = currentStatus;
+                uiCore.updateInputStatusIndicator();
+                uiCore.enableButtons();
+                uiCore.hideStopButton();
                 break;
 
             case 'modelSelected':
@@ -480,13 +450,15 @@ function setupMessageHandler() {
                 if (message.data && message.data.isProcessing !== undefined) {
                     isProcessing = message.data.isProcessing;
                     currentStatus = isProcessing ? 'processing' : 'ready';
-                    updateInputStatusIndicator();
+                    window.isProcessing = isProcessing;
+                    window.currentStatus = currentStatus;
+                    uiCore.updateInputStatusIndicator();
                     if (isProcessing) {
-                        disableButtons();
-                        showStopButton();
+                        uiCore.disableButtons();
+                        uiCore.showStopButton();
                     } else {
-                        enableButtons();
-                        hideStopButton();
+                        uiCore.enableButtons();
+                        uiCore.hideStopButton();
                     }
                 }
                 break;
@@ -504,7 +476,7 @@ function setupMessageHandler() {
                 break;
 
             case 'toggleStatusInfo':
-                toggleStatusPopover();
+                uiCore.toggleStatusPopover();
                 break;
 
             case 'permissionsData':
@@ -512,13 +484,13 @@ function setupMessageHandler() {
                 break;
 
             case 'conversationList':
-                displayConversationList(message.data);
+                uiCore.displayConversationList(message.data);
                 break;
 
             case 'conversationHistory':
                 if (message.messages && Array.isArray(message.messages)) {
                     // Clear existing messages first
-                    clearMessages();
+                    chatMessages.clearMessages();
                     // Add each message from history
                     message.messages.forEach((msg: any) => {
                         if (msg.type === 'user' && msg.content) {
@@ -537,7 +509,7 @@ function setupMessageHandler() {
             case 'restoreConversation':
                 // Handle conversation restoration
                 if (message.conversation) {
-                    clearMessages();
+                    chatMessages.clearMessages();
                     // Process the conversation data
                     if (message.conversation.messages) {
                         message.conversation.messages.forEach((msg: any) => {
@@ -571,211 +543,11 @@ function setupMessageHandler() {
 
             case 'hotReload':
                 // Handle hot reload - refresh CSS without losing DOM state
-                reloadCSS();
+                uiCore.reloadCSS();
                 break;
 
             default:
                 break;
         }
     });
-}
-
-function sendMessage(): void {
-    if (!messageInput || isProcessing) {return;}
-
-    const text = messageInput.value.trim();
-    if (!text) {return;}
-
-    // Enhance message with editor context if available
-    let enhancedText = text;
-    const contextInfo = chatMessages.getEditorContextInfo();
-    if (contextInfo) {
-        enhancedText = contextInfo + '\n\n' + text;
-    }
-
-    // Don't add user message here - let extension handle it via userInput message
-
-    // Clear input
-    messageInput.value = '';
-    messageInput.style.height = 'auto';
-
-    // Set processing state
-    isProcessing = true;
-    disableButtons();
-    showStopButton();
-
-    chatMessages.sendStats('Send message');
-
-    // Send to VS Code
-    vscode.postMessage({
-        type: 'sendMessage',
-        text: enhancedText,
-        planMode: settingsModals.getPlanModeEnabled(),
-        thinkingMode: settingsModals.getThinkingModeEnabled(),
-        editorContext: currentEditorContext
-    });
-}
-
-function stopRequest(): void {
-    vscode.postMessage({ type: 'stopRequest' });
-    isProcessing = false;
-    enableButtons();
-    hideStopButton();
-}
-
-function clearMessages(): void {
-    const messagesDiv = document.getElementById('chatMessages');
-    if (messagesDiv) {
-        messagesDiv.innerHTML = '';
-    }
-}
-
-function displayConversationList(conversations: any[]): void {
-    const listDiv = document.getElementById('conversationList');
-    if (!listDiv) {return;}
-    listDiv.innerHTML = '';
-    if (conversations.length === 0) {
-        listDiv.innerHTML = '<p style="text-align: center; color: var(--vscode-descriptionForeground);">No conversations found</p>';
-        return;
-    }
-    conversations.forEach(conv => {
-        const item = document.createElement('div');
-        item.className = 'conversation-item';
-        item.onclick = () => loadConversation(conv.filename);
-        const date = new Date(conv.startTime).toLocaleDateString();
-        const time = new Date(conv.startTime).toLocaleTimeString();
-        item.innerHTML = `
-            <div class="conversation-title">${conv.firstUserMessage.substring(0, 60)}${conv.firstUserMessage.length > 60 ? '...' : ''}</div>
-            <div class="conversation-meta">${date} at ${time} • ${conv.messageCount} messages • $${conv.totalCost.toFixed(2)}</div>
-            <div class="conversation-preview">Last: ${conv.lastUserMessage.substring(0, 80)}${conv.lastUserMessage.length > 80 ? '...' : ''}</div>
-        `;
-        listDiv.appendChild(item);
-    });
-}
-
-function loadConversation(filename: string): void {
-    vscode.postMessage({
-        type: 'loadConversation',
-        filename: filename
-    });
-    // Hide conversation history and show chat
-    uiCore.toggleConversationHistory();
-}
-
-function toggleStatusPopover(): void {
-    const statusPopover = document.getElementById('statusPopover');
-    if (!statusPopover) {return;}
-
-    if (statusPopover.style.display === 'none' || !statusPopover.style.display) {
-        // Show popover with current status info
-        updateStatusPopoverContent();
-        statusPopover.style.display = 'block';
-
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-            statusPopover.style.display = 'none';
-        }, 5000);
-    } else {
-        statusPopover.style.display = 'none';
-    }
-}
-
-function updateStatusPopoverContent(): void {
-    const statusPopover = document.getElementById('statusPopover');
-    if (!statusPopover) {return;}
-
-    const totalTokens = totalTokensInput + totalTokensOutput;
-    const statusText = currentStatus === 'ready' ? 'Ready' : currentStatus === 'processing' ? 'Processing' : 'Error';
-
-    // Format costs with 2 decimals and pad to align with total tokens
-    const lastCostStr = lastRequestCost > 0 ? lastRequestCost.toFixed(2) : '0.00';
-    const totalCostStr = totalCost > 0 ? totalCost.toFixed(2) : '0.00';
-    const totalTokensStr = totalTokens.toLocaleString();
-
-    statusPopover.innerHTML = `
-        <div class="status-popover-content">
-            <table class="status-table">
-                <tr>
-                    <td>${statusText}:</td>
-                    <td>$${lastCostStr}</td>
-                    <td>${lastRequestTokens.toLocaleString()} tk</td>
-                </tr>
-                <tr>
-                    <td>Session total:</td>
-                    <td>$${totalCostStr}</td>
-                    <td>${totalTokensStr} tk</td>
-                </tr>
-            </table>
-        </div>
-    `;
-}
-
-function updateEditorContextDisplay(contextData: any): void {
-    const editorContextLine = document.getElementById('editorContextLine');
-    if (!editorContextLine) {
-        return;
-    }
-
-    currentEditorContext = contextData;
-
-    if (!contextData || !contextData.hasActiveFile) {
-        editorContextLine.style.display = 'none';
-        return;
-    }
-
-    // Build simple context line
-    let contextText = 'in ' + contextData.fileName;
-
-    if (contextData.selection && contextData.selectedText) {
-        // VS Code already provides 1-based line numbers
-        const startLine = contextData.selection.start.line;
-        const endLine = contextData.selection.end.line;
-        contextText += ':' + startLine + '-' + endLine;
-    } else if (contextData.cursorPosition) {
-        // VS Code already provides 1-based line numbers
-        const cursorLine = contextData.cursorPosition.line;
-        contextText += ':' + cursorLine;
-    }
-
-    editorContextLine.textContent = contextText;
-    editorContextLine.style.display = 'block';
-}
-
-function disableButtons(): void {
-    const buttons = document.querySelectorAll('button:not(#stopBtn)');
-    buttons.forEach(btn => {
-        (btn as HTMLButtonElement).disabled = true;
-    });
-}
-
-function enableButtons(): void {
-    const buttons = document.querySelectorAll('button');
-    buttons.forEach(btn => {
-        (btn as HTMLButtonElement).disabled = false;
-    });
-}
-
-function showStopButton(): void {
-    const stopBtn = document.getElementById('stopBtn');
-    if (stopBtn) {
-        stopBtn.style.display = 'flex';
-    }
-}
-
-function hideStopButton(): void {
-    const stopBtn = document.getElementById('stopBtn');
-    if (stopBtn) {
-        stopBtn.style.display = 'none';
-    }
-}
-
-function updateInputStatusIndicator(): void {
-    const inputIndicator = document.getElementById('inputStatusIndicator');
-    if (!inputIndicator) {return;}
-
-    // Remove all status classes
-    inputIndicator.classList.remove('ready', 'processing', 'error');
-
-    // Add current status class
-    inputIndicator.classList.add(currentStatus);
 }

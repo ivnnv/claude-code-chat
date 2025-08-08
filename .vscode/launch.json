@@ -10,70 +10,19 @@
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}"
-			],
-			"outFiles": [
-				"${workspaceFolder}/out/**/*.js"
-			],
-			"preLaunchTask": "pnpm: dev",
-			"sourceMaps": true,
-			"env": {
-				"VSCODE_DEBUG": "true"
-			}
-		},
-		{
-			"name": "DebugExtTD",
-			"type": "extensionHost",
-			"request": "launch",
-			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
-				"/Users/ivnnv/Sites/ivnnv/tradingdroid-frontends"
+				"--new-window",
+				"--user-data-dir=${workspaceFolder}/.vscode-debug-profile",
+				"/Users/ivnnv/Sites/overloop/orchard-suite"
 			],
 			"outFiles": [
 				"${workspaceFolder}/out/**/*.js"
 			],
-			"preLaunchTask": "pnpm: clean-compile",
+			"preLaunchTask": "pnpm: dev",
 			"sourceMaps": true,
 			"env": {
 				"VSCODE_DEBUG": "true"
 			}
 		},
-		{
-			"name": "Debug Extension (No Watch)",
-			"type": "extensionHost",
-			"request": "launch",
-			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}"
-			],
-			"outFiles": [
-				"${workspaceFolder}/out/**/*.js"
-			],
-			"preLaunchTask": "pnpm: compile",
-			"sourceMaps": true
-		},
-		{
-			"name": "Debug Webview (Chrome)",
-			"type": "chrome",
-			"request": "launch",
-			"url": "http://localhost:3000",
-			"webRoot": "${workspaceFolder}/src",
-			"sourceMaps": true,
-			"preLaunchTask": "pnpm: dev",
-			"userDataDir": "${workspaceFolder}/.chrome-debug",
-			"runtimeArgs": [
-				"--remote-debugging-port=9222",
-				"--disable-web-security"
-			]
-		}
-	],
-	"compounds": [
-		{
-			"name": "Debug Extension + Webview",
-			"configurations": [
-				"DebugExt",
-				"Debug Webview (Chrome)"
-			],
-			"stopAll": true
-		}
 	]
 }

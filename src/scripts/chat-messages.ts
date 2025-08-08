@@ -1,4 +1,9 @@
 // Chat and message handling functionality
+import '../types/global';
+
+// Module references that will be set at runtime
+let uiCoreRef: any;
+let settingsModalsRef: any;
 
 // VS Code API will be provided by ui-scripts.ts
 let vscode: any;
@@ -339,26 +344,56 @@ export function addToolUseMessage(data: any): void {
 }
 
 export function sendMessage(): void {
+	if (!messageInput || window.isProcessing) {return;}
+
 	const text = messageInput.value.trim();
+	if (!text) {return;}
 
-	if (text) {
-		// Enhance message with editor context if available
-		let enhancedText = text;
-		const contextInfo = getEditorContextInfo();
-		if (contextInfo) {
-			enhancedText = contextInfo + '\n\n' + text;
-		}
-		sendStats('Send message');
+	// Enhance message with editor context if available
+	let enhancedText = text;
+	const contextInfo = getEditorContextInfo();
+	if (contextInfo) {
+		enhancedText = contextInfo + '\n\n' + text;
+	}
 
-		vscode.postMessage({
-			type: 'sendMessage',
-			text: enhancedText,
-			planMode: planModeEnabled,
-			thinkingMode: thinkingModeEnabled,
-			editorContext: currentEditorContext
-		});
+	// Don't add user message here - let extension handle it via userInput message
 
-		messageInput.value = '';
+	// Clear input
+	messageInput.value = '';
+	messageInput.style.height = 'auto';
+
+	// Set processing state - use UI core functions
+	window.isProcessing = true;
+	if (uiCoreRef) {
+		uiCoreRef.disableButtons();
+		uiCoreRef.showStopButton();
+	}
+
+	sendStats('Send message');
+
+	// Send to VS Code
+	vscode.postMessage({
+		type: 'sendMessage',
+		text: enhancedText,
+		planMode: settingsModalsRef?.getPlanModeEnabled() || planModeEnabled,
+		thinkingMode: settingsModalsRef?.getThinkingModeEnabled() || thinkingModeEnabled,
+		editorContext: window.currentEditorContext || currentEditorContext
+	});
+}
+
+export function stopRequest(): void {
+	vscode.postMessage({ type: 'stopRequest' });
+	window.isProcessing = false;
+	if (uiCoreRef) {
+		uiCoreRef.enableButtons();
+		uiCoreRef.hideStopButton();
+	}
+}
+
+export function clearMessages(): void {
+	const messagesDiv = document.getElementById('chatMessages');
+	if (messagesDiv) {
+		messagesDiv.innerHTML = '';
 	}
 }
 
@@ -555,7 +590,7 @@ export function formatEditToolDiff(input: any): string {
 	// Create header with proper row structure and checkpoint support like monolithic version
 	let changesRow = '<div class="diff-changes-row">';
 	changesRow += '<span class="diff-changes-label">Changes:</span>';
-	const currentCheckpoint = (window as any).currentCheckpoint;
+	const currentCheckpoint = window.currentCheckpoint;
 	console.log('formatEditToolDiff - currentCheckpoint:', currentCheckpoint);
 	if (currentCheckpoint) {
 		console.log('formatEditToolDiff - Adding restore button with checkpoint:', currentCheckpoint);
@@ -637,7 +672,7 @@ export function formatMultiEditToolDiff(input: any): string {
 	headerContent += '<span class="diff-changes-count">Changes (' + input.edits.length + ')</span>';
 
 	// Add checkpoint timestamp and restore button if available
-	const currentCheckpoint = (window as any).currentCheckpoint;
+	const currentCheckpoint = window.currentCheckpoint;
 	if (currentCheckpoint) {
 		const timeAgo = new Date(currentCheckpoint.timestamp).toLocaleTimeString();
 		headerContent += '<div class="diff-timestamp-group">';
@@ -728,7 +763,7 @@ export function formatWriteToolDiff(input: any): string {
 	let headerContent = 'New file content: <span class="diff-file-path-inline" data-file-path="' + escapeHtml(input.file_path) + '" style="cursor: pointer; font-size: 10px; opacity: 0.7; font-weight: normal;">' + formattedPath + '</span>';
 
 	// Add checkpoint timestamp and restore button if available
-	const currentCheckpoint = (window as any).currentCheckpoint;
+	const currentCheckpoint = window.currentCheckpoint;
 	if (currentCheckpoint) {
 		const timeAgo = new Date(currentCheckpoint.timestamp).toLocaleTimeString();
 		headerContent += '<div class="diff-timestamp-group" style="float: right;">';
@@ -807,6 +842,12 @@ export function setThinkingModeEnabled(enabled: boolean): void {
 
 export function setCurrentEditorContext(context: any): void {
 	currentEditorContext = context;
+}
+
+// Set module references (called from ui-scripts.ts)
+export function setModuleReferences(uiCore: any, settingsModals: any): void {
+	uiCoreRef = uiCore;
+	settingsModalsRef = settingsModals;
 }
 
 // Set VS Code API (called from ui-scripts.ts)

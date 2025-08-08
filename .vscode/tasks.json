@@ -69,9 +69,16 @@
 			"isBackground": true,
 			"presentation": {
 				"reveal": "always",
-				"panel": "new"
+				"panel": "dedicated",
+				"showReuseMessage": false,
+				"clear": true
 			},
 			"group": "build",
+			"options": {
+				"env": {
+					"FORCE_COLOR": "1"
+				}
+			},
 			"problemMatcher": [
 				{
 					"owner": "typescript",
@@ -131,6 +138,6 @@
 				"kind": "build",
 				"isDefault": false
 			}
-		}
+		},
 	]
 }
