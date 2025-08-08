@@ -28,7 +28,7 @@
       "Bash(-e '1865s/).*{/) { \\/\\/ MIGRATED/' )",
       "Bash(-e '1869s/).*{/) { \\/\\/ MIGRATED/' )",
       "Bash(-e '1875s/).*{/) { \\/\\/ MIGRATED/' )",
-      "Bash(/Users/ivnnv/Sites/ivnnv/claude-code-sidebar/src/ui.ts)",
+      "Bash(/Users/ivnnv/Sites/ivnnv/claude-code-vsc-panel/src/ui.ts)",
       "Bash(npm install)",
       "Bash(convert:*)",
       "Bash(magick:*)",
@@ -46,14 +46,14 @@
       "Bash(pnpm run:*)",
       "Bash(vsce package:*)",
       "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --list-extensions)",
-      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --uninstall-extension ivnnv.claude-code-sidebar)",
-      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --install-extension /Users/ivnnv/Sites/ivnnv/claude-code-sidebar/claude-code-sidebar-1.1.0.vsix)",
-      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --install-extension /Users/ivnnv/Sites/ivnnv/claude-code-sidebar/claude-code-sidebar-1.1.1.vsix)",
+      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --uninstall-extension ivnnv.claude-code-vsc-panel)",
+      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --install-extension /Users/ivnnv/Sites/ivnnv/claude-code-vsc-panel/claude-code-vsc-panel-1.1.0.vsix)",
+      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --install-extension /Users/ivnnv/Sites/ivnnv/claude-code-vsc-panel/claude-code-vsc-panel-1.1.1.vsix)",
       "Bash(npx @vscode/vsce package:*)",
       "Bash(claude config show:*)",
       "Bash(claude config list:*)",
       "Bash(pkill:*)",
-      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --install-extension claude-code-sidebar-1.2.1.vsix)"
+      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --install-extension claude-code-vsc-panel-1.2.1.vsix)"
     ],
     "deny": []
   },

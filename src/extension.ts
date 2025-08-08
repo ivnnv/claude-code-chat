@@ -10,39 +10,39 @@ export function activate(context: vscode.ExtensionContext) {
 	console.log('Claude Code Sidebar extension is being activated!');
 	const provider = new ClaudeChatProvider(context.extensionUri, context);
 
-	const disposable = vscode.commands.registerCommand('claude-code-sidebar.openChat', (column?: vscode.ViewColumn) => {
+	const disposable = vscode.commands.registerCommand('claude-code-vsc-panel.openChat', (column?: vscode.ViewColumn) => {
 		console.log('Claude Code Sidebar command executed!');
 		provider.show(column);
 	});
 
-	const loadConversationDisposable = vscode.commands.registerCommand('claude-code-sidebar.loadConversation', (filename: string) => {
+	const loadConversationDisposable = vscode.commands.registerCommand('claude-code-vsc-panel.loadConversation', (filename: string) => {
 		provider.loadConversation(filename);
 	});
 
 	// Register webview view provider for sidebar chat (using shared provider instance)
 	const webviewProvider = new ClaudeChatWebviewProvider(context.extensionUri, context, provider);
-	vscode.window.registerWebviewViewProvider('claude-code-sidebar.chat', webviewProvider);
+	vscode.window.registerWebviewViewProvider('claude-code-vsc-panel.chat', webviewProvider);
 
 	// Register new command handlers for the native title bar buttons
-	const settingsDisposable = vscode.commands.registerCommand('claude-code-sidebar.settings', () => {
+	const settingsDisposable = vscode.commands.registerCommand('claude-code-vsc-panel.settings', () => {
 		webviewProvider.postMessage({ type: 'showSettings' });
 	});
 
-	const historyDisposable = vscode.commands.registerCommand('claude-code-sidebar.history', () => {
+	const historyDisposable = vscode.commands.registerCommand('claude-code-vsc-panel.history', () => {
 		webviewProvider.postMessage({ type: 'showHistory' });
 	});
 
-	const newChatDisposable = vscode.commands.registerCommand('claude-code-sidebar.newChat', () => {
+	const newChatDisposable = vscode.commands.registerCommand('claude-code-vsc-panel.newChat', () => {
 		webviewProvider.postMessage({ type: 'newSession' });
 	});
 
-	const statusInfoDisposable = vscode.commands.registerCommand('claude-code-sidebar.statusInfo', () => {
+	const statusInfoDisposable = vscode.commands.registerCommand('claude-code-vsc-panel.statusInfo', () => {
 		webviewProvider.postMessage({ type: 'toggleStatusInfo' });
 	});
 
 	// Listen for configuration changes
 	const configChangeDisposable = vscode.workspace.onDidChangeConfiguration(event => {
-		if (event.affectsConfiguration('claudeCodeSidebar.wsl')) {
+		if (event.affectsConfiguration('claudeCodeVscPanel.wsl')) {
 			console.log('WSL configuration changed, starting new session');
 			provider.newSessionOnConfigChange();
 		}
@@ -52,7 +52,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
 	statusBarItem.text = "Claude";
 	statusBarItem.tooltip = "Open Claude Code Sidebar (Ctrl+Shift+C)";
-	statusBarItem.command = 'claude-code-sidebar.openChat';
+	statusBarItem.command = 'claude-code-vsc-panel.openChat';
 	statusBarItem.show();
 
 	context.subscriptions.push(disposable, loadConversationDisposable, settingsDisposable, historyDisposable, newChatDisposable, statusInfoDisposable, configChangeDisposable, statusBarItem);
@@ -491,7 +491,7 @@ class ClaudeChatProvider {
 				actualMessage = 'PLAN FIRST FOR THIS MESSAGE ONLY: Plan first before making any changes. Show me in detail what you will change and wait for my explicit approval in a separate message before proceeding. Do not implement anything until I confirm. This planning requirement applies ONLY to this current message. \n\n' + message;
 			}
 			if (thinkingMode) {
-				const config = vscode.workspace.getConfiguration('claudeCodeSidebar');
+				const config = vscode.workspace.getConfiguration('claudeCodeVscPanel');
 				const thinkingIntensity = config.get<string>('thinking.intensity', 'think');
 				let thinkingPrompt = '';
 				const thinkingMessage = ' THROUGH THIS STEP BY STEP: \n';
@@ -531,7 +531,7 @@ class ClaudeChatProvider {
 		const cwd = workspaceFolder ? workspaceFolder.uri.fsPath : process.cwd();
 
 		// Get thinking intensity setting
-		const configThink = vscode.workspace.getConfiguration('claudeCodeSidebar');
+		const configThink = vscode.workspace.getConfiguration('claudeCodeVscPanel');
 		const thinkingIntensity = configThink.get<string>('thinking.intensity', 'think');
 
 		// Prepend mode instructions if enabled
@@ -599,7 +599,7 @@ class ClaudeChatProvider {
 		];
 
 		// Get configuration
-		const config = vscode.workspace.getConfiguration('claudeCodeSidebar');
+		const config = vscode.workspace.getConfiguration('claudeCodeVscPanel');
 		const yoloMode = config.get<boolean>('permissions.yoloMode', false);
 
 		if (yoloMode) {
@@ -612,8 +612,8 @@ class ClaudeChatProvider {
 				const convertedPath = this.convertToWSLPath(mcpConfigPath);
 				// Escape path with quotes to handle spaces
 				args.push('--mcp-config', `"${convertedPath}"`);
-				args.push('--allowedTools', 'mcp__claude-code-sidebar-permissions__approval_prompt');
-				args.push('--permission-prompt-tool', 'mcp__claude-code-sidebar-permissions__approval_prompt');
+				args.push('--allowedTools', 'mcp__claude-code-vsc-panel-permissions__approval_prompt');
+				args.push('--permission-prompt-tool', 'mcp__claude-code-vsc-panel-permissions__approval_prompt');
 			} else {
 				}
 		}
@@ -1097,7 +1097,7 @@ class ClaudeChatProvider {
 		});
 
 		// Get configuration to check if WSL is enabled
-		const config = vscode.workspace.getConfiguration('claudeCodeSidebar');
+		const config = vscode.workspace.getConfiguration('claudeCodeVscPanel');
 		const wslEnabled = config.get<boolean>('wsl.enabled', false);
 		const wslDistro = config.get<string>('wsl.distro', 'Ubuntu');
 		const nodePath = config.get<string>('wsl.nodePath', '/usr/bin/node');
@@ -1319,7 +1319,7 @@ class ClaudeChatProvider {
 			}
 
 			// Add or update the permissions server entry
-			mcpConfig.mcpServers['claude-code-sidebar-permissions'] = {
+			mcpConfig.mcpServers['claude-code-vsc-panel-permissions'] = {
 				command: 'node',
 				args: [mcpPermissionsPath],
 				env: {
@@ -1767,7 +1767,7 @@ class ClaudeChatProvider {
 
 			// Filter out internal servers before sending to UI
 			const filteredServers = Object.fromEntries(
-				Object.entries(mcpConfig.mcpServers || {}).filter(([name]) => name !== 'claude-code-sidebar-permissions')
+				Object.entries(mcpConfig.mcpServers || {}).filter(([name]) => name !== 'claude-code-vsc-panel-permissions')
 			);
 			this._postMessage({ type: 'mcpServers', data: filteredServers });
 		} catch (error) {
@@ -1927,7 +1927,7 @@ class ClaudeChatProvider {
 	}
 
 	private convertToWSLPath(windowsPath: string): string {
-		const config = vscode.workspace.getConfiguration('claudeCodeSidebar');
+		const config = vscode.workspace.getConfiguration('claudeCodeVscPanel');
 		const wslEnabled = config.get<boolean>('wsl.enabled', false);
 
 		if (wslEnabled && windowsPath.match(/^[a-zA-Z]:/)) {
@@ -2430,7 +2430,7 @@ class ClaudeChatProvider {
 	}
 
 	private _sendCurrentSettings(): void {
-		const config = vscode.workspace.getConfiguration('claudeCodeSidebar');
+		const config = vscode.workspace.getConfiguration('claudeCodeVscPanel');
 		const settings = {
 			'thinking.intensity': config.get<string>('thinking.intensity', 'think'),
 			'wsl.enabled': config.get<boolean>('wsl.enabled', false),
@@ -2449,7 +2449,7 @@ class ClaudeChatProvider {
 	private async _enableYoloMode(): Promise<void> {
 		try {
 			// Update VS Code configuration to enable YOLO mode
-			const config = vscode.workspace.getConfiguration('claudeCodeSidebar');
+			const config = vscode.workspace.getConfiguration('claudeCodeVscPanel');
 
 			// Clear any global setting and set workspace setting
 			await config.update('permissions.yoloMode', true, vscode.ConfigurationTarget.Workspace);
@@ -2469,7 +2469,7 @@ class ClaudeChatProvider {
 	}
 
 	private async _updateSettings(settings: { [key: string]: any }): Promise<void> {
-		const config = vscode.workspace.getConfiguration('claudeCodeSidebar');
+		const config = vscode.workspace.getConfiguration('claudeCodeVscPanel');
 
 		try {
 			for (const [key, value] of Object.entries(settings)) {
@@ -2518,7 +2518,7 @@ class ClaudeChatProvider {
 	}
 
 	private _openModelTerminal(): void {
-		const config = vscode.workspace.getConfiguration('claudeCodeSidebar');
+		const config = vscode.workspace.getConfiguration('claudeCodeVscPanel');
 		const wslEnabled = config.get<boolean>('wsl.enabled', false);
 		const wslDistro = config.get<string>('wsl.distro', 'Ubuntu');
 		const nodePath = config.get<string>('wsl.nodePath', '/usr/bin/node');
@@ -2555,7 +2555,7 @@ class ClaudeChatProvider {
 	}
 
 	private _executeSlashCommand(command: string): void {
-		const config = vscode.workspace.getConfiguration('claudeCodeSidebar');
+		const config = vscode.workspace.getConfiguration('claudeCodeVscPanel');
 		const wslEnabled = config.get<boolean>('wsl.enabled', false);
 		const wslDistro = config.get<string>('wsl.distro', 'Ubuntu');
 		const nodePath = config.get<string>('wsl.nodePath', '/usr/bin/node');
@@ -2596,7 +2596,7 @@ class ClaudeChatProvider {
 		const dismissed = this._context.globalState.get<boolean>('wslAlertDismissed', false);
 
 		// Get WSL configuration
-		const config = vscode.workspace.getConfiguration('claudeCodeSidebar');
+		const config = vscode.workspace.getConfiguration('claudeCodeVscPanel');
 		const wslEnabled = config.get<boolean>('wsl.enabled', false);
 
 		this._postMessage({
@@ -2642,7 +2642,7 @@ class ClaudeChatProvider {
 			const imageFileName = `image_${timestamp}.${extension}`;
 
 			// Create images folder in workspace .claude directory
-			const imagesDir = vscode.Uri.joinPath(workspaceFolder.uri, '.claude', 'claude-code-sidebar-images');
+			const imagesDir = vscode.Uri.joinPath(workspaceFolder.uri, '.claude', 'claude-code-vsc-panel-images');
 			await vscode.workspace.fs.createDirectory(imagesDir);
 
 			// Create .gitignore to ignore all images

@@ -1,6 +1,6 @@
-# 🚀 Claude Code Sidebar - Clean, Modular Claude Code Interface for VS Code
+# 🚀 Claude Code VSC Panel - Advanced Claude Code Interface for VS Code
 
-> **Independent Fork**: Originally forked from [claude-code-chat](https://github.com/andrepimenta/claude-code-chat) by Andre Pimenta, now evolved into its own project with significant architectural improvements and privacy-first approach.
+> **Next-Level Evolution**: Originally inspired by [claude-code-chat](https://github.com/andrepimenta/claude-code-chat) by Andre Pimenta, this project has evolved into a completely different experience with advanced architectural improvements, next-level features, and privacy-first approach. Huge thanks to Andre for the initial work and inspiration that made this possible!
 
 [![VS Code Extension](https://img.shields.io/badge/VS%20Code-Extension-blue?style=for-the-badge&logo=visual-studio-code)](#)
 [![Claude Code](https://img.shields.io/badge/Powered%20by-Claude%20Code-orange?style=for-the-badge)](https://claude.ai/code)
@@ -109,9 +109,9 @@ src/
 
 1. **Download and Install**
    - Download the `.vsix` file from releases
-   - Run `code --install-extension claude-code-sidebar-x.x.x.vsix`
+   - Run `code --install-extension claude-code-vsc-panel-x.x.x.vsix`
 
-2. **Open Claude Code Sidebar**
+2. **Open Claude Code VSC Panel**
    - Press `Ctrl+Shift+C` (or `Cmd+Shift+C` on Mac)
    - Or click the Claude icon in your activity bar
    - Or use Command Palette: `Claude Code: Open Chat`
@@ -123,7 +123,7 @@ src/
 ### Keyboard Shortcuts
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+Shift+C` | Open Claude Code Sidebar |
+| `Ctrl+Shift+C` | Open Claude Code VSC Panel |
 | `Enter` | Send message |
 | `@` | Open file picker |
 | `/` | Open slash commands modal |
@@ -133,10 +133,10 @@ Configure WSL integration through VS Code Settings:
 
 ```json
 {
-  "claudeCodeSidebar.wsl.enabled": true,
-  "claudeCodeSidebar.wsl.distro": "Ubuntu",
-  "claudeCodeSidebar.wsl.nodePath": "/usr/bin/node",
-  "claudeCodeSidebar.wsl.claudePath": "/usr/local/bin/claude"
+  "claudeCodeVscPanel.wsl.enabled": true,
+  "claudeCodeVscPanel.wsl.distro": "Ubuntu",
+  "claudeCodeVscPanel.wsl.nodePath": "/usr/bin/node",
+  "claudeCodeVscPanel.wsl.claudePath": "/usr/local/bin/claude"
 }
 ```
 
@@ -154,8 +154,8 @@ We welcome contributions to make this the best Claude Code experience! Our focus
 
 ### Development Setup
 ```bash
-git clone https://github.com/ivnnv/claude-code-sidebar
-cd claude-code-sidebar
+git clone https://github.com/ivnnv/claude-code-vsc-panel
+cd claude-code-vsc-panel
 pnpm install   # Fast installs with pnpm
 
 # Development commands
@@ -193,7 +193,7 @@ See the [LICENSE](LICENSE) file for details.
 
 ## 🆚 **This Project vs Others**
 
-| Feature | Other Claude Extensions | Claude Code Sidebar |
+| Feature | Other Claude Extensions | Claude Code VSC Panel |
 |---------|-------------------------|-------------------|
 | Architecture | Monolithic/Legacy | Modern Modular |
 | Design | Custom/Inconsistent | Native VS Code Integration |
@@ -207,8 +207,8 @@ See the [LICENSE](LICENSE) file for details.
 
 ## 📞 **Support**
 
-- 🐛 **Issues**: [GitHub Issues](https://github.com/ivnnv/claude-code-sidebar/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/ivnnv/claude-code-sidebar/discussions)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/ivnnv/claude-code-vsc-panel/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/ivnnv/claude-code-vsc-panel/discussions)
 - 📧 **Contact**: ivnnv@hotmail.com
 
 ---
