@@ -135,7 +135,17 @@ export function addMessage(content: string, type = 'claude'): void {
 	if (type === 'claude') {
 		const messageDiv = document.createElement('div');
 		messageDiv.id = messageId;
-		messageDiv.className = 'claudeMessage';
+
+		// Detect structured file/path content for special styling
+		const hasPathInfo = content.includes('path: /') || content.includes('pattern: ') || content.includes('No files found');
+		const hasSecurityWarning = content.includes('seem malicious') || content.includes('NOTE: do any');
+
+		let className = 'claudeMessage';
+		if (hasPathInfo || hasSecurityWarning) {
+			className += ' pathListing';
+		}
+
+		messageDiv.className = className;
 
 		// Add copy button for Claude messages
 		const copyBtn = document.createElement('button');
@@ -262,6 +272,60 @@ export function addToolUseMessage(data: any): void {
 		return;
 	}
 
+	if (data.toolName === 'TodoWrite' && data.rawInput && data.rawInput.todos) {
+		// Handle TodoWrite as systemMessage instead of tool message
+		const todoMessageDiv = document.createElement('div');
+		todoMessageDiv.className = 'systemMessage claudeContext todoList';
+
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'systemMessage-content';
+
+		let todoHtml = '<strong>Todo List Update:</strong><br>';
+		for (const todo of data.rawInput.todos) {
+			const status = todo.status === 'completed' ? '✅' :
+				todo.status === 'in_progress' ? '🔄' : '⏳';
+			todoHtml += status + ' ' + todo.content + '<br>';
+		}
+		contentDiv.innerHTML = todoHtml;
+		todoMessageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(todoMessageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
+	// Handle path-related tools as systemMessage
+	const pathTools = ['LS', 'Glob', 'Grep', 'Read'];
+	if (pathTools.includes(data.toolName) && data.rawInput) {
+		const pathMessageDiv = document.createElement('div');
+		pathMessageDiv.className = 'systemMessage claudeContext pathTool';
+
+		const commandDiv = document.createElement('div');
+		commandDiv.className = 'systemMessage-command';
+
+		let pathHtml = `<span class="command">${data.toolName}:</span>`;
+		if (data.rawInput.file_path) {
+			pathHtml += ` <span class="result">path: ${data.rawInput.file_path}</span>`;
+		} else if (data.rawInput.path) {
+			pathHtml += ` <span class="result">path: ${data.rawInput.path}</span>`;
+		} else if (data.rawInput.pattern) {
+			pathHtml += ` <span class="result">pattern: ${data.rawInput.pattern}</span>`;
+		} else {
+			// Fallback - show raw input
+			pathHtml += ` <span class="result">${JSON.stringify(data.rawInput, null, 2)}</span>`;
+		}
+
+		commandDiv.innerHTML = pathHtml;
+		pathMessageDiv.appendChild(commandDiv);
+
+		// Store reference for result attachment
+		window.lastPathToolMessage = pathMessageDiv;
+
+		messagesDiv.appendChild(pathMessageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
 	const messageDiv = document.createElement('div');
 	messageDiv.className = 'message tool';
 
@@ -293,18 +357,8 @@ export function addToolUseMessage(data: any): void {
 		const contentDiv = document.createElement('div');
 		contentDiv.className = 'tool-input-content';
 
-		// Handle TodoWrite specially or format raw input
-		if (data.toolName === 'TodoWrite' && data.rawInput.todos) {
-			let todoHtml = 'Todo List Update:';
-			for (const todo of data.rawInput.todos) {
-				const status = todo.status === 'completed' ? '✅' :
-					todo.status === 'in_progress' ? '🔄' : '⏳';
-				todoHtml += '\n' + status + ' ' + todo.content + ' <span class="priority-badge ' + todo.priority + '">' + todo.priority + '</span>';
-			}
-			contentDiv.innerHTML = todoHtml;
-			inputElement.appendChild(contentDiv);
-			messageDiv.appendChild(inputElement);
-		} else if (data.toolName === 'Edit') {
+		// Handle different tool types
+		if (data.toolName === 'Edit') {
 			// For Edit tools, show the diff format directly without wrapping in tool-input
 			contentDiv.innerHTML = formatEditToolDiff(data.rawInput);
 			messageDiv.appendChild(contentDiv);

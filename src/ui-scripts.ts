@@ -39,6 +39,9 @@ if (document.readyState === 'loading') {
 
 
 function initializeUI() {
+    // JS reload detection
+    console.log(`📦 JS reloaded: ${new Date().toLocaleTimeString()}`);
+
     // Get DOM elements
     messageInput = document.getElementById('messageInput') as HTMLTextAreaElement;
 
@@ -542,8 +545,24 @@ function setupMessageHandler() {
                 break;
 
             case 'hotReload':
-                // Handle hot reload - refresh CSS without losing DOM state
-                uiCore.reloadCSS();
+                // Handle hot reload - for JS changes, request webview recreation; for CSS, just refresh CSS
+                if (message.reloadType === 'full') {
+                    console.log('📦 JS modified, reloading webview');
+                    vscode.postMessage({
+                        type: 'recreateWebview',
+                        reason: 'jsHotReload',
+                        timestamp: message.timestamp
+                    });
+                } else if (message.reloadType === 'css') {
+                    console.log('🎨 CSS modified, reloading styles');
+                    uiCore.reloadCSS();
+                } else {
+                    vscode.postMessage({
+                        type: 'recreateWebview',
+                        reason: 'unknownHotReload',
+                        timestamp: message.timestamp
+                    });
+                }
                 break;
 
             default:

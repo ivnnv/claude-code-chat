@@ -10,10 +10,12 @@ export interface GlobalState {
   currentEditorContext: any;
   isProcessing: boolean;
   currentCheckpoint: { sha: string; timestamp: string } | null;
+  lastPathToolMessage?: HTMLElement;
 }
 
 // Extend the Window interface
 declare global {
+  // eslint-disable-next-line no-unused-vars
   interface Window extends GlobalState {
     // Module references
     uiCore: typeof import('../scripts/ui-core');
@@ -21,7 +23,7 @@ declare global {
     chatMessages: typeof import('../scripts/chat-messages');
     permissions: typeof import('../scripts/permissions');
     mcpServers: typeof import('../scripts/mcp-servers');
-    
+
     // Functions exposed globally for HTML onclick handlers
     sendMessage(): void;
     stopRequest(): void;

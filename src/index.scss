@@ -702,6 +702,7 @@ body {
     margin-bottom: 0;
 }
 
+
 .message.thinking {
     padding: 6px 0;
     color: var(--vscode-descriptionForeground);
@@ -943,6 +944,18 @@ body {
 .tool-input-content {
     color: var(--vscode-editor-foreground);
     opacity: 0.95;
+}
+
+.systemMessage.claudeContext.pathTool .systemMessage-command {
+    flex-direction: column;
+    padding: 4px;
+    word-break: break-all;
+    width: fit-content;
+}
+
+.systemMessage.claudeContext.pathTool .systemMessage-content {
+    font-family: var(--vscode-editor-font-family);
+    font-size: calc(var(--vscode-editor-font-size) * 0.5);
 }
 
 /* Diff display styles for Edit tool */
@@ -3063,15 +3076,22 @@ pre {
     font-family: var(--vscode-font-family);
 }
 
+.claudeMessage.pathListing .claudeMessage-content {
+    font-family: var(--vscode-editor-font-family);
+    font-size: calc(var(--vscode-editor-font-size) * 0.75);
+    line-height: 1.3;
+}
+
 .systemMessage.claudeContext {
     border-left: 2px solid #b85a40 !important;
     margin-bottom: 2px;
     padding: 0;
-    font-size: 0.85em;
 }
 
 .systemMessage.claudeContext .systemMessage-content {
     padding-left: 6px;
+    font-family: var(--vscode-editor-font-family);
+    font-size: calc(var(--vscode-editor-font-size) * 0.66);
 }
 
 .systemMessage-command {
@@ -3080,6 +3100,12 @@ pre {
     display: flex;
     font-family: var(--vscode-editor-font-family);
     font-size: calc(var(--vscode-editor-font-size)* 0.66);
+    word-break: break-all;
+
+    .result {
+        display: inline;
+        word-break: break-all;
+    }
 }
 
 .systemMessage-response {

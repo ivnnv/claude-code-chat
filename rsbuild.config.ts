@@ -47,9 +47,16 @@ export default defineConfig(({ env, command }) => {
     dev: {
       // For VS Code webview development - write to disk so extension can read files
       writeToDisk: true,
-      // Disable HMR in VS Code webview context as it conflicts with our custom hot reload
+      // Disable HMR and liveReload but allow file watching for builds
       hmr: false,
       liveReload: false,
+      // Enable file watching to rebuild JS files when source changes
+      watchFiles: {
+        paths: ['src/**/*'],
+        options: {
+          usePolling: false,
+        }
+      }
     },
   };
 });

@@ -424,6 +424,9 @@ class ClaudeChatProvider {
 			case 'saveInputText':
 				this._saveInputText(message.text);
 				return;
+			case 'recreateWebview':
+				this._recreateWebviewForHotReload(message);
+				return;
 		}
 	}
 
@@ -868,7 +871,7 @@ class ClaudeChatProvider {
 									for (const todo of content.input.todos) {
 										const status = todo.status === 'completed' ? '✅' :
 											todo.status === 'in_progress' ? '🔄' : '⏳';
-										toolInput += `\n${status} ${todo.content} (priority: ${todo.priority})`;
+										toolInput += `\n${status} ${todo.content}`;
 									}
 								} else {
 									// Send raw input to UI for formatting
@@ -1345,7 +1348,7 @@ class ClaudeChatProvider {
 				mcpConfig = JSON.parse(new TextDecoder().decode(existingContent));
 				console.log('Loaded existing MCP config, preserving user servers');
 			} catch {
-				console.log('No existing MCP config found, creating new one');
+				console.log('No existing MCP config found. creating new one');
 			}
 
 			// Ensure mcpServers exists
@@ -2324,6 +2327,22 @@ class ClaudeChatProvider {
 		}
 	}
 
+	private _recreateWebviewForHotReload(_message: any): void {
+		try {
+			const newHtml = this._getHtmlForWebview();
+
+			if (this._panel && this._panel.webview) {
+				this._panel.webview.html = newHtml;
+			}
+
+			if (this._webview) {
+				this._webview.html = newHtml;
+			}
+		} catch (error) {
+			console.error('❌ Failed to recreate webview for hot reload:', error);
+		}
+	}
+
 	private _getHtmlForWebview(): string {
 		const webviewUri = this._panel?.webview || this._webview;
 		if (!webviewUri) {
@@ -2371,55 +2390,91 @@ class ClaudeChatProvider {
 
 		// Watch for changes in the webview output directory
 		const webviewPattern = path.join(this._extensionUri.fsPath, 'out', 'webview', '**/*');
+		console.log(`🔍 Setting up file watcher with pattern: ${webviewPattern}`);
 		const fileWatcher = vscode.workspace.createFileSystemWatcher(webviewPattern);
 
 		// Also specifically watch CSS file (fallback)
 		const cssPattern = path.join(this._extensionUri.fsPath, 'out', 'webview', 'static', 'css', 'index.css');
 		const cssWatcher = vscode.workspace.createFileSystemWatcher(cssPattern);
 
+		// Also specifically watch JS file (fallback)
+		const jsPattern = path.join(this._extensionUri.fsPath, 'out', 'webview', 'static', 'js', 'index.js');
+		console.log(`🔍 Setting up JS file watcher with pattern: ${jsPattern}`);
+		const jsWatcher = vscode.workspace.createFileSystemWatcher(jsPattern);
+
 		let refreshTimeout: NodeJS.Timeout | undefined;
 
-		const refreshWebview = () => {
+		const refreshWebview = (changedFile?: string) => {
 			// Debounce rapid file changes
 			if (refreshTimeout) {
 				clearTimeout(refreshTimeout);
 			}
 
 			refreshTimeout = setTimeout(() => {
+				// Determine reload type based on file extension
+				const isCSSChange = changedFile && changedFile.endsWith('.css');
 
-				// Instead of replacing the entire HTML, send a message to webview to reload assets
+				// Send a message to webview to reload assets
 				this._postMessage({
 					type: 'hotReload',
-					timestamp: Date.now()
+					timestamp: Date.now(),
+					reloadType: isCSSChange ? 'css' : 'full'
 				});
 			}, 100); // 100ms debounce
 		};
 
 		// Listen for file changes, creations, and deletions
-		fileWatcher.onDidChange(() => refreshWebview());
-		fileWatcher.onDidCreate(() => refreshWebview());
-		fileWatcher.onDidDelete(() => refreshWebview());
+		fileWatcher.onDidChange((uri) => {
+			refreshWebview(uri.fsPath);
+		});
+		fileWatcher.onDidCreate((uri) => {
+			refreshWebview(uri.fsPath);
+		});
+		fileWatcher.onDidDelete((uri) => {
+			refreshWebview(uri.fsPath);
+		});
 
 		// CSS-specific watcher events
-		cssWatcher.onDidChange(() => refreshWebview());
+		cssWatcher.onDidChange((uri) => {
+			refreshWebview(uri.fsPath);
+		});
+
+		// JS-specific watcher events
+		jsWatcher.onDidChange((uri) => {
+			refreshWebview(uri.fsPath);
+		});
 
 		// Polling fallback for when FileSystemWatcher doesn't detect RSBuild's atomic writes
 		const cssFile = path.join(this._extensionUri.fsPath, 'out', 'webview', 'static', 'css', 'index.css');
-		let lastModified = 0;
+		const jsFile = path.join(this._extensionUri.fsPath, 'out', 'webview', 'static', 'js', 'index.js');
+		let lastModifiedCSS = 0;
+		let lastModifiedJS = 0;
 
 		const pollForChanges = () => {
 			try {
-				const stats = require('fs').statSync(cssFile);
-				const modified = stats.mtime.getTime();
+				// Check CSS file
+				const cssStats = require('fs').statSync(cssFile);
+				const cssModified = cssStats.mtime.getTime();
 
-				if (lastModified === 0) {
-					lastModified = modified; // Initialize
-				} else if (modified > lastModified) {
-					lastModified = modified;
-					refreshWebview();
+				if (lastModifiedCSS === 0) {
+					lastModifiedCSS = cssModified; // Initialize
+				} else if (cssModified > lastModifiedCSS) {
+					lastModifiedCSS = cssModified;
+					refreshWebview(cssFile);
+				}
+
+				// Check JS file
+				const jsStats = require('fs').statSync(jsFile);
+				const jsModified = jsStats.mtime.getTime();
+
+				if (lastModifiedJS === 0) {
+					lastModifiedJS = jsModified; // Initialize
+				} else if (jsModified > lastModifiedJS) {
+					lastModifiedJS = jsModified;
+					refreshWebview(jsFile);
 				}
 			} catch {
-				// File doesn't exist yet, ignore
+				// Files don't exist yet, ignore
 			}
 		};
 
@@ -2430,6 +2485,7 @@ class ClaudeChatProvider {
 		this._disposables.push(
 			fileWatcher,
 			cssWatcher,
+			jsWatcher,
 			{ dispose: () => clearInterval(pollInterval) }
 		);
 	}

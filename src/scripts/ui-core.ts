@@ -261,8 +261,36 @@ export function addToolResultMessage(data: any): void {
 	if(data.isError && data.content === "File has not been read yet. Read it first before writing to it."){
 		return addMessage("File has not been read yet. Let me read it first before writing to it.", 'system');
 	}
+	// Handle path-related tools - append result to existing systemMessage
+	const pathTools = ['LS', 'Glob', 'Grep', 'Read'];
+	const isPathTool = pathTools.includes(data.toolName);
+
+	if (isPathTool && !data.isError && window.lastPathToolMessage) {
+		// Append result as systemMessage-content to existing pathTool message
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'systemMessage-content';
+
+		let content = data.content || '';
+		if (content.length > 200) {
+			const truncateAt = 197;
+			content = content.substring(0, truncateAt) + '...';
+		}
+		contentDiv.innerHTML = `<pre>${content}</pre>`;
+
+		window.lastPathToolMessage.appendChild(contentDiv);
+		window.lastPathToolMessage = undefined; // Clear reference
+
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
 	const messageDiv = document.createElement('div');
-	messageDiv.className = data.isError ? 'systemMessage error' : 'message tool-result';
+
+	if (data.isError) {
+		messageDiv.className = 'systemMessage error';
+	} else {
+		messageDiv.className = 'message tool-result';
+	}
 
 	if (!data.isError) {
 		// Create header for regular tool results
@@ -770,9 +798,20 @@ export function hideStopButton(): void {
 // Hot reload function to refresh CSS without losing DOM state
 export function reloadCSS(): void {
 	const cssLinks = document.querySelectorAll('link[rel="stylesheet"]');
+
+	if (cssLinks.length === 0) {
+		location.reload();
+		return;
+	}
+
+	let reloadCount = 0;
+
 	cssLinks.forEach((element) => {
 		const link = element as HTMLLinkElement;
-		if (link.href.includes('index.css')) {
+
+		if (link.href.includes('index.css') || link.href.includes('.css')) {
+			reloadCount++;
+
 			const url = new URL(link.href);
 			// Add cache-busting parameter
 			url.searchParams.set('t', Date.now().toString());
@@ -782,21 +821,42 @@ export function reloadCSS(): void {
 			newLink.rel = 'stylesheet';
 			newLink.href = url.toString();
 
+			// Set timeout fallback in case CSS doesn't load
+			const timeoutId = setTimeout(() => {
+				location.reload();
+			}, 3000);
+
 			// Replace old link with new one
 			newLink.onload = () => {
-				link.remove();
-				console.log('✅ CSS reloaded successfully');
+				clearTimeout(timeoutId);
+
+				// Only remove old link after new one loads successfully
+				setTimeout(() => {
+					if (link.parentNode) {
+						link.remove();
+					}
+				}, 100);
 			};
 
 			newLink.onerror = () => {
-				console.warn('⚠️ CSS reload failed, falling back to full reload');
-				location.reload();
+				clearTimeout(timeoutId);
+				setTimeout(() => {
+					location.reload();
+				}, 100);
 			};
 
-			// Insert new link before the old one
-			link.parentNode?.insertBefore(newLink, link);
+			// Insert new link after the old one to avoid flash
+			if (link.nextSibling) {
+				link.parentNode?.insertBefore(newLink, link.nextSibling);
+			} else {
+				link.parentNode?.appendChild(newLink);
+			}
 		}
 	});
+
+	if (reloadCount === 0) {
+		location.reload();
+	}
 }
 
 export function updateEditorContextDisplay(contextData: any): void {
