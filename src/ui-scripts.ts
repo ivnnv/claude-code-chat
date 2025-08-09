@@ -35,9 +35,6 @@ if (document.readyState === 'loading') {
     initializeUI();
 }
 
-// Development mode indicator (removed console.log for production)
-
-
 function initializeUI() {
     // JS reload detection
     console.log(`📦 JS reloaded: ${new Date().toLocaleTimeString()}`);
@@ -545,6 +542,41 @@ function setupMessageHandler() {
                 }
                 break;
 
+            case 'buildInfo':
+				const isDev = message.data && message.data.isDev;
+                if (!isDev) {
+					return;
+				}
+
+				// Remove existing build info if any
+				const existingBuildInfo = document.querySelector('.buildInfoContainer');
+				if (existingBuildInfo) {
+					existingBuildInfo.remove();
+				}
+
+				// Create build info container
+				const buildInfoContainer = document.createElement('div');
+				buildInfoContainer.className = 'buildInfoContainer';
+
+				// Format timestamp for human readability
+				const ts = new Date(message.data.timestamp);
+				const readableTimestamp = ts.toISOString();
+
+				// Build the enhanced structure
+				buildInfoContainer.innerHTML = `
+					<div class="buildInfo">
+						<div class="buildInfo-content">
+							<span>BuildTS: ${readableTimestamp}</span>
+						</div>
+					</div>
+				`;
+
+				// Insert at the beginning of chatMessages for sticky positioning
+				const chatMessagesEl = document.getElementById('chatMessages');
+				if (chatMessagesEl) {
+					chatMessagesEl.insertBefore(buildInfoContainer, chatMessagesEl.firstChild);
+				}
+                break;
             case 'hotReload':
                 // Handle hot reload - for JS changes, request webview recreation; for CSS, just refresh CSS
                 if (message.reloadType === 'full') {

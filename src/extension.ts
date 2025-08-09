@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { ClaudeChatProvider, ClaudeChatWebviewProvider } from './claude-provider';
+import { ClaudeChatWebviewProvider } from './claude-provider';
+import { ClaudeChatProvider } from './claude-provider-backend';
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Claude Code Sidebar extension is being activated!');
