@@ -184,7 +184,11 @@ export function addToolResultMessage(data: any): void {
 	const shouldScroll = shouldAutoScroll(messagesDiv);
 
 	// Handle Read tools with special dimmed styling (toolResult doesn't have rawInput, but we can show file context)
-	if (false && data.toolName === 'Read' && !data.isError) { // Skip toolResult for Read tools - visual context shows it's a read operation
+
+	// Skip toolResult for Read tools from now until a dedicated handler is implemented (if)
+	// from now visual context shows it's a read operation
+	const specificToolResult = false;
+	if (specificToolResult && data.toolName === 'Read' && !data.isError) {
 		// Try to extract file path from content or use a generic indicator
 		let filePath = 'file read';
 		if (data.content && typeof data.content === 'string') {

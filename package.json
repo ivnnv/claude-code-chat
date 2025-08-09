@@ -2,7 +2,7 @@
   "name": "claude-code-vsc-panel",
   "displayName": "Claude Code VSC Panel",
   "description": "Clean, modular Claude Code interface for VS Code - Advanced panel with next-level features",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "publisher": "ivnnv",
   "author": "Ivn Nv <ivnnv@hotmail.com>",
   "repository": {
