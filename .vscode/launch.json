@@ -11,9 +11,8 @@
 			"request": "launch",
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
-				"--new-window",
-				"--user-data-dir=${workspaceFolder}/.vscode-debug-profile",
-				"/Users/ivnnv/Sites/overloop/orchard-suite"
+				"--disable-extensions",
+				"${workspaceFolder}"
 			],
 			"outFiles": [
 				"${workspaceFolder}/out/**/*.js"

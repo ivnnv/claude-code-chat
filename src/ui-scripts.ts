@@ -187,11 +187,7 @@ function setupMessageHandler() {
             case 'toolUse':
                 if (typeof message.data === 'object') {
                     chatMessages.addToolUseMessage(message.data);
-                    // Check if this tool involves a file and add file info icon
-                    if (message.data.rawInput && message.data.rawInput.file_path) {
-                        // const filePath = message.data.rawInput.file_path;
-                        // addFileInfoToLastMessage(filePath); // TODO: implement if needed
-                    }
+                    // File info is handled by the toolUse message display
                 } else if (message.data && message.data.trim()) {
                     chatMessages.addMessage(message.data, 'tool');
                 }
