@@ -385,6 +385,10 @@ export class ClaudeChatProvider {
 	public newConversation() {
 		this._conversationManager.clearCurrentConversation();
 		this.newSessionOnConfigChange();
+		// Trigger new session in the UI
+		this._postMessage({
+			type: 'newSession'
+		});
 	}
 
 	public showHistory() {
@@ -393,10 +397,18 @@ export class ClaudeChatProvider {
 			type: 'conversationList',
 			data: conversations
 		});
+		// Also trigger showing the history modal
+		this._postMessage({
+			type: 'showHistory'
+		});
 	}
 
 	public showSettings() {
 		this._settingsManager.sendCurrentSettings();
+		// Also trigger showing the settings modal
+		this._postMessage({
+			type: 'showSettings'
+		});
 	}
 
 	private async _sendMessageToClaude(message: string, planMode?: boolean, thinkingMode?: boolean) {

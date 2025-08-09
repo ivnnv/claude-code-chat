@@ -24,7 +24,7 @@ declare global {
     // Functions exposed globally for HTML onclick handlers
     sendMessage(): void;
     stopRequest(): void;
-    copyMessageContent(messageDiv: HTMLElement): void;
+    copyMessageContent(messageId: string): void;
     copyCodeBlock(codeId: string): void;
     showFilePicker(): void;
     selectImage(): void;
@@ -54,7 +54,7 @@ declare global {
     updateServerForm(): void;
     saveMCPServer(): void;
     deleteMCPServer(serverId: string): void;
-    addPopularServer(serverType: string): void;
+    addPopularServer(name: string, config: any): void;
     editMCPServer(serverId: string): void;
     showModelSelector(): void;
     hideModelModal(): void;
@@ -73,8 +73,24 @@ declare global {
     hideThinkingIntensityModal(): void;
     usePromptSnippet(snippetType: string): void;
     _deleteCustomSnippet(snippetId: string): void;
-    executeSlashCommand(): void;
+    executeSlashCommand(command: string): void;
     toggleStatusPopover(): void;
     _enableYoloMode(): void;
+    filterSlashCommands(): void;
+    selectModel(model: string, fromBackend?: boolean): void;
+    updateThinkingIntensityDisplay(value: string): void;
+    confirmThinkingIntensity(): void;
+    openWSLSettings(): void;
+    dismissWSLAlert(): void;
+    addPermission(): void;
+    openModelTerminal(): void;
+    setThinkingIntensityValue(value: number): void;
+    showAddSnippetForm(): void;
+    saveCustomSnippet(): void;
+    hideAddSnippetForm(): void;
+    handleCustomCommandKeydown(event: KeyboardEvent): void;
+    clearEditorContext(): void;
+    hideSessionInfo(): void;
+    _copySessionId(sessionId: string): void;
   }
 }

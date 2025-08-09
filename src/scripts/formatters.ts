@@ -109,7 +109,7 @@ export function formatEditToolDiff(input: any): string {
 		const timeAgo = new Date(currentCheckpoint.timestamp).toLocaleTimeString();
 		changesRow += '<div class="diff-timestamp-group">';
 		changesRow += '<span class="diff-timestamp">(' + timeAgo + ')</span>';
-		changesRow += '<button class="diff-restore-btn" onclick="restoreToCommit(\'' + currentCheckpoint.sha + '\')" title="Restore checkpoint">↶</button>';
+		changesRow += '<button class="diff-restore-btn" data-sha="' + currentCheckpoint.sha + '" title="Restore checkpoint">↶</button>';
 		changesRow += '</div>';
 	}
 	changesRow += '</div>';
@@ -187,7 +187,7 @@ export function formatMultiEditToolDiff(input: any): string {
 		const timeAgo = new Date(currentCheckpoint.timestamp).toLocaleTimeString();
 		headerContent += '<div class="diff-timestamp-group">';
 		headerContent += '<span class="diff-timestamp">(' + timeAgo + ')</span>';
-		headerContent += '<button class="diff-restore-btn" onclick="restoreToCommit(\'' + currentCheckpoint.sha + '\')" title="Restore checkpoint" style="margin-left: 5px;">↶</button>';
+		headerContent += '<button class="diff-restore-btn" data-sha="' + currentCheckpoint.sha + '" title="Restore checkpoint" style="margin-left: 5px;">↶</button>';
 		headerContent += '</div>';
 	}
 	headerContent += '</div>';
@@ -278,7 +278,7 @@ export function formatWriteToolDiff(input: any): string {
 		const timeAgo = new Date(currentCheckpoint.timestamp).toLocaleTimeString();
 		headerContent += '<div class="diff-timestamp-group" style="float: right;">';
 		headerContent += '<span class="diff-timestamp">(' + timeAgo + ')</span>';
-		headerContent += '<button class="diff-restore-btn" onclick="restoreToCommit(\'' + currentCheckpoint.sha + '\')" title="Restore checkpoint" style="margin-left: 5px;">↶</button>';
+		headerContent += '<button class="diff-restore-btn" data-sha="' + currentCheckpoint.sha + '" title="Restore checkpoint" style="margin-left: 5px;">↶</button>';
 		headerContent += '</div>';
 	}
 

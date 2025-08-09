@@ -4,7 +4,10 @@ import './types/global';
 
 // Import webview-only script files (no Node.js dependencies)
 import * as uiWebview from './scripts/ui-webview';
+import * as uiWebviewCore from './scripts/ui-webview-core';
 import * as permissionsWebview from './scripts/permissions-webview';
+import * as settingsWebview from './scripts/settings-webview';
+import * as mcpWebview from './scripts/mcp-webview';
 import { escapeHtml } from './scripts/formatters';
 
 // Initialize and expose functions to global scope for HTML onclick handlers
@@ -46,11 +49,19 @@ function initializeUI() {
     // Set VS Code API for webview modules
     uiWebview.setVsCodeApi(vscode);
     uiWebview.setMessageInput(messageInput);
+    uiWebviewCore.setVsCodeApi(vscode);
+    uiWebviewCore.setMessageInput(messageInput);
+    uiWebviewCore.setModuleReferences(uiWebviewCore, settingsWebview);
     permissionsWebview.setVsCodeApi(vscode);
+    settingsWebview.setVsCodeApi(vscode);
+    mcpWebview.setVsCodeApi(vscode);
 
     // Initialize webview modules
     uiWebview.initialize();
+    uiWebviewCore.initialize();
     permissionsWebview.initialize();
+    settingsWebview.initialize();
+    mcpWebview.initialize();
 
     // Set up message handler
     setupMessageHandler();
@@ -58,29 +69,32 @@ function initializeUI() {
     // Set up keyboard event handling for textarea
     setupKeyboardHandlers();
 
+    // Set up event listeners for buttons to avoid CSP violations
+    setupEventListeners();
+
 
     // Expose core functions to global scope for HTML handlers
     Object.assign(window, {
         // Core messaging functions
-        sendMessage: uiWebview.sendMessage,
-        copyMessageContent: uiWebview.copyMessageContent,
-        copyCodeBlock: uiWebview.copyCodeBlock,
+        sendMessage: uiWebviewCore.sendMessage,
+        copyMessageContent: uiWebviewCore.copyMessageContent,
+        copyCodeBlock: uiWebviewCore.copyCodeBlock,
 
         // File and image functions
-        showFilePicker: uiWebview.showFilePicker,
-        selectImage: uiWebview.selectImage,
+        showFilePicker: uiWebviewCore.showFilePicker,
+        selectImage: uiWebviewCore.selectImage,
 
         // Modal functions
-        stopRequest: uiWebview.stopRequest,
+        stopRequest: uiWebviewCore.stopRequest,
 
         // Chat message functions
-        addMessage: uiWebview.addMessage,
+        addMessage: uiWebviewCore.addMessage,
 
         // Utility functions
         escapeHtml: escapeHtml,
-        shouldAutoScroll: uiWebview.shouldAutoScroll,
-        scrollToBottomIfNeeded: uiWebview.scrollToBottomIfNeeded,
-        sendStats: uiWebview.sendStats,
+        shouldAutoScroll: uiWebviewCore.shouldAutoScroll,
+        scrollToBottomIfNeeded: uiWebviewCore.scrollToBottomIfNeeded,
+        sendStats: uiWebviewCore.sendStats,
 
         // Permission functions
         isPermissionError: permissionsWebview.isPermissionError,
@@ -92,49 +106,51 @@ function initializeUI() {
         showAddPermissionForm: permissionsWebview.showAddPermissionForm,
         hideAddPermissionForm: permissionsWebview.hideAddPermissionForm,
 
-        // Settings modal functions - placeholder for now
-        showSettingsModal: () => { /* Not implemented in webview */ },
-        hideSettingsModal: () => { /* Not implemented in webview */ },
-        updateSettings: () => { /* Not implemented in webview */ },
-        updateYoloWarning: () => { /* Not implemented in webview */ },
-        togglePlanMode: () => { /* Not implemented in webview */ },
-        toggleThinkingMode: () => { /* Not implemented in webview */ },
+        // Settings modal functions
+        showSettingsModal: settingsWebview.showSettingsModal,
+        hideSettingsModal: settingsWebview.hideSettingsModal,
+        updateSettings: settingsWebview.updateSettings,
+        updateYoloWarning: settingsWebview.updateYoloWarning,
+        togglePlanMode: settingsWebview.togglePlanMode,
+        toggleThinkingMode: settingsWebview.toggleThinkingMode,
 
-        // MCP functions - placeholder for now
-        showMCPModal: () => { /* Not implemented in webview */ },
-        hideMCPModal: () => { /* Not implemented in webview */ },
-        showAddServerForm: () => { /* Not implemented in webview */ },
-        hideAddServerForm: () => { /* Not implemented in webview */ },
-        updateServerForm: () => { /* Not implemented in webview */ },
-        saveMCPServer: () => { /* Not implemented in webview */ },
-        deleteMCPServer: () => { /* Not implemented in webview */ },
-        addPopularServer: () => { /* Not implemented in webview */ },
-        editMCPServer: () => { /* Not implemented in webview */ },
+        // MCP functions
+        showMCPModal: mcpWebview.showMCPModal,
+        hideMCPModal: mcpWebview.hideMCPModal,
+        showAddServerForm: mcpWebview.showAddServerForm,
+        hideAddServerForm: mcpWebview.hideAddServerForm,
+        updateServerForm: mcpWebview.updateServerForm,
+        saveMCPServer: mcpWebview.saveMCPServer,
+        deleteMCPServer: mcpWebview.deleteMCPServer,
+        addPopularServer: mcpWebview.addPopularServer,
+        editMCPServer: () => { /* Edit MCP server function not implemented yet */ },
 
-        // UI Core functions - placeholder for now
-        showModelSelector: () => { /* Not implemented in webview */ },
-        hideModelModal: () => { /* Not implemented in webview */ },
-        showSlashCommandsModal: () => { /* Not implemented in webview */ },
-        hideSlashCommandsModal: () => { /* Not implemented in webview */ },
-        newSession: uiWebview.newSession,
-        toggleConversationHistory: uiWebview.toggleConversationHistory,
-        toggleResultExpansion: () => { /* Not implemented in webview */ },
-        toggleExpand: () => { /* Not implemented in webview */ },
-        toggleDiffExpansion: () => { /* Not implemented in webview */ },
-        restoreToCommit: uiWebview.restoreToCommit,
-        loadConversation: uiWebview.loadConversation,
-        addToolResultMessage: uiWebview.addToolResultMessage,
-        showRestoreContainer: () => { /* Not implemented in webview */ },
-        showSessionInfo: uiWebview.showSessionInfo,
-        hideThinkingIntensityModal: () => { /* Not implemented in webview */ },
+        // UI Core functions
+        showModelSelector: uiWebviewCore.showModelSelector,
+        hideModelModal: uiWebviewCore.hideModelModal,
+        showSlashCommandsModal: uiWebviewCore.showSlashCommandsModal,
+        hideSlashCommandsModal: uiWebviewCore.hideSlashCommandsModal,
+        newSession: uiWebviewCore.newSession,
+        toggleConversationHistory: uiWebviewCore.toggleConversationHistory,
+        toggleResultExpansion: uiWebviewCore.toggleResultExpansion,
+        toggleExpand: uiWebviewCore.toggleExpand,
+        toggleDiffExpansion: uiWebviewCore.toggleDiffExpansion,
+        restoreToCommit: uiWebviewCore.restoreToCommit,
+        loadConversation: uiWebviewCore.loadConversation,
+        addToolResultMessage: uiWebviewCore.addToolResultMessage,
+        showRestoreContainer: uiWebviewCore.showRestoreContainer,
+        showSessionInfo: uiWebviewCore.showSessionInfo,
+        hideThinkingIntensityModal: settingsWebview.hideThinkingIntensityModal,
+        hideSessionInfo: uiWebviewCore.hideSessionInfo,
+        _copySessionId: uiWebviewCore._copySessionId,
 
         // Snippet functions
-        usePromptSnippet: function() {},
-        _deleteCustomSnippet: function() {},
-        executeSlashCommand: function() {},
+        usePromptSnippet: settingsWebview.usePromptSnippet,
+        _deleteCustomSnippet: settingsWebview.deleteCustomSnippet,
+        executeSlashCommand: settingsWebview.executeSlashCommand,
 
         // Status functions
-        toggleStatusPopover: uiWebview.toggleStatusPopover,
+        toggleStatusPopover: uiWebviewCore.toggleStatusPopover,
 
         // Placeholder for extension functions
         _enableYoloMode: function() {
@@ -142,13 +158,25 @@ function initializeUI() {
         },
 
         // WSL functions
-        openWSLSettings: function() {},
-        dismissWSLAlert: function() {}
+        openWSLSettings: settingsWebview.openWSLSettings,
+        dismissWSLAlert: settingsWebview.dismissWSLAlert,
+
+        // Additional functions needed by event listeners
+        filterSlashCommands: settingsWebview.filterSlashCommands,
+        selectModel: settingsWebview.selectModel,
+        updateThinkingIntensityDisplay: settingsWebview.updateThinkingIntensityDisplay,
+        confirmThinkingIntensity: settingsWebview.confirmThinkingIntensity,
+        openModelTerminal: settingsWebview.openModelTerminal,
+        setThinkingIntensityValue: settingsWebview.setThinkingIntensityValue,
+        showAddSnippetForm: settingsWebview.showAddSnippetForm,
+        saveCustomSnippet: settingsWebview.saveCustomSnippet,
+        hideAddSnippetForm: settingsWebview.hideAddSnippetForm,
+        handleCustomCommandKeydown: settingsWebview.handleCustomCommandKeydown
     });
 
 
     // Initialize status indicator
-    updateInputStatusIndicator();
+    uiWebviewCore.updateInputStatusIndicator();
 
     // Expose global state variables for modular functions to access
     Object.assign(window, {
@@ -173,45 +201,45 @@ function setupMessageHandler() {
 
         switch (message.type) {
             case 'addMessage':
-                uiWebview.addMessage(message.content, message.messageType);
+                uiWebviewCore.addMessage(message.content, message.messageType);
                 break;
 
             case 'toolUse':
                 if (typeof message.data === 'object') {
-                    uiWebview.addToolUseMessage(message.data);
+                    uiWebviewCore.addToolUseMessage(message.data);
                     // File info is handled by the toolUse message display
                 } else if (message.data && message.data.trim()) {
-                    uiWebview.addMessage(message.data, 'tool');
+                    uiWebviewCore.addMessage(message.data, 'tool');
                 }
                 break;
 
             case 'addToolUse':
-                uiWebview.addToolUseMessage(message.data);
+                uiWebviewCore.addToolUseMessage(message.data);
                 break;
 
             case 'toolResult':
-                uiWebview.addToolResultMessage(message.data);
+                uiWebviewCore.addToolResultMessage(message.data);
                 break;
 
             case 'editorContext':
                 currentEditorContext = message.data;
                 window.currentEditorContext = currentEditorContext;
                 // Also update the chat messages module context
-                uiWebview.setCurrentEditorContext(message.data);
-                uiWebview.updateEditorContextDisplay(message.data);
+                uiWebviewCore.setCurrentEditorContext(message.data);
+                uiWebviewCore.updateEditorContextDisplay(message.data);
                 break;
 
             case 'userInput':
                 if (message.data.trim()) {
-                    uiWebview.addMessage(uiWebview.parseSimpleMarkdown(message.data), 'user');
+                    uiWebviewCore.addMessage(uiWebviewCore.parseSimpleMarkdown(message.data), 'user');
                 }
                 break;
 
             case 'processingComplete':
                 isProcessing = false;
                 window.isProcessing = isProcessing;
-                uiWebview.enableButtons();
-                uiWebview.hideStopButton();
+                uiWebviewCore.enableButtons();
+                uiWebviewCore.hideStopButton();
 
                 // Processing completed
                 break;
@@ -221,8 +249,8 @@ function setupMessageHandler() {
                 currentCheckpoint = null;
                 window.currentCheckpoint = null;
                 // Clear all messages from UI
-                uiWebview.clearMessages();
-                uiWebview.addMessage('🆕 Started new session', 'system');
+                uiWebviewCore.clearMessages();
+                uiWebviewCore.addMessage('🆕 Started new session', 'system');
                 break;
 
             case 'sessionLoading':
@@ -230,8 +258,8 @@ function setupMessageHandler() {
                 currentCheckpoint = null;
                 window.currentCheckpoint = null;
                 // Clear all messages from UI
-                uiWebview.clearMessages();
-                uiWebview.addMessage('📝 Loaded last session', 'system');
+                uiWebviewCore.clearMessages();
+                uiWebviewCore.addMessage('📝 Loaded last session', 'system');
                 break;
 
             case 'configChanged':
@@ -257,7 +285,7 @@ function setupMessageHandler() {
 
             case 'sessionInfo':
                 if (message.sessionId) {
-                    uiWebview.showSessionInfo(message.sessionId);
+                    uiWebviewCore.showSessionInfo(message.sessionId);
                 }
                 break;
 
@@ -341,21 +369,21 @@ function setupMessageHandler() {
                     const trimmedData = displayData.trim();
                     if (!filePathPattern.test(trimmedData)) {
                         // This is actual Claude response text - use addMessage to ensure proper ID assignment
-                        uiWebview.addMessage(displayData, 'claude');
+                        uiWebviewCore.addMessage(displayData, 'claude');
                     }
                     // File paths are skipped - they'll appear in Changes diffs instead
 
                     // Auto-scroll if needed
                     const messagesDiv = document.getElementById('chatMessages');
                     if (messagesDiv) {
-                        uiWebview.scrollToBottomIfNeeded(messagesDiv, true);
+                        uiWebviewCore.scrollToBottomIfNeeded(messagesDiv, true);
                     }
                 }
                 break;
 
             case 'loading':
                 if (message.data) {
-                    uiWebview.addMessage('🔄 Claude is working...', 'system');
+                    uiWebviewCore.addMessage('🔄 Claude is working...', 'system');
                 }
                 break;
 
@@ -373,41 +401,41 @@ function setupMessageHandler() {
             case 'error':
                 currentStatus = 'error';
                 window.currentStatus = currentStatus;
-                updateInputStatusIndicator();
+                uiWebviewCore.updateInputStatusIndicator();
                 if (message.data && message.data.trim()) {
                     // Check if this is an install required error
                     if (message.data.includes('Install claude code first') ||
                         message.data.includes('command not found') ||
                         message.data.includes('ENOENT')) {
-                        uiWebview.sendStats('Install required');
+                        uiWebviewCore.sendStats('Install required');
                     }
-                    uiWebview.addMessage(message.data, 'error');
+                    uiWebviewCore.addMessage(message.data, 'error');
                 }
                 break;
 
             case 'thinking':
                 if (message.data && message.data.trim()) {
-                    uiWebview.addMessage('💭 Thinking...' + uiWebview.parseSimpleMarkdown(message.data), 'thinking');
+                    uiWebviewCore.addMessage('💭 Thinking...' + uiWebviewCore.parseSimpleMarkdown(message.data), 'thinking');
                 }
                 break;
 
             case 'sessionInfo':
                 if (message.data && message.data.sessionId) {
-                    uiWebview.showSessionInfo(message.data.sessionId);
+                    uiWebviewCore.showSessionInfo(message.data.sessionId);
                 }
                 break;
 
             case 'sessionResumed':
                 if (message.data && message.data.sessionId) {
-                    uiWebview.showSessionInfo(message.data.sessionId);
-                    uiWebview.addMessage(`📝 Resumed previous session\\n🆔 Session ID: ${message.data.sessionId}\\n💡 Your conversation history is preserved`, 'system');
+                    uiWebviewCore.showSessionInfo(message.data.sessionId);
+                    uiWebviewCore.addMessage(`📝 Resumed previous session\\n🆔 Session ID: ${message.data.sessionId}\\n💡 Your conversation history is preserved`, 'system');
                 }
                 break;
 
             case 'conversationStarted':
                 if (message.data) {
                     const startMessage = `🚀 **Started conversation**\\n\\n📅 **${new Date().toLocaleString()}**\\n\\n💬 Ready to help with your coding tasks!`;
-                    uiWebview.addMessage(startMessage, 'system');
+                    uiWebviewCore.addMessage(startMessage, 'system');
                 }
                 break;
 
@@ -416,9 +444,9 @@ function setupMessageHandler() {
                 currentStatus = 'ready';
                 window.isProcessing = isProcessing;
                 window.currentStatus = currentStatus;
-                updateInputStatusIndicator();
-                uiWebview.enableButtons();
-                uiWebview.hideStopButton();
+                uiWebviewCore.updateInputStatusIndicator();
+                uiWebviewCore.enableButtons();
+                uiWebviewCore.hideStopButton();
                 break;
 
             case 'modelSelected':
@@ -435,7 +463,7 @@ function setupMessageHandler() {
                 _requestCount = 0;
                 lastRequestCost = 0;
                 lastRequestTokens = 0;
-                uiWebview.newSession();
+                uiWebviewCore.newSession();
                 break;
 
             case 'setProcessing':
@@ -444,13 +472,13 @@ function setupMessageHandler() {
                     currentStatus = isProcessing ? 'processing' : 'ready';
                     window.isProcessing = isProcessing;
                     window.currentStatus = currentStatus;
-                    updateInputStatusIndicator();
+                    uiWebviewCore.updateInputStatusIndicator();
                     if (isProcessing) {
-                        uiWebview.disableButtons();
-                        uiWebview.showStopButton();
+                        uiWebviewCore.disableButtons();
+                        uiWebviewCore.showStopButton();
                     } else {
-                        uiWebview.enableButtons();
-                        uiWebview.hideStopButton();
+                        uiWebviewCore.enableButtons();
+                        uiWebviewCore.hideStopButton();
                     }
                 }
                 break;
@@ -460,15 +488,15 @@ function setupMessageHandler() {
                 break;
 
             case 'showHistory':
-                uiWebview.toggleConversationHistory();
+                uiWebviewCore.toggleConversationHistory();
                 break;
 
             case 'showSettings':
-                // Settings modal not implemented in webview
+                settingsWebview.showSettingsModal();
                 break;
 
             case 'toggleStatusInfo':
-                uiWebview.toggleStatusPopover();
+                uiWebviewCore.toggleStatusPopover();
                 break;
 
             case 'permissionsData':
@@ -476,23 +504,23 @@ function setupMessageHandler() {
                 break;
 
             case 'conversationList':
-                uiWebview.displayConversationList(message.data);
+                uiWebviewCore.displayConversationList(message.data);
                 break;
 
             case 'conversationHistory':
                 if (message.messages && Array.isArray(message.messages)) {
                     // Clear existing messages first
-                    uiWebview.clearMessages();
+                    uiWebviewCore.clearMessages();
                     // Add each message from history
                     message.messages.forEach((msg: any) => {
                         if (msg.type === 'user' && msg.content) {
-                            uiWebview.addMessage(msg.content, 'user');
+                            uiWebviewCore.addMessage(msg.content, 'user');
                         } else if (msg.type === 'claude' || msg.type === 'assistant') {
-                            uiWebview.addMessage(msg.content, 'claude');
+                            uiWebviewCore.addMessage(msg.content, 'claude');
                         } else if (msg.type === 'tool' && msg.toolInfo) {
-                            uiWebview.addToolUseMessage(msg);
+                            uiWebviewCore.addToolUseMessage(msg);
                         } else if (msg.type === 'toolResult' && msg.data) {
-                            uiWebview.addToolResultMessage(msg);
+                            uiWebviewCore.addToolResultMessage(msg);
                         }
                     });
                 }
@@ -501,30 +529,30 @@ function setupMessageHandler() {
             case 'restoreConversation':
                 // Handle conversation restoration
                 if (message.conversation) {
-                    uiWebview.clearMessages();
+                    uiWebviewCore.clearMessages();
                     // Process the conversation data
                     if (message.conversation.messages) {
                         message.conversation.messages.forEach((msg: any) => {
                             switch (msg.role || msg.type) {
                                 case 'user':
                                     if (msg.content) {
-                                        uiWebview.addMessage(msg.content, 'user');
+                                        uiWebviewCore.addMessage(msg.content, 'user');
                                     }
                                     break;
                                 case 'assistant':
                                 case 'claude':
                                     if (msg.content) {
-                                        uiWebview.addMessage(msg.content, 'claude');
+                                        uiWebviewCore.addMessage(msg.content, 'claude');
                                     }
                                     break;
                                 case 'tool':
                                     if (msg.toolInfo) {
-                                        uiWebview.addToolUseMessage(msg);
+                                        uiWebviewCore.addToolUseMessage(msg);
                                     }
                                     break;
                                 case 'toolResult':
                                     if (msg.data) {
-                                        uiWebview.addToolResultMessage(msg);
+                                        uiWebviewCore.addToolResultMessage(msg);
                                     }
                                     break;
                             }
@@ -542,7 +570,7 @@ function setupMessageHandler() {
                         timestamp: message.timestamp
                     });
                 } else if (message.reloadType === 'css') {
-                    reloadCSS();
+                    uiWebviewCore.reloadCSS();
                 } else {
                     vscode.postMessage({
                         type: 'recreateWebview',
@@ -554,24 +582,6 @@ function setupMessageHandler() {
 
             default:
                 break;
-        }
-    });
-}
-
-function updateInputStatusIndicator() {
-    // Simple status indicator update
-    const statusElement = document.getElementById('statusIndicator');
-    if (statusElement) {
-        statusElement.textContent = currentStatus === 'processing' ? '🔄' : '✅';
-    }
-}
-
-function reloadCSS() {
-    const links = document.querySelectorAll('link[rel="stylesheet"]');
-    links.forEach(link => {
-        const href = link.getAttribute('href');
-        if (href) {
-            link.setAttribute('href', href + '?t=' + Date.now());
         }
     });
 }
@@ -609,5 +619,382 @@ function setupKeyboardHandlers(): void {
             });
         }, 500); // Save after 500ms of no typing
     }, { passive: true });
+}
+
+function setupEventListeners(): void {
+    // Set up event listeners to replace inline onclick handlers for CSP compliance
+    // Send button
+    const sendButton = document.getElementById('sendButton');
+    if (sendButton) {
+        sendButton.addEventListener('click', () => window.sendMessage());
+    }
+
+    // Stop button
+    const stopButton = document.getElementById('stopButton');
+    if (stopButton) {
+        stopButton.addEventListener('click', () => window.stopRequest());
+    }
+
+    // File picker button
+    const filePickerBtn = document.getElementById('filePickerBtn');
+    if (filePickerBtn) {
+        filePickerBtn.addEventListener('click', () => window.showFilePicker());
+    }
+
+    // Image picker button
+    const imageBtn = document.getElementById('imageBtn');
+    if (imageBtn) {
+        imageBtn.addEventListener('click', () => window.selectImage());
+    }
+
+    // New session button
+    const newSessionBtn = document.getElementById('newSessionBtn');
+    if (newSessionBtn) {
+        newSessionBtn.addEventListener('click', () => window.newSession());
+    }
+
+    // History and Settings buttons are VS Code header actions, not HTML elements
+
+    // MCP button
+    const mcpBtn = document.getElementById('mcpBtn');
+    if (mcpBtn) {
+        mcpBtn.addEventListener('click', () => window.showMCPModal());
+    }
+
+    // Model selector button
+    const modelSelectorBtn = document.getElementById('modelSelectorBtn');
+    if (modelSelectorBtn) {
+        modelSelectorBtn.addEventListener('click', () => window.showModelSelector());
+    }
+
+    // Slash commands button
+    const slashCommandsBtn = document.getElementById('slashCommandsBtn');
+    if (slashCommandsBtn) {
+        slashCommandsBtn.addEventListener('click', () => window.showSlashCommandsModal());
+    }
+
+    // Status button
+    const statusButton = document.getElementById('statusButton');
+    if (statusButton) {
+        statusButton.addEventListener('click', () => window.toggleStatusPopover());
+    }
+
+    // Close buttons for modals
+    const closeButtons = document.querySelectorAll('.close-modal');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            const modal = (e.target as HTMLElement).closest('.modal') as HTMLElement;
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        });
+    });
+
+    // Close buttons with specific modal targets
+    const closeSettingsBtn = document.querySelector('.close-settings');
+    if (closeSettingsBtn) {
+        closeSettingsBtn.addEventListener('click', () => window.hideSettingsModal());
+    }
+
+    const closeMCPBtn = document.querySelector('.close-mcp');
+    if (closeMCPBtn) {
+        closeMCPBtn.addEventListener('click', () => window.hideMCPModal());
+    }
+
+    const closeModelBtn = document.querySelector('.close-model');
+    if (closeModelBtn) {
+        closeModelBtn.addEventListener('click', () => window.hideModelModal());
+    }
+
+    const closeSlashCommandsBtn = document.querySelector('.close-slash-commands');
+    if (closeSlashCommandsBtn) {
+        closeSlashCommandsBtn.addEventListener('click', () => window.hideSlashCommandsModal());
+    }
+
+    // Settings form elements
+    const wslEnabledCheckbox = document.getElementById('wsl-enabled');
+    if (wslEnabledCheckbox) {
+        wslEnabledCheckbox.addEventListener('change', () => window.updateSettings());
+    }
+
+    const wslDistroInput = document.getElementById('wsl-distro');
+    if (wslDistroInput) {
+        wslDistroInput.addEventListener('change', () => window.updateSettings());
+    }
+
+    const wslNodePathInput = document.getElementById('wsl-node-path');
+    if (wslNodePathInput) {
+        wslNodePathInput.addEventListener('change', () => window.updateSettings());
+    }
+
+    const wslClaudePathInput = document.getElementById('wsl-claude-path');
+    if (wslClaudePathInput) {
+        wslClaudePathInput.addEventListener('change', () => window.updateSettings());
+    }
+
+    const yoloModeCheckbox = document.getElementById('yolo-mode');
+    if (yoloModeCheckbox) {
+        yoloModeCheckbox.addEventListener('change', () => window.updateSettings());
+    }
+
+    // MCP form elements
+    const addServerBtn = document.getElementById('addServerBtn');
+    if (addServerBtn) {
+        addServerBtn.addEventListener('click', () => window.showAddServerForm());
+    }
+
+    const cancelServerBtn = document.getElementById('cancelServerBtn');
+    if (cancelServerBtn) {
+        cancelServerBtn.addEventListener('click', () => window.hideAddServerForm());
+    }
+
+    const saveServerBtn = document.getElementById('saveServerBtn');
+    if (saveServerBtn) {
+        saveServerBtn.addEventListener('click', () => window.saveMCPServer());
+    }
+
+    const serverTypeSelect = document.getElementById('serverType');
+    if (serverTypeSelect) {
+        serverTypeSelect.addEventListener('change', () => window.updateServerForm());
+    }
+
+    // Search inputs
+    const slashCommandsSearchInput = document.getElementById('slashCommandsSearch');
+    if (slashCommandsSearchInput) {
+        slashCommandsSearchInput.addEventListener('input', () => window.filterSlashCommands());
+    }
+
+    // Plan mode and thinking mode switches
+    const planModeSwitch = document.getElementById('planModeSwitch');
+    if (planModeSwitch) {
+        planModeSwitch.addEventListener('click', () => window.togglePlanMode());
+    }
+
+    const thinkingModeSwitch = document.getElementById('thinkingModeSwitch');
+    if (thinkingModeSwitch) {
+        thinkingModeSwitch.addEventListener('click', () => window.toggleThinkingMode());
+    }
+
+    // Model selection radio buttons
+    const modelRadios = document.querySelectorAll('input[name="model"]');
+    modelRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            const selectedModel = (e.target as HTMLInputElement).value;
+            window.selectModel(selectedModel);
+        });
+    });
+
+    // Thinking intensity modal elements
+    const thinkingIntensitySlider = document.getElementById('thinkingIntensitySlider');
+    if (thinkingIntensitySlider) {
+        thinkingIntensitySlider.addEventListener('input', (e) => {
+            const value = (e.target as HTMLInputElement).value;
+            window.updateThinkingIntensityDisplay(value);
+        });
+    }
+
+    const confirmThinkingBtn = document.getElementById('confirmThinkingBtn');
+    if (confirmThinkingBtn) {
+        confirmThinkingBtn.addEventListener('click', () => window.confirmThinkingIntensity());
+    }
+
+    const cancelThinkingBtn = document.getElementById('cancelThinkingBtn');
+    if (cancelThinkingBtn) {
+        cancelThinkingBtn.addEventListener('click', () => window.hideThinkingIntensityModal());
+    }
+
+    // WSL alert buttons
+    const enableWSLBtn = document.querySelector('[data-action="enableWSL"]');
+    if (enableWSLBtn) {
+        enableWSLBtn.addEventListener('click', () => window.openWSLSettings());
+    }
+
+    const dismissWSLBtn = document.querySelector('[data-action="dismissWSL"]');
+    if (dismissWSLBtn) {
+        dismissWSLBtn.addEventListener('click', () => window.dismissWSLAlert());
+    }
+
+    // Permission buttons
+    const addPermissionBtn = document.getElementById('addPermissionBtn');
+    if (addPermissionBtn) {
+        addPermissionBtn.addEventListener('click', () => window.addPermission());
+    }
+
+    const showAddPermissionBtn = document.getElementById('showAddPermissionBtn');
+    if (showAddPermissionBtn) {
+        showAddPermissionBtn.addEventListener('click', () => window.showAddPermissionForm());
+    }
+
+    const addPermissionTool = document.getElementById('addPermissionTool');
+    if (addPermissionTool) {
+        addPermissionTool.addEventListener('change', () => window.toggleCommandInput());
+    }
+
+    // Popular server buttons
+    const popularServerItems = document.querySelectorAll('.popular-server-item');
+    popularServerItems.forEach((item, index) => {
+        item.addEventListener('click', () => {
+            // Map each popular server to its configuration
+            const servers = [
+                { name: 'context7', config: { type: 'http', url: 'https://context7.liam.sh/mcp' } },
+                { name: 'sequential-thinking', config: { type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-sequential-thinking'] } },
+                { name: 'memory', config: { type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-memory'] } },
+                { name: 'puppeteer', config: { type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-puppeteer'] } },
+                { name: 'fetch', config: { type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-fetch'] } },
+                { name: 'filesystem', config: { type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem'] } }
+            ];
+            if (servers[index]) {
+                window.addPopularServer(servers[index].name, servers[index].config);
+            }
+        });
+    });
+
+    // Model selection items
+    const modelItems = document.querySelectorAll('.tool-item[data-model]');
+    modelItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const model = item.getAttribute('data-model');
+            if (model) {
+                window.selectModel(model);
+            }
+        });
+    });
+
+    // Configure model terminal button
+    const configureModelBtn = document.querySelector('.configure-button');
+    if (configureModelBtn) {
+        configureModelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.openModelTerminal();
+        });
+    }
+
+    // Thinking intensity slider labels
+    for (let i = 0; i <= 3; i++) {
+        const label = document.getElementById(`thinking-label-${i}`);
+        if (label) {
+            label.addEventListener('click', () => window.setThinkingIntensityValue(i));
+        }
+    }
+
+    // Slash command prompt snippets
+    const promptSnippets = document.querySelectorAll('.prompt-snippet-item');
+    promptSnippets.forEach(item => {
+        item.addEventListener('click', () => {
+            const snippetType = item.getAttribute('data-snippet') ||
+                              item.getAttribute('onclick')?.match(/usePromptSnippet\('(.+?)'\)/)?.[1];
+            if (snippetType) {
+                window.usePromptSnippet(snippetType);
+            }
+        });
+    });
+
+    // Add snippet form buttons
+    const showAddSnippetBtn = document.querySelector('.add-snippet-item');
+    if (showAddSnippetBtn) {
+        showAddSnippetBtn.addEventListener('click', () => window.showAddSnippetForm());
+    }
+
+    const saveSnippetBtn = document.querySelector('[data-action="saveSnippet"]');
+    if (saveSnippetBtn) {
+        saveSnippetBtn.addEventListener('click', () => window.saveCustomSnippet());
+    }
+
+    const cancelSnippetBtn = document.querySelector('[data-action="cancelSnippet"]');
+    if (cancelSnippetBtn) {
+        cancelSnippetBtn.addEventListener('click', () => window.hideAddSnippetForm());
+    }
+
+    // Slash commands
+    const slashCommandItems = document.querySelectorAll('.slash-command-item:not(.prompt-snippet-item):not(.add-snippet-item)');
+    slashCommandItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const command = item.getAttribute('data-command') ||
+                          item.getAttribute('onclick')?.match(/executeSlashCommand\('(.+?)'\)/)?.[1];
+            if (command) {
+                window.executeSlashCommand(command);
+            }
+        });
+    });
+
+    // Custom command input
+    const customCommandInput = document.querySelector('.command-input-wrapper input');
+    if (customCommandInput) {
+        customCommandInput.addEventListener('keydown', (event) => window.handleCustomCommandKeydown(event as KeyboardEvent));
+        customCommandInput.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    // History close button
+    const historyCloseBtn = document.querySelector('[data-action="closeHistory"]');
+    if (historyCloseBtn) {
+        historyCloseBtn.addEventListener('click', () => window.toggleConversationHistory());
+    }
+
+    // Dynamically generated elements (using event delegation)
+    document.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+
+        // Restore buttons
+        if (target.classList.contains('diff-restore-btn')) {
+            const sha = target.getAttribute('data-sha');
+            if (sha) {
+                window.restoreToCommit(sha);
+            }
+        }
+
+        // Copy message buttons
+        else if (target.classList.contains('copy-message-btn')) {
+            const messageId = target.getAttribute('data-message-id');
+            if (messageId) {
+                window.copyMessageContent(messageId);
+            }
+        }
+
+        // YOLO mode buttons
+        else if (target.classList.contains('yolo-btn')) {
+            window._enableYoloMode();
+        }
+
+        // Conversation items
+        else if (target.classList.contains('conversation-item') || target.closest('.conversation-item')) {
+            const conversationItem = target.closest('.conversation-item') as HTMLElement;
+            if (conversationItem) {
+                const filename = conversationItem.getAttribute('data-filename');
+                if (filename) {
+                    window.loadConversation(filename);
+                }
+            }
+        }
+
+        // Session info buttons
+        else if (target.classList.contains('session-close-btn')) {
+            window.hideSessionInfo();
+        }
+        else if (target.classList.contains('session-copy-btn')) {
+            const sessionId = target.getAttribute('data-session-id');
+            if (sessionId) {
+                window._copySessionId(sessionId);
+            }
+        }
+
+        // Snippet buttons
+        else if (target.classList.contains('use-snippet-btn')) {
+            const snippetId = target.getAttribute('data-snippet-id');
+            if (snippetId) {
+                window.usePromptSnippet(snippetId);
+            }
+        }
+        else if (target.classList.contains('delete-snippet-btn')) {
+            const snippetId = target.getAttribute('data-snippet-id');
+            if (snippetId) {
+                window._deleteCustomSnippet(snippetId);
+            }
+        }
+
+        // Context clear button
+        else if (target.classList.contains('context-clear')) {
+            window.clearEditorContext();
+        }
+    });
 }
 

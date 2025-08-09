@@ -11,7 +11,7 @@
 	<div id="conversationHistory" class="conversation-history" style="display: none;">
 		<div class="conversation-header">
 			<h3>Conversation History</h3>
-			<button class="btn" onclick="toggleConversationHistory()">✕ Close</button>
+			<button class="btn" data-action="closeHistory">✕ Close</button>
 		</div>
 		<div id="conversationList" class="conversation-list">
 			<!-- Conversations will be loaded here -->
@@ -30,8 +30,8 @@
 					If you are using WSL to run Claude Code, you should enable WSL integration in the settings.
 				</div>
 				<div class="wsl-alert-actions">
-					<button class="btn" onclick="openWSLSettings()">Enable WSL</button>
-					<button class="btn outlined" onclick="dismissWSLAlert()">Dismiss</button>
+					<button class="btn" data-action="enableWSL">Enable WSL</button>
+					<button class="btn outlined" data-action="dismissWSL">Dismiss</button>
 				</div>
 			</div>
 		</div>
@@ -40,15 +40,15 @@
 			<div class="editor-context-line" id="editorContextLine" style="display: none;"></div>
 			<div class="input-modes">
 				<div class="mode-toggle">
-					<span onclick="togglePlanMode()">Plan First</span>
-					<div class="mode-switch" id="planModeSwitch" onclick="togglePlanMode()"></div>
+					<span>Plan First</span>
+					<div class="mode-switch" id="planModeSwitch"></div>
 				</div>
 				<div class="mode-toggle">
-					<span id="thinkingModeLabel" onclick="toggleThinkingMode()">Thinking Mode</span>
-					<div class="mode-switch" id="thinkingModeSwitch" onclick="toggleThinkingMode()"></div>
+					<span id="thinkingModeLabel">Thinking Mode</span>
+					<div class="mode-switch" id="thinkingModeSwitch"></div>
 				</div>
 				<div class="status-indicator-container">
-					<div class="status-indicator ready" id="inputStatusIndicator" onclick="toggleStatusPopover()" title="Click to view usage stats"></div>
+					<div class="status-indicator ready" id="inputStatusIndicator" title="Click to view usage stats"></div>
 				</div>
 			</div>
 			<div class="textarea-container">
@@ -56,13 +56,13 @@
 					<textarea class="input-field" id="messageInput" placeholder="Type your message to Claude Code..." rows="1"></textarea>
 					<div class="input-controls">
 						<div class="left-controls">
-							<button class="model-selector" id="modelSelector" onclick="showModelSelector()" title="Select model">
+							<button class="model-selector" id="modelSelector" title="Select model">
 								<span id="selectedModel">Opus</span>
 								<svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
 									<path d="M1 2.5l3 3 3-3"></path>
 								</svg>
 							</button>
-							<button class="tools-btn" onclick="showMCPModal()" title="Configure MCP servers">
+							<button class="tools-btn" id="mcpBtn" title="Configure MCP servers">
 								MCP
 								<svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
 									<path d="M1 2.5l3 3 3-3"></path>
@@ -70,9 +70,9 @@
 							</button>
 						</div>
 						<div class="right-controls">
-							<button class="slash-btn" onclick="showSlashCommandsModal()" title="Slash commands">/</button>
-							<button class="at-btn" onclick="showFilePicker()" title="Reference files">@</button>
-							<button class="image-btn" id="imageBtn" onclick="selectImage()" title="Attach images">
+							<button class="slash-btn" id="slashCommandsBtn" title="Slash commands">/</button>
+							<button class="at-btn" id="filePickerBtn" title="Reference files">@</button>
+							<button class="image-btn" id="imageBtn" title="Attach images">
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
 								viewBox="0 0 16 16"
@@ -85,7 +85,7 @@
 								</g>
 							</svg>
 							</button>
-							<button class="send-btn" id="sendBtn" onclick="sendMessage()">
+							<button class="send-btn" id="sendButton">
 							<div>
 							<span>Send </span>
 							   <svg
@@ -115,7 +115,7 @@
 				<div class="status-indicator" id="statusIndicator"></div>
 				<div class="status-text" id="statusText">Initializing...</div>
 			</div>
-			<button class="btn stop" id="stopBtn" onclick="stopRequest()" style="display: none;">
+			<button class="btn stop" id="stopButton" style="display: none;">
 				<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
 					<path d="M6 6h12v12H6z"/>
 				</svg>
@@ -146,54 +146,54 @@
 		<div class="tools-modal-content">
 			<div class="tools-modal-header">
 				<span>MCP Servers</span>
-				<button class="tools-close-btn" onclick="hideMCPModal()">✕</button>
+				<button class="tools-close-btn close-mcp">✕</button>
 			</div>
 			<div class="tools-list">
 				<div class="mcp-servers-list" id="mcpServersList">
 					<!-- MCP servers will be loaded here -->
 				</div>
 				<div class="mcp-add-server">
-					<button class="btn outlined" onclick="showAddServerForm()" id="addServerBtn">+ Add MCP Server</button>
+					<button class="btn outlined" id="addServerBtn">+ Add MCP Server</button>
 				</div>
 				<div class="mcp-popular-servers" id="popularServers">
 					<h4>Popular MCP Servers</h4>
 					<div class="popular-servers-grid">
-						<div class="popular-server-item" onclick="addPopularServer('context7', { type: 'http', url: 'https://context7.liam.sh/mcp' })">
+						<div class="popular-server-item">
 							<div class="popular-server-icon">📚</div>
 							<div class="popular-server-info">
 								<div class="popular-server-name">Context7</div>
 								<div class="popular-server-desc">Up-to-date Code Docs For Any Prompt</div>
 							</div>
 						</div>
-						<div class="popular-server-item" onclick="addPopularServer('sequential-thinking', { type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-sequential-thinking'] })">
+						<div class="popular-server-item">
 							<div class="popular-server-icon">🔗</div>
 							<div class="popular-server-info">
 								<div class="popular-server-name">Sequential Thinking</div>
 								<div class="popular-server-desc">Step-by-step reasoning capabilities</div>
 							</div>
 						</div>
-						<div class="popular-server-item" onclick="addPopularServer('memory', { type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-memory'] })">
+						<div class="popular-server-item">
 							<div class="popular-server-icon">🧠</div>
 							<div class="popular-server-info">
 								<div class="popular-server-name">Memory</div>
 								<div class="popular-server-desc">Knowledge graph storage</div>
 							</div>
 						</div>
-						<div class="popular-server-item" onclick="addPopularServer('puppeteer', { type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-puppeteer'] })">
+						<div class="popular-server-item">
 							<div class="popular-server-icon">🎭</div>
 							<div class="popular-server-info">
 								<div class="popular-server-name">Puppeteer</div>
 								<div class="popular-server-desc">Browser automation</div>
 							</div>
 						</div>
-						<div class="popular-server-item" onclick="addPopularServer('fetch', { type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-fetch'] })">
+						<div class="popular-server-item">
 							<div class="popular-server-icon">🌐</div>
 							<div class="popular-server-info">
 								<div class="popular-server-name">Fetch</div>
 								<div class="popular-server-desc">HTTP requests & web scraping</div>
 							</div>
 						</div>
-						<div class="popular-server-item" onclick="addPopularServer('filesystem', { type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem'] })">
+						<div class="popular-server-item">
 							<div class="popular-server-icon">📁</div>
 							<div class="popular-server-info">
 								<div class="popular-server-name">Filesystem</div>
@@ -209,7 +209,7 @@
 				</div>
 				<div class="form-group">
 					<label for="serverType">Server Type:</label>
-					<select id="serverType" onchange="updateServerForm()">
+					<select id="serverType">
 						<option value="http">HTTP</option>
 						<option value="sse">SSE</option>
 						<option value="stdio">stdio</option>
@@ -236,8 +236,8 @@
 					<textarea id="serverHeaders" placeholder="Authorization=Bearer token&#10;X-API-Key=key" rows="3"></textarea>
 				</div>
 				<div class="form-buttons">
-					<button class="btn" onclick="saveMCPServer()">Add Server</button>
-					<button class="btn outlined" onclick="hideAddServerForm()">Cancel</button>
+					<button class="btn" id="saveServerBtn">Add Server</button>
+					<button class="btn outlined" id="cancelServerBtn">Cancel</button>
 				</div>
 			</div>
 		</div>
@@ -249,7 +249,7 @@
 		<div class="tools-modal-content">
 			<div class="tools-modal-header">
 				<span>Claude Code Sidebar Settings</span>
-				<button class="tools-close-btn" onclick="hideSettingsModal()">✕</button>
+				<button class="tools-close-btn close-settings">✕</button>
 			</div>
 			<div class="tools-list">
 				<h3 style="margin-top: 0; margin-bottom: 16px; font-size: 14px; font-weight: 600;">WSL Configuration</h3>
@@ -261,19 +261,19 @@
 				</div>
 				<div class="settings-group">
 					<div class="tool-item">
-						<input type="checkbox" id="wsl-enabled" onchange="updateSettings()">
+						<input type="checkbox" id="wsl-enabled">
 						<label for="wsl-enabled">Enable WSL Integration</label>
 					</div>
 
 					<div id="wslOptions" style="margin-left: 24px; margin-top: 12px; display: none;">
 						<div style="margin-bottom: 12px;">
 							<label style="display: block; margin-bottom: 4px; font-size: 12px; color: var(--vscode-descriptionForeground);">WSL Distribution</label>
-							<input type="text" id="wsl-distro" class="file-search-input" style="width: 100%;" placeholder="Ubuntu" onchange="updateSettings()">
+							<input type="text" id="wsl-distro" class="file-search-input" style="width: 100%;" placeholder="Ubuntu">
 						</div>
 
 						<div style="margin-bottom: 12px;">
 							<label style="display: block; margin-bottom: 4px; font-size: 12px; color: var(--vscode-descriptionForeground);">Node.js Path in WSL</label>
-							<input type="text" id="wsl-node-path" class="file-search-input" style="width: 100%;" placeholder="/usr/bin/node" onchange="updateSettings()">
+							<input type="text" id="wsl-node-path" class="file-search-input" style="width: 100%;" placeholder="/usr/bin/node">
 							<p style="font-size: 11px; color: var(--vscode-descriptionForeground); margin: 4px 0 0 0;">
 								Find your node installation path in WSL by running: <code style="background: var(--vscode-textCodeBlock-background); padding: 2px 4px; border-radius: 3px;">which node</code>
 							</p>
@@ -281,7 +281,7 @@
 
 						<div style="margin-bottom: 12px;">
 							<label style="display: block; margin-bottom: 4px; font-size: 12px; color: var(--vscode-descriptionForeground);">Claude Path in WSL</label>
-							<input type="text" id="wsl-claude-path" class="file-search-input" style="width: 100%;" placeholder="/usr/local/bin/claude" onchange="updateSettings()">
+							<input type="text" id="wsl-claude-path" class="file-search-input" style="width: 100%;" placeholder="/usr/local/bin/claude">
 							<p style="font-size: 11px; color: var(--vscode-descriptionForeground); margin: 4px 0 0 0;">
 								Find your claude installation path in WSL by running: <code style="background: var(--vscode-textCodeBlock-background); padding: 2px 4px; border-radius: 3px;">which claude</code>
 							</p>
@@ -304,7 +304,7 @@
 					<div class="permissions-add-section">
 						<div id="addPermissionForm" class="permissions-add-form" style="display: none;">
 							<div class="permissions-form-row">
-								<select id="addPermissionTool" class="permissions-tool-select" onchange="toggleCommandInput()">
+								<select id="addPermissionTool" class="permissions-tool-select">
 									<option value="">Select tool...</option>
 									<option value="Bash">Bash</option>
 									<option value="Read">Read</option>
@@ -320,17 +320,17 @@
 								<div style="flex-grow: 1; display: flex;">
 									<input type="text" id="addPermissionCommand" class="permissions-command-input" placeholder="Command pattern (e.g., npm i *)" style="display: none;" />
 								</div>
-								<button id="addPermissionBtn" class="permissions-add-btn" onclick="addPermission()">Add</button>
+								<button id="addPermissionBtn" class="permissions-add-btn">Add</button>
 							</div>
 							<div id="permissionsFormHint" class="permissions-form-hint">
 								Select a tool to add always-allow permission.
 							</div>
 						</div>
-						<button id="showAddPermissionBtn" class="permissions-show-add-btn" onclick="showAddPermissionForm()">
+						<button id="showAddPermissionBtn" class="permissions-show-add-btn">
 							+ Add permission
 						</button>
 						<div class="yolo-mode-section">
-							<input type="checkbox" id="yolo-mode" onchange="updateSettings(); updateYoloWarning();">
+							<input type="checkbox" id="yolo-mode">
 							<label for="yolo-mode">Enable Yolo Mode (Auto-allow all permissions)</label>
 						</div>
 					</div>
@@ -346,13 +346,13 @@
 		<div class="tools-modal-content" style="width: 400px;">
 			<div class="tools-modal-header">
 				<span>Enforce Model</span>
-				<button class="tools-close-btn" onclick="hideModelModal()">✕</button>
+				<button class="tools-close-btn close-model">✕</button>
 			</div>
 			<div class="model-explanatory-text">
 				This overrides your default model setting for this conversation only.
 			</div>
 			<div class="tools-list">
-				<div class="tool-item" onclick="selectModel('opus')">
+				<div class="tool-item" data-model="opus">
 					<input type="radio" name="model" id="model-opus" value="opus" checked>
 					<label for="model-opus">
 						<div class="model-title">Opus - Most capable model</div>
@@ -361,7 +361,7 @@
 						</div>
 					</label>
 				</div>
-				<div class="tool-item" onclick="selectModel('sonnet')">
+				<div class="tool-item" data-model="sonnet">
 					<input type="radio" name="model" id="model-sonnet" value="sonnet">
 					<label for="model-sonnet">
 						<div class="model-title">Sonnet - Balanced model</div>
@@ -370,7 +370,7 @@
 						</div>
 					</label>
 				</div>
-				<div class="tool-item" onclick="selectModel('default')">
+				<div class="tool-item" data-model="default">
 					<input type="radio" name="model" id="model-default" value="default">
 					<label for="model-default" class="default-model-layout">
 						<div class="model-option-content">
@@ -379,7 +379,7 @@
 								Uses the model configured in your settings
 							</div>
 						</div>
-						<button class="secondary-button configure-button" onclick="event.stopPropagation(); openModelTerminal();">
+						<button class="secondary-button configure-button">
 							Configure
 						</button>
 					</label>
@@ -393,23 +393,23 @@
 		<div class="tools-modal-content" style="width: 450px;">
 			<div class="tools-modal-header">
 				<span>Thinking Mode Intensity</span>
-				<button class="tools-close-btn" onclick="hideThinkingIntensityModal()">✕</button>
+				<button class="tools-close-btn">✕</button>
 			</div>
 			<div class="thinking-modal-description">
 				Configure the intensity of thinking mode. Higher levels provide more detailed reasoning but consume more tokens.
 			</div>
 			<div class="tools-list">
 				<div class="thinking-slider-container">
-					<input type="range" min="0" max="3" value="0" step="1" class="thinking-slider" id="thinkingIntensitySlider" oninput="updateThinkingIntensityDisplay(this.value)">
+					<input type="range" min="0" max="3" value="0" step="1" class="thinking-slider" id="thinkingIntensitySlider">
 					<div class="slider-labels">
-						<div class="slider-label active" id="thinking-label-0" onclick="setThinkingIntensityValue(0)">Think</div>
-						<div class="slider-label" id="thinking-label-1" onclick="setThinkingIntensityValue(1)">Think Hard</div>
-						<div class="slider-label" id="thinking-label-2" onclick="setThinkingIntensityValue(2)">Think Harder</div>
-						<div class="slider-label" id="thinking-label-3" onclick="setThinkingIntensityValue(3)">Ultrathink</div>
+						<div class="slider-label active" id="thinking-label-0">Think</div>
+						<div class="slider-label" id="thinking-label-1">Think Hard</div>
+						<div class="slider-label" id="thinking-label-2">Think Harder</div>
+						<div class="slider-label" id="thinking-label-3">Ultrathink</div>
 					</div>
 				</div>
 				<div class="thinking-modal-actions">
-					<button class="confirm-btn" onclick="confirmThinkingIntensity()">Confirm</button>
+					<button class="confirm-btn" id="confirmThinkingBtn">Confirm</button>
 				</div>
 			</div>
 		</div>
@@ -420,7 +420,7 @@
 		<div class="tools-modal-content">
 			<div class="tools-modal-header">
 				<span>Commands & Prompt Snippets</span>
-				<button class="tools-close-btn" onclick="hideSlashCommandsModal()">✕</button>
+				<button class="tools-close-btn close-slash-commands">✕</button>
 			</div>
 			<div class="tools-modal-body">
 
@@ -428,7 +428,7 @@
 			<div class="slash-commands-search">
 				<div class="search-input-wrapper">
 					<span class="search-prefix">/</span>
-					<input type="text" id="slashCommandsSearch" placeholder="Search commands and snippets..." oninput="filterSlashCommands()">
+					<input type="text" id="slashCommandsSearch" placeholder="Search commands and snippets...">
 				</div>
 			</div>
 
@@ -440,7 +440,7 @@
 				</div>
 				<div class="slash-commands-list" id="promptSnippetsList">
 					<!-- Add Custom Snippet Button -->
-					<div class="slash-command-item add-snippet-item" onclick="showAddSnippetForm()">
+					<div class="slash-command-item add-snippet-item">
 						<div class="slash-command-icon">➕</div>
 						<div class="slash-command-content">
 							<div class="slash-command-title">Add Custom Command</div>
@@ -462,62 +462,62 @@
 							<textarea id="snippetPrompt" placeholder="e.g., Help me fix this bug in my code..." rows="3"></textarea>
 						</div>
 						<div class="form-buttons">
-							<button class="btn" onclick="saveCustomSnippet()">Save Command</button>
-							<button class="btn outlined" onclick="hideAddSnippetForm()">Cancel</button>
+							<button class="btn" data-action="saveSnippet">Save Command</button>
+							<button class="btn outlined" data-action="cancelSnippet">Cancel</button>
 						</div>
 					</div>
 
 					<!-- Built-in Snippets -->
-					<div class="slash-command-item prompt-snippet-item" onclick="usePromptSnippet('performance-analysis')">
+					<div class="slash-command-item prompt-snippet-item" data-snippet="performance-analysis">
 						<div class="slash-command-icon">⚡</div>
 						<div class="slash-command-content">
 							<div class="slash-command-title">/performance-analysis</div>
 							<div class="slash-command-description">Analyze this code for performance issues and suggest optimizations</div>
 						</div>
 					</div>
-					<div class="slash-command-item prompt-snippet-item" onclick="usePromptSnippet('security-review')">
+					<div class="slash-command-item prompt-snippet-item" data-snippet="security-review">
 						<div class="slash-command-icon">🔒</div>
 						<div class="slash-command-content">
 							<div class="slash-command-title">/security-review</div>
 							<div class="slash-command-description">Review this code for security vulnerabilities</div>
 						</div>
 					</div>
-					<div class="slash-command-item prompt-snippet-item" onclick="usePromptSnippet('implementation-review')">
+					<div class="slash-command-item prompt-snippet-item" data-snippet="implementation-review">
 						<div class="slash-command-icon">🔍</div>
 						<div class="slash-command-content">
 							<div class="slash-command-title">/implementation-review</div>
 							<div class="slash-command-description">Review the implementation in this code</div>
 						</div>
 					</div>
-					<div class="slash-command-item prompt-snippet-item" onclick="usePromptSnippet('code-explanation')">
+					<div class="slash-command-item prompt-snippet-item" data-snippet="code-explanation">
 						<div class="slash-command-icon">📖</div>
 						<div class="slash-command-content">
 							<div class="slash-command-title">/code-explanation</div>
 							<div class="slash-command-description">Explain how this code works in detail</div>
 						</div>
 					</div>
-					<div class="slash-command-item prompt-snippet-item" onclick="usePromptSnippet('bug-fix')">
+					<div class="slash-command-item prompt-snippet-item" data-snippet="bug-fix">
 						<div class="slash-command-icon">🐛</div>
 						<div class="slash-command-content">
 							<div class="slash-command-title">/bug-fix</div>
 							<div class="slash-command-description">Help me fix this bug in my code</div>
 						</div>
 					</div>
-					<div class="slash-command-item prompt-snippet-item" onclick="usePromptSnippet('refactor')">
+					<div class="slash-command-item prompt-snippet-item" data-snippet="refactor">
 						<div class="slash-command-icon">🔄</div>
 						<div class="slash-command-content">
 							<div class="slash-command-title">/refactor</div>
 							<div class="slash-command-description">Refactor this code to improve readability and maintainability</div>
 						</div>
 					</div>
-					<div class="slash-command-item prompt-snippet-item" onclick="usePromptSnippet('test-generation')">
+					<div class="slash-command-item prompt-snippet-item" data-snippet="test-generation">
 						<div class="slash-command-icon">🧪</div>
 						<div class="slash-command-content">
 							<div class="slash-command-title">/test-generation</div>
 							<div class="slash-command-description">Generate comprehensive tests for this code</div>
 						</div>
 					</div>
-					<div class="slash-command-item prompt-snippet-item" onclick="usePromptSnippet('documentation')">
+					<div class="slash-command-item prompt-snippet-item" data-snippet="documentation">
 						<div class="slash-command-icon">📝</div>
 						<div class="slash-command-content">
 							<div class="slash-command-title">/documentation</div>
@@ -534,133 +534,133 @@
 					<p>These commands require the Claude CLI and will open in VS Code terminal. Return here after completion.</p>
 				</div>
 				<div class="slash-commands-list" id="nativeCommandsList">
-				<div class="slash-command-item" onclick="executeSlashCommand('bug')">
+				<div class="slash-command-item" data-command='bug'>
 					<div class="slash-command-icon">🐛</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/bug</div>
 						<div class="slash-command-description">Report bugs (sends conversation to Anthropic)</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('clear')">
+				<div class="slash-command-item" data-command='clear'>
 					<div class="slash-command-icon">🗑️</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/clear</div>
 						<div class="slash-command-description">Clear conversation history</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('compact')">
+				<div class="slash-command-item" data-command='compact'>
 					<div class="slash-command-icon">📦</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/compact</div>
 						<div class="slash-command-description">Compact conversation with optional focus instructions</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('config')">
+				<div class="slash-command-item" data-command='config'>
 					<div class="slash-command-icon">⚙️</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/config</div>
 						<div class="slash-command-description">View/modify configuration</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('cost')">
+				<div class="slash-command-item" data-command='cost'>
 					<div class="slash-command-icon">💰</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/cost</div>
 						<div class="slash-command-description">Show token usage statistics</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('doctor')">
+				<div class="slash-command-item" data-command='doctor'>
 					<div class="slash-command-icon">🩺</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/doctor</div>
 						<div class="slash-command-description">Checks the health of your Claude Code installation</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('help')">
+				<div class="slash-command-item" data-command='help'>
 					<div class="slash-command-icon">❓</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/help</div>
 						<div class="slash-command-description">Get usage help</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('init')">
+				<div class="slash-command-item" data-command='init'>
 					<div class="slash-command-icon">🚀</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/init</div>
 						<div class="slash-command-description">Initialize project with CLAUDE.md guide</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('login')">
+				<div class="slash-command-item" data-command='login'>
 					<div class="slash-command-icon">🔑</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/login</div>
 						<div class="slash-command-description">Switch Anthropic accounts</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('logout')">
+				<div class="slash-command-item" data-command='logout'>
 					<div class="slash-command-icon">🚪</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/logout</div>
 						<div class="slash-command-description">Sign out from your Anthropic account</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('mcp')">
+				<div class="slash-command-item" data-command='mcp'>
 					<div class="slash-command-icon">🔌</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/mcp</div>
 						<div class="slash-command-description">Manage MCP server connections and OAuth authentication</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('memory')">
+				<div class="slash-command-item" data-command='memory'>
 					<div class="slash-command-icon">🧠</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/memory</div>
 						<div class="slash-command-description">Edit CLAUDE.md memory files</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('model')">
+				<div class="slash-command-item" data-command='model'>
 					<div class="slash-command-icon">🤖</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/model</div>
 						<div class="slash-command-description">Select or change the AI model</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('permissions')">
+				<div class="slash-command-item" data-command='permissions'>
 					<div class="slash-command-icon">🔒</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/permissions</div>
 						<div class="slash-command-description">View or update permissions</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('pr_comments')">
+				<div class="slash-command-item" data-command='pr_comments'>
 					<div class="slash-command-icon">💬</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/pr_comments</div>
 						<div class="slash-command-description">View pull request comments</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('review')">
+				<div class="slash-command-item" data-command='review'>
 					<div class="slash-command-icon">👀</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/review</div>
 						<div class="slash-command-description">Request code review</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('status')">
+				<div class="slash-command-item" data-command='status'>
 					<div class="slash-command-icon">📊</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/status</div>
 						<div class="slash-command-description">View account and system statuses</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('terminal-setup')">
+				<div class="slash-command-item" data-command='terminal-setup'>
 					<div class="slash-command-icon">⌨️</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/terminal-setup</div>
 						<div class="slash-command-description">Install Shift+Enter key binding for newlines</div>
 					</div>
 				</div>
-				<div class="slash-command-item" onclick="executeSlashCommand('vim')">
+				<div class="slash-command-item" data-command='vim'>
 					<div class="slash-command-icon">📝</div>
 					<div class="slash-command-content">
 						<div class="slash-command-title">/vim</div>
@@ -678,9 +678,7 @@
 									   class="custom-command-input"
 									   id="customCommandInput"
 									   placeholder="enter-command"
-									   onkeydown="handleCustomCommandKeydown(event)"
-									   onclick="event.stopPropagation()">
-							</div>
+									</div>
 						</div>
 					</div>
 				</div>

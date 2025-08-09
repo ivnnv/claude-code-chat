@@ -1,181 +1,5 @@
-// Settings Configuration - Consolidated settings management, modals, and model execution
-import * as vscode from 'vscode';
+// Settings Webview - Settings UI functionality for webview (no Node.js dependencies)
 import '../types/global';
-
-// =====================================
-// SETTINGS MANAGER FUNCTIONALITY
-// =====================================
-
-export class SettingsManager {
-	constructor(
-		private _context: vscode.ExtensionContext,
-		private _postMessage: (msg: any) => void
-	) {}
-
-	public sendCurrentSettings(): void {
-		const config = vscode.workspace.getConfiguration('claudeCodeVscPanel');
-		const settings = {
-			'thinking.intensity': config.get<string>('thinking.intensity', 'think'),
-			'wsl.enabled': config.get<boolean>('wsl.enabled', false),
-			'wsl.distro': config.get<string>('wsl.distro', 'Ubuntu'),
-			'wsl.nodePath': config.get<string>('wsl.nodePath', '/usr/bin/node'),
-			'wsl.claudePath': config.get<string>('wsl.claudePath', '/usr/local/bin/claude'),
-			'yolo.enabled': config.get<boolean>('yolo.enabled', false)
-		};
-
-		this._postMessage({ type: 'currentSettings', data: settings });
-	}
-
-	public async updateSettings(settings: { [key: string]: any }): Promise<void> {
-		try {
-			const config = vscode.workspace.getConfiguration('claudeCodeVscPanel');
-
-			for (const [key, value] of Object.entries(settings)) {
-				await config.update(key, value, vscode.ConfigurationTarget.Global);
-			}
-
-			this._postMessage({
-				type: 'settingsUpdated',
-				data: { success: true, settings }
-			});
-
-			// Send updated settings back
-			this.sendCurrentSettings();
-
-		} catch (error) {
-			console.error('Failed to update settings:', error);
-			this._postMessage({
-				type: 'error',
-				data: `Failed to update settings: ${error}`
-			});
-		}
-	}
-
-	public async enableYoloMode(): Promise<void> {
-		try {
-			const config = vscode.workspace.getConfiguration('claudeCodeVscPanel');
-			await config.update('permissions.yoloMode', true, vscode.ConfigurationTarget.Global);
-
-			this._postMessage({
-				type: 'yoloModeEnabled',
-				data: { success: true }
-			});
-
-		} catch (error) {
-			console.error('Failed to enable yolo mode:', error);
-			this._postMessage({
-				type: 'error',
-				data: `Failed to enable yolo mode: ${error}`
-			});
-		}
-	}
-
-	public dismissWSLAlert(): void {
-		// Save in global state to persist the dismissal
-		this._context.globalState.update('wslAlertDismissed', true);
-	}
-
-	public isWSLAlertDismissed(): boolean {
-		return this._context.globalState.get('wslAlertDismissed', false);
-	}
-
-	public async saveCustomSnippet(snippet: any): Promise<void> {
-		try {
-			// Store custom snippets in global state
-			const existingSnippets = this._context.globalState.get('customSnippets', {}) as any;
-			const snippetId = snippet.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-
-			(existingSnippets as any)[snippetId] = {
-				id: snippetId,
-				name: snippet.name,
-				prompt: snippet.prompt,
-				created: new Date().toISOString()
-			};
-
-			await this._context.globalState.update('customSnippets', existingSnippets);
-
-			this._postMessage({
-				type: 'customSnippetSaved',
-				data: { success: true, snippetId }
-			});
-
-		} catch (error) {
-			console.error('Failed to save custom snippet:', error);
-			this._postMessage({
-				type: 'error',
-				data: `Failed to save custom snippet: ${error}`
-			});
-		}
-	}
-
-	public async deleteCustomSnippet(snippetId: string): Promise<void> {
-		try {
-			const existingSnippets = this._context.globalState.get('customSnippets', {}) as any;
-			delete (existingSnippets as any)[snippetId];
-
-			await this._context.globalState.update('customSnippets', existingSnippets);
-
-			this._postMessage({
-				type: 'customSnippetDeleted',
-				data: { success: true, snippetId }
-			});
-
-		} catch (error) {
-			console.error('Failed to delete custom snippet:', error);
-			this._postMessage({
-				type: 'error',
-				data: `Failed to delete custom snippet: ${error}`
-			});
-		}
-	}
-
-	public getCustomSnippets(): any {
-		return this._context.globalState.get('customSnippets', {});
-	}
-
-	public saveInputText(text: string): void {
-		// Save draft message to context state
-		this._context.workspaceState.update('claude.draftMessage', text);
-	}
-
-	public getInputText(): string {
-		return this._context.workspaceState.get('claude.draftMessage', '');
-	}
-
-	public async openModelTerminal(): Promise<void> {
-		try {
-			// Create a new terminal and run claude model command
-			const terminal = vscode.window.createTerminal('Claude Model Configuration');
-			terminal.sendText('claude model');
-			terminal.show();
-
-		} catch (error) {
-			console.error('Failed to open model terminal:', error);
-			this._postMessage({
-				type: 'error',
-				data: `Failed to open model terminal: ${error}`
-			});
-		}
-	}
-
-	public setSelectedModel(model: string): void {
-		// Store selected model in workspace state
-		this._context.workspaceState.update('claude.selectedModel', model);
-
-		this._postMessage({
-			type: 'modelSelected',
-			model: model
-		});
-	}
-
-	public getSelectedModel(): string {
-		return this._context.workspaceState.get('claude.selectedModel', 'default');
-	}
-}
-
-// =====================================
-// SETTINGS MODALS FUNCTIONALITY
-// =====================================
 
 // VS Code API will be provided by ui-scripts.ts
 let vsCodeApi: any;
@@ -252,12 +76,8 @@ export function updateYoloWarning(): void {
 }
 
 export function openWSLSettings(): void {
-	// Check Windows platform first
-	if (process.platform !== 'win32') {
-		return;
-	}
-
 	// Auto-enable WSL and show settings modal
+	// Note: Platform checking will be done by the extension backend
 	const wslEnabledCheckbox = document.getElementById('wsl-enabled') as HTMLInputElement;
 	if (wslEnabledCheckbox) {
 		wslEnabledCheckbox.checked = true;
@@ -381,10 +201,6 @@ export function confirmThinkingIntensity(): void {
 	}
 }
 
-// =====================================
-// MODEL EXECUTION FUNCTIONALITY
-// =====================================
-
 export function openFileInEditor(filePath: string): void {
 	if (vsCodeApi) {
 		vsCodeApi.postMessage({
@@ -452,10 +268,6 @@ export function stopRequest(): void {
 		});
 	}
 }
-
-// =====================================
-// WSL SNIPPETS UTILS FUNCTIONALITY
-// =====================================
 
 export function showAddSnippetForm(): void {
 	const form = document.getElementById('addSnippetForm');
@@ -646,28 +458,4 @@ export function toggleThinkingMode(): void {
 	}
 }
 
-// Expose functions to global scope for HTML handlers
-declare global {
-	interface _Window {
-		showSettingsModal: () => void;
-		hideSettingsModal: () => void;
-		updateSettings: () => void;
-		openWSLSettings: () => void;
-		dismissWSLAlert: () => void;
-		showThinkingIntensityModal: () => void;
-		hideThinkingIntensityModal: () => void;
-		updateThinkingIntensityDisplay: (value: string) => void;
-		setThinkingIntensityValue: (value: number) => void;
-		confirmThinkingIntensity: () => void;
-		selectModel: (model: string, fromBackend?: boolean) => void;
-		openModelTerminal: () => void;
-		executeSlashCommand: (command: string) => void;
-		showAddSnippetForm: () => void;
-		hideAddSnippetForm: () => void;
-		saveCustomSnippet: () => void;
-		deleteCustomSnippet: (snippetId: string) => void;
-		usePromptSnippet: (snippetId: string) => void;
-		handleCustomCommandKeydown: (event: KeyboardEvent) => void;
-		filterSlashCommands: () => void;
-	}
-}
+// Functions are defined in global.ts
