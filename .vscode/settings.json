@@ -12,6 +12,22 @@
 	"debug.javascript.usePreview": true,
 	// RSBuild dev server settings
 	"liveServer.settings.port": 3001, // Avoid conflict with RSBuild on port 3000
+	// Extension development settings
+	"task.allowAutomaticTasks": "on",
+	"terminal.integrated.defaultProfile.osx": "zsh",
+	"debug.terminal.clearBeforeReusing": true,
+	"debug.focusWindowOnBreak": true,
+	"debug.showInlineBreakpointCandidates": true,
+	"debug.showSubSessionsInToolBar": true,
+	// Task management
+	"task.problemMatchers.neverPrompt": {
+		"shell": true
+	},
+	"task.quickOpen.history": 10,
+	// Better IntelliSense for extension development
+	"typescript.preferences.includePackageJsonAutoImports": "on",
+	"typescript.suggest.completeFunctionCalls": true,
+	"typescript.suggest.enabled": true,
 	"workbench.colorCustomizations": {
 		"activityBar.activeBackground": "#8f2f10",
 		"activityBar.background": "#8f2f10",

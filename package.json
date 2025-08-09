@@ -2,7 +2,7 @@
   "name": "claude-code-vsc-panel",
   "displayName": "Claude Code VSC Panel",
   "description": "Clean, modular Claude Code interface for VS Code - Advanced panel with next-level features",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "publisher": "ivnnv",
   "author": "Ivn Nv <ivnnv@hotmail.com>",
   "repository": {
@@ -73,7 +73,7 @@
       {
         "command": "claude-code-vsc-panel.history",
         "title": "History",
-        "icon": "$(history)"
+        "icon": "$(references)"
       },
       {
         "command": "claude-code-vsc-panel.newChat",
@@ -84,6 +84,11 @@
         "command": "claude-code-vsc-panel.statusInfo",
         "title": "Status Info",
         "icon": "$(credit-card)"
+      },
+      {
+        "command": "claude-code-vsc-panel.reloadWindow",
+        "title": "Reload Window",
+        "icon": "$(refresh)"
       }
     ],
     "keybindings": [
@@ -140,6 +145,11 @@
           "command": "claude-code-vsc-panel.settings",
           "group": "navigation@4",
           "when": "view == claude-code-vsc-panel.chat"
+        },
+        {
+          "command": "claude-code-vsc-panel.reloadWindow",
+          "group": "navigation@5",
+          "when": "view == claude-code-vsc-panel.chat && config.claude-code-vsc-panel.dev.showReloadButton"
         }
       ],
       "touchBar": [
@@ -214,6 +224,11 @@
           "type": "boolean",
           "default": false,
           "description": "Enable Yolo Mode to skip all permission checks. Use with caution as Claude can execute any command without asking."
+        },
+        "claude-code-vsc-panel.dev.showReloadButton": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show reload window button in extension header (development mode only)"
         }
       }
     }

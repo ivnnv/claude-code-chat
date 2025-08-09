@@ -599,6 +599,19 @@ body {
     overflow-y: auto;
 }
 
+/* Build info display for development mode*/
+.buildInfo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 6px 12px;
+
+    &-content {
+        flex: 1;
+    }
+}
+
 .message {
     margin-bottom: 4px;
     padding: 0;
