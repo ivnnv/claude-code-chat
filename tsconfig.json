@@ -16,7 +16,6 @@
 		// "noUnusedParameters": true,  /* Report errors on unused parameters. */
 	},
 	"exclude": [
-		"mcp-permissions.js",
 		"claude-code-vsc-panel-permissions-mcp",
 		"rsbuild.config.ts",
 		"out",

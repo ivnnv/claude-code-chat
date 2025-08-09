@@ -1,7 +1,7 @@
 # Settings Interface Test Plan
 
 ## Overview
-Added a settings interface to the Claude Code Sidebar webview that allows users to configure WSL settings.
+Added a settings interface to the Claude Code Panel webview that allows users to configure WSL settings.
 
 ## Changes Made
 
@@ -36,7 +36,7 @@ Added a settings interface to the Claude Code Sidebar webview that allows users 
 ## Testing Steps
 
 1. Open VS Code with the extension
-2. Open Claude Code Sidebar (Ctrl+Shift+C)
+2. Open Claude Code Panel (Ctrl+Shift+C)
 3. Click the settings button (⚙️) in the header
 4. Verify the settings modal appears
 5. Check that current WSL settings are loaded

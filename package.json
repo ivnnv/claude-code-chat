@@ -61,8 +61,8 @@
     "commands": [
       {
         "command": "claude-code-vsc-panel.openChat",
-        "title": "Open Claude Code Sidebar",
-        "category": "Claude Code Sidebar",
+        "title": "Open Claude Code Panel",
+        "category": "Claude Code Panel",
         "icon": "icon.svg"
       },
       {
@@ -171,13 +171,13 @@
       "activitybar": [
         {
           "id": "claude-code-vsc-panel",
-          "title": "Claude Code Sidebar",
+          "title": "Claude Code Panel",
           "icon": "icon.svg"
         }
       ]
     },
     "configuration": {
-      "title": "Claude Code Sidebar",
+      "title": "Claude Code Panel",
       "properties": {
         "claudeCodeVscPanel.wsl.enabled": {
           "type": "boolean",
