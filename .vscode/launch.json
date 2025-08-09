@@ -6,7 +6,7 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "DebugExt",
+			"name": "DevExt",
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
@@ -18,11 +18,13 @@
 			"outFiles": [
 				"${workspaceFolder}/out/**/*.js"
 			],
-			"preLaunchTask": "pnpm: dev",
+			"preLaunchTask": "DevServer",
 			"sourceMaps": true,
 			"env": {
-				"VSCODE_DEBUG": "true"
-			}
-		},
+				"VSCODE_DEBUG": "true",
+				"CLAUDE_VSC_DEV_MODE": "true"
+			},
+			"internalConsoleOptions": "neverOpen"
+		}
 	]
 }

@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { ClaudeChatProvider } from '../claude-provider';
+import { ClaudeChatProvider } from '../claude-provider-backend';
 
 export async function initializeMCPConfig(provider: ClaudeChatProvider): Promise<void> {
 	try {

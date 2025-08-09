@@ -2,9 +2,151 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import * as util from 'util';
 import * as cp from 'child_process';
-import { ClaudeChatProvider, ConversationData } from '../claude-provider';
+import * as crypto from 'crypto';
+import { ClaudeChatProvider, ConversationData } from '../claude-provider-backend';
 
 const exec = util.promisify(cp.exec);
+
+export async function getRepositoryIdentifier(): Promise<string> {
+	try {
+		// Try to get git remote origin URL using VS Code's git API
+		const gitExtension = vscode.extensions.getExtension('vscode.git');
+		if (gitExtension) {
+			const gitApi = gitExtension.exports.getAPI(1);
+			const repositories = gitApi.repositories;
+
+			if (repositories.length > 0) {
+				const repo = repositories[0];
+				const remotes = await repo.getRemotes();
+				const origin = remotes.find((remote: any) => remote.name === 'origin');
+
+				if (origin && origin.fetchUrl) {
+					// Clean URL: "https://github.com/user/repo.git" → "github.com/user/repo"
+					const cleanUrl = origin.fetchUrl
+						.replace(/^https?:\/\//, '')
+						.replace(/^git@([^:]+):/, '$1/')
+						.replace(/\.git$/, '');
+
+					// Generate hash from clean URL
+					return crypto.createHash('md5').update(cleanUrl).digest('hex').substring(0, 8);
+				}
+			}
+		}
+	} catch (error) {
+		console.warn('Failed to get git remote origin:', error);
+	}
+
+	// Fallback to workspace folder path hash
+	const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+	if (workspaceFolder) {
+		const folderPath = workspaceFolder.uri.fsPath;
+		return crypto.createHash('md5').update(folderPath).digest('hex').substring(0, 8);
+	}
+
+	// Final fallback
+	return 'default';
+}
+
+async function migrateWorkspaceConversations(provider: ClaudeChatProvider, repoId: string): Promise<void> {
+	try {
+		// Check if we have existing workspace conversations to migrate
+		const workspaceConversationIndex = provider._context.workspaceState.get<any[]>('claude.conversationIndex', []);
+		if (workspaceConversationIndex.length === 0) {
+			console.log('No workspace conversations to migrate');
+			return;
+		}
+
+		const oldStoragePath = provider._context.storageUri?.fsPath;
+		const newStoragePath = provider._context.globalStorageUri?.fsPath;
+
+		if (!oldStoragePath || !newStoragePath) {
+			console.warn('Storage paths not available for migration');
+			return;
+		}
+
+		const oldConversationsPath = path.join(oldStoragePath, 'conversations');
+		const newConversationsPath = path.join(newStoragePath, 'conversations', repoId);
+
+		console.log(`Migrating ${workspaceConversationIndex.length} conversations from workspace to repo-based storage`);
+
+		// Check if old conversations directory exists
+		try {
+			await vscode.workspace.fs.stat(vscode.Uri.file(oldConversationsPath));
+		} catch {
+			console.log('No old conversations directory found');
+			return;
+		}
+
+		// Create new directory structure
+		try {
+			await vscode.workspace.fs.stat(vscode.Uri.file(newConversationsPath));
+		} catch {
+			const conversationsDir = path.join(newStoragePath, 'conversations');
+			try {
+				await vscode.workspace.fs.stat(vscode.Uri.file(conversationsDir));
+			} catch {
+				await vscode.workspace.fs.createDirectory(vscode.Uri.file(conversationsDir));
+			}
+			await vscode.workspace.fs.createDirectory(vscode.Uri.file(newConversationsPath));
+		}
+
+		// Migrate each conversation file
+		let migratedCount = 0;
+		for (const conversation of workspaceConversationIndex) {
+			try {
+				const oldFilePath = path.join(oldConversationsPath, conversation.filename);
+				const newFilePath = path.join(newConversationsPath, conversation.filename);
+
+				// Check if old file exists
+				try {
+					await vscode.workspace.fs.stat(vscode.Uri.file(oldFilePath));
+				} catch {
+					console.warn(`Old conversation file not found: ${conversation.filename}`);
+					continue;
+				}
+
+				// Check if new file already exists (avoid overwriting)
+				try {
+					await vscode.workspace.fs.stat(vscode.Uri.file(newFilePath));
+					console.log(`Conversation already migrated: ${conversation.filename}`);
+					continue;
+				} catch {
+					// File doesn't exist, proceed with migration
+				}
+
+				// Copy the conversation file
+				const content = await vscode.workspace.fs.readFile(vscode.Uri.file(oldFilePath));
+				await vscode.workspace.fs.writeFile(vscode.Uri.file(newFilePath), content);
+				migratedCount++;
+
+				console.log(`Migrated conversation: ${conversation.filename}`);
+			} catch (error) {
+				console.error(`Failed to migrate conversation ${conversation.filename}:`, error);
+			}
+		}
+
+		// Migrate the conversation index to global state
+		const repoConversationKey = `claude.conversations.${repoId}`;
+		const existingRepoConversations = provider._context.globalState.get(repoConversationKey, []);
+
+		if (existingRepoConversations.length === 0) {
+			// Only migrate index if no repo conversations exist yet
+			await provider._context.globalState.update(repoConversationKey, workspaceConversationIndex);
+			provider._conversationIndex = workspaceConversationIndex;
+			console.log(`Migrated conversation index with ${workspaceConversationIndex.length} entries`);
+		} else {
+			console.log(`Repo already has ${existingRepoConversations.length} conversations, skipping index migration`);
+		}
+
+		console.log(`Migration complete: ${migratedCount} conversation files migrated`);
+
+		// Mark migration as completed to avoid running it again
+		await provider._context.globalState.update(`claude.migrated.${repoId}`, true);
+
+	} catch (error: any) {
+		console.error('Failed to migrate workspace conversations:', error.message);
+	}
+}
 
 export async function initializeBackupRepo(provider: ClaudeChatProvider): Promise<void> {
 	try {
@@ -146,20 +288,47 @@ export async function restoreToCommit(provider: ClaudeChatProvider, commitSha: s
 
 export async function initializeConversations(provider: ClaudeChatProvider): Promise<void> {
 	try {
-		const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-		if (!workspaceFolder) { return; }
+		// Use global storage for cross-workspace persistence
+		const globalStoragePath = provider._context.globalStorageUri?.fsPath;
+		if (!globalStoragePath) {
+			console.error('No global storage available');
+			return;
+		}
 
-		const storagePath = provider._context.storageUri?.fsPath;
-		if (!storagePath) { return; }
+		// Get repository identifier for this workspace
+		const repoId = await getRepositoryIdentifier();
+		console.log(`Repository identifier: ${repoId}`);
 
-		provider._conversationsPath = path.join(storagePath, 'conversations');
+		// Create repo-specific conversation directory
+		provider._conversationsPath = path.join(globalStoragePath, 'conversations', repoId);
 
 		// Create conversations directory if it doesn't exist
 		try {
 			await vscode.workspace.fs.stat(vscode.Uri.file(provider._conversationsPath));
 		} catch {
+			// Create parent directories first
+			const conversationsDir = path.join(globalStoragePath, 'conversations');
+			try {
+				await vscode.workspace.fs.stat(vscode.Uri.file(conversationsDir));
+			} catch {
+				await vscode.workspace.fs.createDirectory(vscode.Uri.file(conversationsDir));
+			}
 			await vscode.workspace.fs.createDirectory(vscode.Uri.file(provider._conversationsPath));
 		}
+
+		// Check if migration is needed and hasn't been done yet
+		const migrationKey = `claude.migrated.${repoId}`;
+		const alreadyMigrated = provider._context.globalState.get(migrationKey, false);
+		if (!alreadyMigrated) {
+			console.log('Running one-time migration from workspace to repo-based conversations');
+			await migrateWorkspaceConversations(provider, repoId);
+		}
+
+		// Load conversation index from global state using repo-specific key
+		const repoConversationKey = `claude.conversations.${repoId}`;
+		provider._conversationIndex = provider._context.globalState.get(repoConversationKey, []);
+
+		console.log(`Loaded ${provider._conversationIndex.length} conversations for repo ${repoId}`);
 	} catch (error: any) {
 		console.error('Failed to initialize conversations directory:', error.message);
 	}
@@ -259,8 +428,13 @@ export function updateConversationIndex(provider: ClaudeChatProvider, filename: 
 		provider._conversationIndex = provider._conversationIndex.slice(0, 50);
 	}
 
-	// Save to workspace state
-	provider._context.workspaceState.update('claude.conversationIndex', provider._conversationIndex);
+	// Save to global state with repo-specific key
+	getRepositoryIdentifier().then(repoId => {
+		const repoConversationKey = `claude.conversations.${repoId}`;
+		provider._context.globalState.update(repoConversationKey, provider._conversationIndex);
+	}).catch(error => {
+		console.error('Failed to save conversation index:', error);
+	});
 }
 
 export function getLatestConversation(provider: ClaudeChatProvider): any | undefined {

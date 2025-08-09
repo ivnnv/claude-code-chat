@@ -36,6 +36,20 @@ export function activate(context: vscode.ExtensionContext) {
 		webviewProvider.postMessage({ type: 'toggleStatusInfo' });
 	});
 
+	// Reload window command (dev mode only)
+	const reloadWindowDisposable = vscode.commands.registerCommand('claude-code-vsc-panel.reloadWindow', () => {
+		vscode.commands.executeCommand('workbench.action.reloadWindow');
+	});
+
+	// Automatically enable reload button in development mode
+	if (context.extensionMode === vscode.ExtensionMode.Development) {
+		const config = vscode.workspace.getConfiguration('claude-code-vsc-panel.dev');
+		const isReloadButtonEnabled = config.get('showReloadButton', false);
+		if (!isReloadButtonEnabled) {
+			config.update('showReloadButton', true, vscode.ConfigurationTarget.Workspace);
+		}
+	}
+
 	// Listen for configuration changes
 	const configChangeDisposable = vscode.workspace.onDidChangeConfiguration(event => {
 		if (event.affectsConfiguration('claudeCodeVscPanel.wsl')) {
@@ -51,7 +65,7 @@ export function activate(context: vscode.ExtensionContext) {
 	statusBarItem.command = 'claude-code-vsc-panel.openChat';
 	statusBarItem.show();
 
-	context.subscriptions.push(disposable, loadConversationDisposable, settingsDisposable, historyDisposable, newChatDisposable, statusInfoDisposable, configChangeDisposable, statusBarItem);
+	context.subscriptions.push(disposable, loadConversationDisposable, settingsDisposable, historyDisposable, newChatDisposable, statusInfoDisposable, reloadWindowDisposable, configChangeDisposable, statusBarItem);
 	console.log('Claude Code Sidebar extension activation completed successfully!');
 }
 

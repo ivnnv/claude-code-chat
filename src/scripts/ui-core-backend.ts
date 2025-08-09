@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { ClaudeChatProvider } from '../claude-provider';
+import { ClaudeChatProvider } from '../claude-provider-backend';
 
 export function sendPlatformInfo(provider: ClaudeChatProvider): void {
 	const platform = process.platform;

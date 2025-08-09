@@ -1,68 +1,8 @@
-// See https://go.microsoft.com/fwlink/?LinkId=733558
-// for the documentation about the tasks.json format
 {
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "pnpm: compile",
-			"type": "shell",
-			"command": "pnpm",
-			"args": ["run", "compile"],
-			"group": "build",
-			"presentation": {
-				"reveal": "silent"
-			},
-			"problemMatcher": ["$tsc"]
-		},
-		{
-			"label": "pnpm: build:webview",
-			"type": "shell",
-			"command": "pnpm",
-			"args": ["run", "build:webview"],
-			"group": "build",
-			"presentation": {
-				"reveal": "silent"
-			},
-			"problemMatcher": []
-		},
-		{
-			"label": "watch",
-			"type": "shell",
-			"command": "pnpm",
-			"args": ["run", "watch"],
-			"problemMatcher": [
-				{
-					"owner": "typescript",
-					"source": "tsc",
-					"applyTo": "closedDocuments",
-					"fileLocation": ["relative", "${workspaceFolder}"],
-					"pattern": {
-						"regexp": "^([^\\s].*)\\((\\d+|\\d+,\\d+|\\d+,\\d+,\\d+,\\d+)\\)\\s*:\\s+(error|warning|info)\\s+(TS\\d+)\\s*:\\s*(.*)$",
-						"file": 1,
-						"location": 2,
-						"severity": 3,
-						"code": 4,
-						"message": 5
-					},
-					"background": {
-						"activeOnStart": true,
-						"beginsPattern": "^\\s*\\d{1,2}:\\d{2}:\\d{2}(?: AM| PM)? - File change detected\\. Starting incremental compilation\\.\\.\\.",
-						"endsPattern": "^\\s*\\d{1,2}:\\d{2}:\\d{2}(?: AM| PM)? - (?:Compilation complete\\.|Found \\d+ errors?\\. Watching for file changes\\.)"
-					}
-				}
-			],
-			"isBackground": true,
-			"presentation": {
-				"reveal": "always",
-				"panel": "new"
-			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
-		},
-		{
-			"label": "pnpm: dev",
+			"label": "DevServer",
 			"type": "shell",
 			"command": "pnpm",
 			"args": ["run", "dev"],
@@ -73,7 +13,10 @@
 				"showReuseMessage": false,
 				"clear": true
 			},
-			"group": "build",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
 			"options": {
 				"env": {
 					"FORCE_COLOR": "1"
@@ -95,49 +38,11 @@
 					},
 					"background": {
 						"activeOnStart": true,
-						"beginsPattern": "^\\s*\\d{1,2}:\\d{2}:\\d{2}(?: AM| PM)? - File change detected\\. Starting incremental compilation\\.\\.\\.",
-						"endsPattern": "^\\s*\\d{1,2}:\\d{2}:\\d{2}(?: AM| PM)? - (?:Compilation complete\\.|Found \\d+ errors?\\. Watching for file changes\\.)"
-					}
-				},
-				{
-					"owner": "rsbuild",
-					"source": "rsbuild",
-					"fileLocation": ["relative", "${workspaceFolder}"],
-					"pattern": {
-						"regexp": "^(.*):(\\d+):(\\d+): (error|warning): (.*)$",
-						"file": 1,
-						"line": 2,
-						"column": 3,
-						"severity": 4,
-						"message": 5
-					},
-					"background": {
-						"activeOnStart": true,
-						"beginsPattern": "^.*ready.*",
-						"endsPattern": "^.*Local.*"
+						"beginsPattern": "^.*Starting compilation in watch mode\\.|^.*File change detected\\.",
+						"endsPattern": "^.*Found \\d+ errors?\\. Watching for file changes\\."
 					}
 				}
 			]
-		},
-		{
-			"label": "pnpm: clean-compile",
-			"type": "shell",
-			"command": "pnpm",
-			"args": ["run", "clean-compile"],
-			"group": "build",
-			"presentation": {
-				"reveal": "silent"
-			},
-			"problemMatcher": ["$tsc"]
-		},
-		{
-			"label": "compile-for-debug",
-			"dependsOrder": "sequence",
-			"dependsOn": ["pnpm: compile"],
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			}
-		},
+		}
 	]
 }

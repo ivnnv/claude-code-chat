@@ -1,6 +1,6 @@
 import * as cp from 'child_process';
 import * as vscode from 'vscode';
-import { ClaudeChatProvider } from '../claude-provider';
+import { ClaudeChatProvider } from '../claude-provider-backend';
 
 export async function processJsonStreamData(provider: ClaudeChatProvider, jsonData: any) {
 	switch (jsonData.type) {

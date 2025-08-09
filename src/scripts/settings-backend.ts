@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ClaudeChatProvider } from '../claude-provider';
+import { ClaudeChatProvider } from '../claude-provider-backend';
 
 export function sendCurrentSettings(provider: ClaudeChatProvider): void {
 	const config = vscode.workspace.getConfiguration('claudeCodeVscPanel');

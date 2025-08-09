@@ -110,8 +110,8 @@ export class ClaudeChatProvider {
 		chatMessagesBackend.initializeConversations(this);
 		permissionsBackend.initializeMCPConfig(this);
 
-		// Load conversation index from workspace state
-		this._conversationIndex = this._context.workspaceState.get('claude.conversationIndex', []);
+		// Conversation index will be loaded by initializeConversations() with repo-based key
+		this._conversationIndex = [];
 
 		// Load saved model preference
 		this._selectedModel = this._context.workspaceState.get('claude.selectedModel', 'default');
