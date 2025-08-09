@@ -25,15 +25,15 @@
     "package": "pnpm run compile && npx @vscode/vsce package --no-dependencies",
     "clean-compile": "rm -rf out && pnpm run compile",
     "build:webview": "rsbuild build --mode production",
-    "dev": "concurrently \"tsc -watch -p ./\" \"rsbuild dev\"",
-    "dev:webview": "rsbuild dev",
-    "dev:extension": "tsc -watch -p ./",
+    "dev": "pnpm run bundle:mcp && concurrently \"tsc -watch -p ./\" \"rsbuild dev\"",
+    "dev:webview-only": "rsbuild dev",
+    "dev:extension-only": "tsc -watch -p ./",
     "pretest": "pnpm run compile && pnpm run lint",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "test": "vscode-test"
   },
-   "dependencies": {
+  "dependencies": {
     "@modelcontextprotocol/sdk": "^1.15.1",
     "zod": "^3.25.76"
   },
@@ -54,7 +54,7 @@
     "sass": "^1.90.0",
     "typescript": "^5.8.3"
   },
-    "activationEvents": [
+  "activationEvents": [
     "onStartupFinished"
   ],
   "contributes": {

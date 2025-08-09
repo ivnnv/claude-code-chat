@@ -7,3 +7,7 @@ node_modules
 
 # Local VS Code configuration
 .vscode/launch.local.json
+
+# Ensure JS files only exist in /out directory
+/*.js
+src/**/*.js

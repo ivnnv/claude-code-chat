@@ -1,26 +1,772 @@
-// Core UI functions - initialization, modals, sessions, and file handling
+// UI Management - Consolidated UI components, messages, webview management
+import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
 import '../types/global';
+import { formatFilePath, formatEditToolDiff, formatMultiEditToolDiff, formatWriteToolDiff, formatToolInputUI, escapeHtml } from './formatters';
+
+// =====================================
+// CHAT MESSAGES FUNCTIONALITY
+// =====================================
+
+// Module references that will be set at runtime
+let uiCoreRef: any;
+let _settingsModalsRef: any;
 
 // VS Code API will be provided by ui-scripts.ts
-let vscode: any;
+let vsCodeApi: any;
 
 // Note: These functions will be available at runtime through the main ui-scripts module
-declare function shouldAutoScroll(messagesDiv: HTMLElement): boolean;
-declare function scrollToBottomIfNeeded(messagesDiv: HTMLElement, shouldScroll?: boolean | null): void;
-declare function addMessage(content: string, type?: string): void;
-declare function sendStats(eventName: string): void;
-declare function escapeHtml(text: string): string;
 declare function isPermissionError(content: string): boolean;
 declare function _enableYoloMode(): void;
-declare function hideSettingsModal(): void;
-declare function hideMCPModal(): void;
-declare function hideThinkingIntensityModal(): void;
-declare function usePromptSnippet(snippetType: string): void;
-declare function _deleteCustomSnippet(snippetId: string): void;
 
 // Global variables needed for these functions
-let messagesDiv: HTMLElement;
 let messageInput: HTMLTextAreaElement;
+let _planModeEnabled = false;
+let _thinkingModeEnabled = false;
+let currentEditorContext: any = null;
+let messageCounter = 0;
+
+export function setVsCodeApi(api: any): void {
+	vsCodeApi = api;
+}
+
+export function setModuleReferences(uiCore: any, settingsModals: any): void {
+	uiCoreRef = uiCore;
+	_settingsModalsRef = settingsModals;
+}
+
+export function setMessageInput(input: HTMLTextAreaElement): void {
+	messageInput = input;
+}
+
+export function setCurrentEditorContext(context: any): void {
+	currentEditorContext = context;
+}
+
+export function shouldAutoScroll(messagesDiv: HTMLElement): boolean {
+	const threshold = 100; // pixels from bottom
+	const scrollTop = messagesDiv.scrollTop;
+	const scrollHeight = messagesDiv.scrollHeight;
+	const clientHeight = messagesDiv.clientHeight;
+
+	return (scrollTop + clientHeight >= scrollHeight - threshold);
+}
+
+export function scrollToBottomIfNeeded(messagesDiv: HTMLElement, shouldScroll: boolean | null = null): void {
+	// If shouldScroll is not provided, check current scroll position
+	if (shouldScroll === null) {
+		shouldScroll = shouldAutoScroll(messagesDiv);
+	}
+
+	if (shouldScroll) {
+		messagesDiv.scrollTop = messagesDiv.scrollHeight;
+	}
+}
+
+export function addMessage(content: string, type = 'claude'): void {
+	const messagesDiv = document.getElementById('chatMessages');
+	if (!messagesDiv) {
+		console.error('chatMessages div not found!');
+		return;
+	}
+
+	const shouldScroll = shouldAutoScroll(messagesDiv);
+
+	// Generate unique ID for this message
+	messageCounter++;
+	const messageId = `msg-${type}-${messageCounter}`;
+
+	// Handle new userMessage structure
+	if (type === 'user') {
+		const messageDiv = document.createElement('div');
+		messageDiv.className = 'userMessage';
+		messageDiv.id = messageId;
+
+		// Create header (for reference file info if available)
+		const headerDiv = document.createElement('div');
+		headerDiv.className = 'userMessage-header';
+
+		// Extract file reference and user text from content (works with existing backend)
+		let fileReference = '';
+		let userText = content;
+
+		// Handle both HTML <br><br> and plain \n\n formats
+		const separator = content.includes('<br><br>') ? '<br><br>' : '\n\n';
+		if (content.includes(separator)) {
+			const parts = content.split(separator);
+			if (parts.length > 1 && parts[0].startsWith('in ')) {
+				fileReference = parts[0].replace(/^in\s+/, ''); // Remove "in " prefix
+				userText = parts.slice(1).join(separator);
+			}
+		}
+
+		// Set header text
+		if (fileReference) {
+			headerDiv.textContent = fileReference;
+		}
+		// Keep consistent visual structure even without reference
+		messageDiv.appendChild(headerDiv);
+
+		// Create content with clean user text (extracted above)
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'userMessage-content';
+		contentDiv.innerHTML = `<span>${userText}</span>`;
+
+		messageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(messageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
+	// Handle system messages with new structure
+	if (type === 'system') {
+		const messageDiv = document.createElement('div');
+		messageDiv.className = 'systemMessage';
+		messageDiv.id = messageId;
+
+		// Create content
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'systemMessage-content';
+		contentDiv.innerHTML = content;
+		messageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(messageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
+	// Handle Claude messages with special styling
+	if (type === 'claude') {
+		const messageDiv = document.createElement('div');
+
+		// Detect structured file/path content for special styling
+		const hasPathInfo = content.includes('path: /') || content.includes('pattern: ') || content.includes('No files found');
+		const hasSecurityWarning = content.includes('seem malicious') || content.includes('NOTE: do any');
+
+		let className = 'claudeMessage';
+		if (hasPathInfo || hasSecurityWarning) {
+			className += ' pathListing';
+		}
+
+		messageDiv.className = className;
+		messageDiv.id = messageId;
+
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'claudeMessage-content';
+		contentDiv.innerHTML = parseSimpleMarkdown(content);
+		messageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(messageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
+	// Handle other message types (keep existing structure but add IDs with proper order)
+	const messageDiv = document.createElement('div');
+	messageDiv.className = `message ${type}`;
+	messageDiv.id = messageId;
+
+	// Only add copy button for error messages (claude handled separately above)
+	if (type === 'error') {
+		// Add error handling here if needed
+	}
+
+	// Add content
+	const contentDiv = document.createElement('div');
+	contentDiv.className = 'message-content';
+
+	if(type === 'claude' || type === 'thinking'){
+		contentDiv.innerHTML = content;
+	} else {
+		const preElement = document.createElement('pre');
+		preElement.textContent = content;
+		contentDiv.appendChild(preElement);
+	}
+
+	messageDiv.appendChild(contentDiv);
+
+	// Check if this is a permission-related error and add yolo mode button
+	if (type === 'error' && isPermissionError(content)) {
+		const yoloSuggestion = document.createElement('div');
+		yoloSuggestion.className = 'yolo-suggestion';
+		yoloSuggestion.innerHTML = `
+			<div class="yolo-suggestion-text">
+				<span>💡 This looks like a permission issue. You can enable Yolo Mode to skip all permission checks.</span>
+			</div>
+			<button class="yolo-suggestion-btn" onclick="enableYoloMode()">Enable Yolo Mode</button>
+		`;
+		messageDiv.appendChild(yoloSuggestion);
+	}
+
+	messagesDiv.appendChild(messageDiv);
+	scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+}
+
+export function parseSimpleMarkdown(markdown: string): string {
+	if (!markdown) {
+		return '';
+	}
+
+	// Convert basic markdown to HTML
+	let result = markdown;
+
+	// Handle code blocks first (before inline code)
+	result = result.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, language, code) => {
+		return `<pre>${escapeHtml(code.trim())}</pre>`;
+	});
+
+	// Handle other markdown elements
+	result = result
+		.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+		.replace(/\*(.*?)\*/g, '<em>$1</em>')
+		.replace(/`(.*?)`/g, '<code>$1</code>') // Inline code
+		.replace(/\n\n/g, '<br><br>') // Double line breaks become paragraph breaks
+		.replace(/\n/g, '<br>'); // Single line breaks become line breaks
+
+	return result;
+}
+
+export function clearMessages(): void {
+	const messagesDiv = document.getElementById('chatMessages');
+	if (messagesDiv) {
+		messagesDiv.innerHTML = '';
+		messageCounter = 0;
+	}
+}
+
+export function copyMessageContent(messageId: string): void {
+	const messageElement = document.getElementById(`message-${messageId}`)?.querySelector('.message');
+	if (messageElement) {
+		const text = messageElement.textContent || '';
+		navigator.clipboard.writeText(text).then(() => {
+			// Show brief copy confirmation
+			const original = messageElement.innerHTML;
+			messageElement.innerHTML = '📋 Copied!';
+			setTimeout(() => {
+				messageElement.innerHTML = original;
+			}, 1000);
+		});
+	}
+}
+
+export function copyCodeBlock(element: HTMLElement): void {
+	const codeText = element.textContent || '';
+	navigator.clipboard.writeText(codeText).then(() => {
+		// Show brief copy confirmation
+		const original = element.innerHTML;
+		element.innerHTML = '📋 Copied!';
+		setTimeout(() => {
+			element.innerHTML = original;
+		}, 1000);
+	});
+}
+
+export function sendMessage(): void {
+	if (!messageInput) {return;}
+
+	const text = messageInput.value.trim();
+	if (!text) {return;}
+
+	// Only add editor context if there's an actual selection
+	let enhancedText = text;
+	const contextInfo = getEditorContextInfo();
+	if (contextInfo) {
+		enhancedText = contextInfo + '\n\n' + text;
+	}
+
+	// Don't add user message here - let extension handle it via userInput message
+
+	// Clear input
+	messageInput.value = '';
+	messageInput.style.height = 'auto';
+
+	// Set processing state only if not already processing (first message in session)
+	if (!(window as any).isProcessing) {
+		console.log('📤 Starting new processing session');
+		(window as any).isProcessing = true;
+		if (uiCoreRef) {
+			uiCoreRef.disableButtons();
+			uiCoreRef.showStopButton();
+		}
+	} else {
+		console.log('📤 Sending additional message while processing');
+	}
+
+	sendStats('Send message');
+
+	// Send to VS Code
+	vsCodeApi.postMessage({
+		type: 'sendMessage',
+		text: enhancedText,
+		planMode: _settingsModalsRef?.getPlanModeEnabled() || _planModeEnabled,
+		thinkingMode: _settingsModalsRef?.getThinkingModeEnabled() || _thinkingModeEnabled,
+		editorContext: (window as any).currentEditorContext || currentEditorContext
+	});
+}
+
+export function stopRequest(): void {
+	vsCodeApi.postMessage({ type: 'stopRequest' });
+	(window as any).isProcessing = false;
+	if (uiCoreRef) {
+		uiCoreRef.enableButtons();
+		uiCoreRef.hideStopButton();
+	}
+}
+
+export function addToolUseMessage(data: any): void {
+	const messagesDiv = document.getElementById('chatMessages');
+	if (!messagesDiv) {return;}
+	const shouldScroll = shouldAutoScroll(messagesDiv);
+
+	if (data.rawInput) {
+		// Check if rawInput contains necessary data
+	}
+
+	// Handle Read tools with special dimmed styling (toolUse has offset/limit, so we check for file_path)
+	if (data.toolName === 'Read' && data.rawInput && data.rawInput.file_path) {
+		const readMessageDiv = document.createElement('div');
+		readMessageDiv.className = 'systemMessage claudeContext';
+
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'systemMessage-content';
+		contentDiv.innerHTML = `<span class="systemMessage-command">R: ${formatFilePath(data.rawInput.file_path)}</span>`;
+		readMessageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(readMessageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
+	// Handle Bash commands with system message styling
+	if (data.toolName === 'Bash' && data.rawInput && data.rawInput.command) {
+		const bashMessageDiv = document.createElement('div');
+		bashMessageDiv.className = 'systemMessage claudeContext';
+
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'systemMessage-content';
+		contentDiv.innerHTML = `<span class="systemMessage-command">$ ${data.rawInput.command}</span>`;
+		bashMessageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(bashMessageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
+	if (data.toolName === 'TodoWrite' && data.rawInput && data.rawInput.todos) {
+		// Handle TodoWrite as systemMessage instead of tool message
+		const todoMessageDiv = document.createElement('div');
+		todoMessageDiv.className = 'systemMessage claudeContext todoList';
+
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'systemMessage-content';
+
+		let todoHtml = '<strong>Todo List Update:</strong><br>';
+		for (const todo of data.rawInput.todos) {
+			const status = todo.status === 'completed' ? '✅' :
+				todo.status === 'in_progress' ? '🔄' : '⏳';
+			todoHtml += status + ' ' + todo.content + '<br>';
+		}
+		contentDiv.innerHTML = todoHtml;
+		todoMessageDiv.appendChild(contentDiv);
+
+		messagesDiv.appendChild(todoMessageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
+	// Handle path-related tools as systemMessage
+	const pathTools = ['LS', 'Glob', 'Grep', 'Read'];
+	if (pathTools.includes(data.toolName) && data.rawInput) {
+		const pathMessageDiv = document.createElement('div');
+		pathMessageDiv.className = 'systemMessage claudeContext pathTool';
+
+		const commandDiv = document.createElement('div');
+		commandDiv.className = 'systemMessage-command';
+
+		let pathHtml = `<span class="command">${data.toolName}:</span>`;
+		if (data.rawInput.file_path) {
+			pathHtml += ` <span class="result">path: ${data.rawInput.file_path}</span>`;
+		} else if (data.rawInput.path) {
+			pathHtml += ` <span class="result">path: ${data.rawInput.path}</span>`;
+		} else if (data.rawInput.pattern) {
+			pathHtml += ` <span class="result">pattern: ${data.rawInput.pattern}</span>`;
+		} else {
+			// Fallback - show raw input
+			pathHtml += ` <span class="result">${JSON.stringify(data.rawInput, null, 2)}</span>`;
+		}
+
+		commandDiv.innerHTML = pathHtml;
+		pathMessageDiv.appendChild(commandDiv);
+
+		// Store reference for result attachment
+		(window as any).lastPathToolMessage = pathMessageDiv;
+
+		messagesDiv.appendChild(pathMessageDiv);
+		scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+		return;
+	}
+
+	const messageDiv = document.createElement('div');
+	messageDiv.className = 'message tool';
+
+	// Create modern header with icon
+	const headerDiv = document.createElement('div');
+	headerDiv.className = 'tool-header';
+
+	const iconDiv = document.createElement('div');
+	iconDiv.className = 'tool-icon';
+	iconDiv.textContent = '🔧';
+
+	const toolInfoElement = document.createElement('div');
+	toolInfoElement.className = 'tool-info';
+	let toolName = (data.toolInfo || '').replace('🔧 Executing: ', '');
+	// Replace TodoWrite with more user-friendly name
+	if (toolName === 'TodoWrite') {
+		toolName = 'Update Todos';
+	}
+	toolInfoElement.textContent = toolName;
+
+	headerDiv.appendChild(iconDiv);
+	headerDiv.appendChild(toolInfoElement);
+	messageDiv.appendChild(headerDiv);
+
+	if (data.rawInput) {
+		const inputElement = document.createElement('div');
+		inputElement.className = 'tool-input';
+
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'tool-input-content';
+
+		// Handle different tool types
+		if (data.toolName === 'Edit') {
+			// For Edit tools, show the diff format directly without wrapping in tool-input
+			contentDiv.innerHTML = formatEditToolDiff(data.rawInput);
+			messageDiv.appendChild(contentDiv);
+		} else if (data.toolName === 'MultiEdit') {
+			// For MultiEdit tools, show the diff format directly without wrapping in tool-input
+			contentDiv.innerHTML = formatMultiEditToolDiff(data.rawInput);
+			messageDiv.appendChild(contentDiv);
+		} else if (data.toolName === 'Write') {
+			// For Write tools, show the diff format directly without wrapping in tool-input
+			contentDiv.innerHTML = formatWriteToolDiff(data.rawInput);
+			messageDiv.appendChild(contentDiv);
+		} else {
+			// For other tools, show the formatted input in the tool-input wrapper
+			contentDiv.innerHTML = formatToolInputUI(data.rawInput);
+			inputElement.appendChild(contentDiv);
+			messageDiv.appendChild(inputElement);
+		}
+	} else if (data.toolInput) {
+		// Fallback for pre-formatted input
+		const inputElement = document.createElement('div');
+		inputElement.className = 'tool-input';
+
+		const labelDiv = document.createElement('div');
+		labelDiv.className = 'tool-input-label';
+		labelDiv.textContent = 'INPUT';
+		inputElement.appendChild(labelDiv);
+
+		const contentDiv = document.createElement('div');
+		contentDiv.className = 'tool-input-content';
+		contentDiv.textContent = data.toolInput;
+		inputElement.appendChild(contentDiv);
+		messageDiv.appendChild(inputElement);
+	}
+
+	messagesDiv.appendChild(messageDiv);
+	scrollToBottomIfNeeded(messagesDiv, shouldScroll);
+}
+
+export function sendStats(action: string): void {
+	// Simple stats tracking - could be expanded
+	console.log('Stats:', action);
+}
+
+export function getEditorContextInfo(): string | null {
+	if (!currentEditorContext) {
+		return null;
+	}
+
+	// Only provide context if there's an actual text selection
+	if (currentEditorContext.selection && currentEditorContext.selectedText) {
+		let contextInfo = 'in ' + currentEditorContext.fileName;
+		const startLine = currentEditorContext.selection.start.line;
+		const endLine = currentEditorContext.selection.end.line;
+		contextInfo += ':' + startLine + '-' + endLine;
+		return contextInfo;
+	}
+
+	// No selection = no context
+	return null;
+}
+
+
+// =====================================
+// WEBVIEW PROVIDER FUNCTIONALITY
+// =====================================
+
+export class ClaudeChatWebviewProvider implements vscode.WebviewViewProvider {
+	constructor(
+		private readonly _extensionUri: vscode.Uri,
+		private readonly _context: vscode.ExtensionContext,
+		private readonly _chatProvider: any
+	) {}
+
+	public resolveWebviewView(
+		webviewView: vscode.WebviewView,
+		_context: vscode.WebviewViewResolveContext,
+		_token: vscode.CancellationToken,
+	) {
+		webviewView.webview.options = {
+			enableScripts: true,
+			localResourceRoots: [this._extensionUri]
+		};
+
+		// Use the shared chat provider instance for the sidebar
+		this._chatProvider.showInWebview(webviewView.webview, webviewView);
+
+		// Handle visibility changes to reinitialize when sidebar reopens
+		webviewView.onDidChangeVisibility(() => {
+			if (webviewView.visible) {
+				// Close main panel when sidebar becomes visible
+				if (this._chatProvider._panel) {
+					console.log('Closing main panel because sidebar became visible');
+					this._chatProvider._panel.dispose();
+					this._chatProvider._panel = undefined;
+				}
+				this._chatProvider.reinitializeWebview();
+			}
+		});
+	}
+
+	public postMessage(message: any): void {
+		// Delegate to chat provider
+		this._chatProvider._postMessage(message);
+	}
+}
+
+// =====================================
+// WEBVIEW RENDERER FUNCTIONALITY
+// =====================================
+
+export class WebviewRenderer {
+	constructor(private _extensionUri: vscode.Uri) {}
+
+	public getHtmlForWebview(webview: vscode.Webview): string {
+		// Read RSBuild's generated HTML and adapt it for webview URIs
+		const htmlPath = path.join(__dirname, '..', 'webview', 'index.html');
+		if (!fs.existsSync(htmlPath)) {
+			throw new Error(`Webview HTML not found at ${htmlPath}. Run "pnpm run compile" to build the extension.`);
+		}
+
+		let html = fs.readFileSync(htmlPath, 'utf8');
+
+		// Determine if we're in development mode with hot reload server available
+		// Only use development mode if NODE_ENV is development AND we have a dev server
+		const isDev = false; // Temporarily force production mode until dev server is properly set up
+
+		if (isDev) {
+			// Development mode: use hot reload server
+			html = html.replace(
+				/<script defer src="\/static\/js\/index\.js"><\/script>/g,
+				'<script defer src="http://localhost:3001/static/js/index.js"></script>'
+			);
+			html = html.replace(
+				/<link href="\/static\/css\/index\.css" rel="stylesheet">/g,
+				'<link href="http://localhost:3001/static/css/index.css" rel="stylesheet">'
+			);
+		} else {
+			// Production mode: use webview URIs
+			const jsUri = webview.asWebviewUri(
+				vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'static', 'js', 'index.js')
+			);
+			const cssUri = webview.asWebviewUri(
+				vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'static', 'css', 'index.css')
+			);
+
+			html = html.replace(
+				/<script defer src="\/static\/js\/index\.js"><\/script>/g,
+				`<script defer src="${jsUri}"></script>`
+			);
+			html = html.replace(
+				/<link href="\/static\/css\/index\.css" rel="stylesheet">/g,
+				`<link href="${cssUri}" rel="stylesheet">`
+			);
+		}
+
+		// Add CSP
+		const nonce = this.getNonce();
+		const csp = isDev
+			? `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline' http://localhost:3001; script-src 'nonce-${nonce}' http://localhost:3001; connect-src ws://localhost:3001; img-src ${webview.cspSource} https:; font-src ${webview.cspSource};">`
+			: `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https:; font-src ${webview.cspSource};">`;
+
+		html = html.replace('<head>', `<head>\n${csp}`);
+		html = html.replace('<script', `<script nonce="${nonce}"`);
+
+		return html;
+	}
+
+	private getNonce(): string {
+		let text = '';
+		const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+		for (let i = 0; i < 32; i++) {
+			text += possible.charAt(Math.floor(Math.random() * possible.length));
+		}
+		return text;
+	}
+
+	public setupHotReload(postMessage: (msg: any) => void): void {
+		if (process.env.NODE_ENV !== 'development') {return;}
+
+		// Watch for file changes in development
+		const watcher = fs.watch(path.join(__dirname, '..', '..', 'src'), { recursive: true }, (eventType, filename) => {
+			if (filename && (filename.endsWith('.ts') || filename.endsWith('.scss') || filename.endsWith('.html'))) {
+				console.log('🔄 Hot reload triggered by:', filename);
+				setTimeout(() => {
+					this.recreateWebviewForHotReload(postMessage);
+				}, 500);
+			}
+		});
+
+		// Clean up watcher when extension deactivates
+		process.on('exit', () => {
+			watcher.close();
+		});
+	}
+
+	private recreateWebviewForHotReload(postMessage: (msg: any) => void): void {
+		try {
+			const isCSSChange = true; // We could detect this more precisely
+
+			postMessage({
+				type: 'hotReload',
+				data: {
+					timestamp: Date.now(),
+					reloadType: isCSSChange ? 'css' : 'full'
+				}
+			});
+		} catch (error) {
+			console.error('❌ Failed to recreate webview for hot reload:', error);
+		}
+	}
+}
+
+// =====================================
+// WEBVIEW MESSAGE HANDLER
+// =====================================
+
+export class WebviewMessageHandler {
+	private _panel: vscode.WebviewPanel | undefined;
+	private _webview: vscode.Webview | undefined;
+	private _webviewView: vscode.WebviewView | undefined;
+	private _messageHandlerDisposable: vscode.Disposable | undefined;
+	private _disposables: vscode.Disposable[] = [];
+
+	public get panel(): vscode.WebviewPanel | undefined {
+		return this._panel;
+	}
+
+	constructor(
+		private _extensionUri: vscode.Uri,
+		private _webviewRenderer: WebviewRenderer,
+		private _messageHandler: (message: any) => void
+	) {}
+
+	public postMessage(message: any) {
+		if (this._panel && this._panel.webview) {
+			this._panel.webview.postMessage(message);
+		} else if (this._webview) {
+			this._webview.postMessage(message);
+		} else {
+			console.error('No webview available to post message to!');
+		}
+	}
+
+	public setupWebviewPanel(panel: vscode.WebviewPanel) {
+		this._panel = panel;
+		this._panel.webview.html = this.getHtmlForWebview();
+		this.setupWebviewMessageHandler(this._panel.webview);
+	}
+
+	public showInWebview(webview: vscode.Webview, webviewView?: vscode.WebviewView) {
+		// Close main panel if it's open
+		if (this._panel) {
+			this._panel.dispose();
+			this._panel = undefined;
+		}
+
+		this._webview = webview;
+		this._webviewView = webviewView;
+		this._webview.html = this.getHtmlForWebview();
+
+		this.setupWebviewMessageHandler(this._webview);
+	}
+
+	private setupWebviewMessageHandler(webview: vscode.Webview) {
+		// Dispose of any existing message handler
+		if (this._messageHandlerDisposable) {
+			this._messageHandlerDisposable.dispose();
+		}
+
+		// Set up new message handler
+		this._messageHandlerDisposable = webview.onDidReceiveMessage(
+			this._messageHandler,
+			null,
+			this._disposables
+		);
+	}
+
+	public getHtmlForWebview(): string {
+		const webviewUri = this._panel?.webview || this._webview;
+		if (!webviewUri) {
+			throw new Error('Webview URI not available');
+		}
+		return this._webviewRenderer.getHtmlForWebview(webviewUri);
+	}
+
+	public setupHotReload(postMessageFn: (msg: any) => void): void {
+		this._webviewRenderer.setupHotReload(postMessageFn);
+	}
+
+	public recreateWebviewForHotReload(): void {
+		try {
+			const newHtml = this.getHtmlForWebview();
+
+			if (this._panel && this._panel.webview) {
+				this._panel.webview.html = newHtml;
+			}
+
+			if (this._webview) {
+				this._webview.html = newHtml;
+			}
+		} catch (error) {
+			console.error('❌ Failed to recreate webview for hot reload:', error);
+		}
+	}
+
+	public closeSidebar() {
+		if (this._webviewView) {
+			// Switch VS Code to show Explorer view instead of chat sidebar
+			vscode.commands.executeCommand('workbench.view.explorer');
+		}
+	}
+
+	public dispose() {
+		if (this._messageHandlerDisposable) {
+			this._messageHandlerDisposable.dispose();
+		}
+		this._disposables.forEach(d => d.dispose());
+	}
+}
+
+// =====================================
+// UI CORE FUNCTIONALITY
+// =====================================
+
+// UI Core specific variables
+let messagesDiv: HTMLElement;
 let filePickerModal: HTMLElement;
 let fileSearchInput: HTMLInputElement;
 let _selectedFileIndex = -1;
@@ -32,7 +778,7 @@ export function initializeModals(): void {
 	if (settingsModal) {
 		settingsModal.addEventListener('click', (e) => {
 			if (e.target === settingsModal) {
-				hideSettingsModal();
+				// hideSettingsModal();
 			}
 		});
 	}
@@ -41,7 +787,7 @@ export function initializeModals(): void {
 	if (mcpModal) {
 		mcpModal.addEventListener('click', (e) => {
 			if (e.target === mcpModal) {
-				hideMCPModal();
+				// hideMCPModal();
 			}
 		});
 	}
@@ -68,7 +814,7 @@ export function initializeModals(): void {
 	if (thinkingIntensityModal) {
 		thinkingIntensityModal.addEventListener('click', (e) => {
 			if (e.target === thinkingIntensityModal) {
-				hideThinkingIntensityModal();
+				// hideThinkingIntensityModal();
 			}
 		});
 	}
@@ -79,11 +825,11 @@ export function toggleSettings(): void {
 	if (settingsModal) {
 		if (settingsModal.style.display === 'none') {
 			// Request current settings from VS Code
-			vscode.postMessage({
+			vsCodeApi.postMessage({
 				type: 'getSettings'
 			});
 			// Request current permissions
-			vscode.postMessage({
+			vsCodeApi.postMessage({
 				type: 'getPermissions'
 			});
 			settingsModal.style.display = 'flex';
@@ -124,7 +870,7 @@ export function hideSlashCommandsModal(): void {
 
 export function showFilePicker(): void {
 	// Request initial file list from VS Code
-	vscode.postMessage({
+	vsCodeApi.postMessage({
 		type: 'getWorkspaceFiles',
 		searchTerm: ''
 	});
@@ -142,14 +888,14 @@ export function hideFilePicker(): void {
 
 export function selectImage(): void {
 	// Use VS Code's native file picker instead of browser file picker
-	vscode.postMessage({
+	vsCodeApi.postMessage({
 		type: 'selectImageFile'
 	});
 }
 
 export function newSession(): void {
 	sendStats('New chat');
-	vscode.postMessage({
+	vsCodeApi.postMessage({
 		type: 'newSession'
 	});
 }
@@ -161,7 +907,7 @@ export function toggleConversationHistory(): void {
 		if (historyDiv.style.display === 'none') {
 			sendStats('History opened');
 			// Show conversation history
-			vscode.postMessage({
+			vsCodeApi.postMessage({
 				type: 'getConversationList'
 			});
 			historyDiv.style.display = 'block';
@@ -413,13 +1159,13 @@ export function toggleDiffExpansion(diffId: string): void {
 }
 
 export function requestConversationList(): void {
-	vscode.postMessage({
+	vsCodeApi.postMessage({
 		type: 'getConversationList'
 	});
 }
 
 export function loadConversation(filename: string): void {
-	vscode.postMessage({
+	vsCodeApi.postMessage({
 		type: 'loadConversation',
 		filename: filename
 	});
@@ -451,7 +1197,7 @@ export function displayConversationList(conversations: any[]): void {
 }
 
 export function restoreToCommit(commitSha: string): void {
-	vscode.postMessage({
+	vsCodeApi.postMessage({
 		type: 'restoreCommit',
 		commitSha: commitSha
 	});
@@ -583,7 +1329,11 @@ export function loadCustomSnippets(snippetsData: any = {}): void {
 	Object.values(snippetsData).forEach((snippet: any) => {
 		const snippetElement = document.createElement('div');
 		snippetElement.className = 'slash-command-item prompt-snippet-item custom-snippet-item';
-		snippetElement.onclick = () => usePromptSnippet(snippet.id);
+		snippetElement.onclick = () => {
+			if (messageInput && snippet.prompt) {
+				messageInput.value = snippet.prompt;
+			}
+		};
 		snippetElement.innerHTML = `
 			<div class="slash-command-icon">📝</div>
 			<div class="slash-command-content">
@@ -633,9 +1383,7 @@ export function setMessagesDiv(div: HTMLElement): void {
 	messagesDiv = div;
 }
 
-export function setMessageInput(input: HTMLTextAreaElement): void {
-	messageInput = input;
-}
+// Duplicate export removed
 
 export function setFilePickerModal(modal: HTMLElement): void {
 	filePickerModal = modal;
@@ -735,7 +1483,7 @@ export function setupMessageInput(): void {
 	messageInput.addEventListener('input', () => {
 		clearTimeout(saveInputTimeout);
 		saveInputTimeout = setTimeout(() => {
-			vscode.postMessage({
+			vsCodeApi.postMessage({
 				type: 'saveInputText',
 				text: messageInput.value
 			});
@@ -880,7 +1628,27 @@ export function updateEditorContextDisplay(contextData: any): void {
 	editorContextLine.style.display = 'block';
 }
 
-// Set VS Code API (called from ui-scripts.ts)
-export function setVsCodeApi(api: any): void {
-	vscode = api;
+// =====================================
+// FORMATTING UTILITY FUNCTIONS (FROM MASTER.BACKUP)
+// =====================================
+
+
+// Expose functions to be used in HTML
+declare global {
+	interface _Window {
+		showModelSelector: () => void;
+		hideModelModal: () => void;
+		showSlashCommandsModal: () => void;
+		hideSlashCommandsModal: () => void;
+		showFilePicker: () => void;
+		hideFilePicker: () => void;
+		selectImage: () => void;
+		newSession: () => void;
+		toggleConversationHistory: () => void;
+		toggleResultExpansion: (resultId: string) => void;
+		toggleExpand: (button: HTMLElement) => void;
+		toggleDiffExpansion: (diffId: string) => void;
+		restoreToCommit: (commitSha: string) => void;
+		loadConversation: (filename: string) => void;
+	}
 }

@@ -18,11 +18,8 @@ declare global {
   // eslint-disable-next-line no-unused-vars
   interface Window extends GlobalState {
     // Module references
-    uiCore: typeof import('../scripts/ui-core');
-    settingsModals: typeof import('../scripts/settings-modals');
-    chatMessages: typeof import('../scripts/chat-messages');
-    permissions: typeof import('../scripts/permissions');
-    mcpServers: typeof import('../scripts/mcp-servers');
+    uiWebview: typeof import('../scripts/ui-webview');
+    permissionsWebview: typeof import('../scripts/permissions-webview');
 
     // Functions exposed globally for HTML onclick handlers
     sendMessage(): void;

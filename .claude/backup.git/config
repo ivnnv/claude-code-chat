@@ -1,0 +1,11 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+	worktree = /Users/ivnnv/Sites/ivnnv/claude-code-vsc-panel
+	ignorecase = true
+	precomposeunicode = true
+[user]
+	name = Claude Code Panel
+	email = claude@vsc-panel.local

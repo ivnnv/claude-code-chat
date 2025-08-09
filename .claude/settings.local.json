@@ -53,7 +53,10 @@
       "Bash(claude config show:*)",
       "Bash(claude config list:*)",
       "Bash(pkill:*)",
-      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --install-extension claude-code-vsc-panel-1.2.1.vsix)"
+      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --install-extension claude-code-vsc-panel-1.2.1.vsix)",
+      "Bash(pnpm ts-node:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   },

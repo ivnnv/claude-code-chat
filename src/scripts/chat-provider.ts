@@ -3,23 +3,16 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as util from 'util';
 import * as path from 'path';
-import { ConversationData } from './extension-utils';
-import { BackupGitManager } from './backup-git-manager';
-import { ConversationManager } from './conversation-manager';
-import { PermissionsManager } from './permissions-manager';
-import { SettingsManager } from './settings-manager';
-import { EditorFileManager } from './editor-file-manager';
-import { MCPServerManager } from './mcp-server-manager';
-import { WebviewRenderer } from './webview-renderer';
+import { ConversationData, ConversationManager, BackupGitManager, EditorFileManager } from './data-utilities';
+import { PermissionsManager } from './permissions-security';
+import { SettingsManager } from './settings-configuration';
+import { MCPServerManager } from './mcp-integration';
+import { WebviewRenderer, WebviewMessageHandler } from './ui-management';
 
 const exec = util.promisify(cp.exec);
 
 export class ClaudeChatProvider {
-	public _panel: vscode.WebviewPanel | undefined;
-	private _webview: vscode.Webview | undefined;
-	private _webviewView: vscode.WebviewView | undefined;
 	private _disposables: vscode.Disposable[] = [];
-	private _messageHandlerDisposable: vscode.Disposable | undefined;
 	private _totalCost: number = 0;
 	private _totalTokensInput: number = 0;
 	private _totalTokensOutput: number = 0;
@@ -96,6 +89,7 @@ export class ClaudeChatProvider {
 	private _editorFileManager: EditorFileManager;
 	private _mcpServerManager: MCPServerManager;
 	private _webviewRenderer: WebviewRenderer;
+	private _webviewMessageHandler: WebviewMessageHandler;
 
 	constructor(
 		private readonly _extensionUri: vscode.Uri,
@@ -109,6 +103,7 @@ export class ClaudeChatProvider {
 		this._editorFileManager = new EditorFileManager(this._context, this._postMessage.bind(this));
 		this._mcpServerManager = new MCPServerManager(this._context, this._postMessage.bind(this));
 		this._webviewRenderer = new WebviewRenderer(this._extensionUri);
+		this._webviewMessageHandler = new WebviewMessageHandler(this._extensionUri, this._webviewRenderer, this._handleWebviewMessage.bind(this));
 
 		// Initialize backup repository and conversations
 		this._initializeBackupRepo();
@@ -137,14 +132,14 @@ export class ClaudeChatProvider {
 		const actualColumn = column instanceof vscode.Uri ? vscode.ViewColumn.Two : column;
 
 		// Close sidebar if it's open
-		this._closeSidebar();
+		this._webviewMessageHandler.closeSidebar();
 
-		if (this._panel) {
-			this._panel.reveal(actualColumn);
+		if (this._webviewMessageHandler.panel) {
+			this._webviewMessageHandler.panel.reveal(actualColumn);
 			return;
 		}
 
-		this._panel = vscode.window.createWebviewPanel(
+		const panel = vscode.window.createWebviewPanel(
 			'claudeChat',
 			'Claude Code Sidebar',
 			actualColumn,
@@ -157,13 +152,11 @@ export class ClaudeChatProvider {
 
 		// Set icon for the webview tab using URI path
 		const iconPath = vscode.Uri.joinPath(this._extensionUri, 'icon.png');
-		this._panel.iconPath = iconPath;
+		panel.iconPath = iconPath;
 
-		this._panel.webview.html = this._getHtmlForWebview();
+		panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
-		this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
-
-		this._setupWebviewMessageHandler(this._panel.webview);
+		this._webviewMessageHandler.setupWebviewPanel(panel);
 		this._initializePermissions();
 
 		// Resume session from latest conversation
@@ -186,13 +179,7 @@ export class ClaudeChatProvider {
 
 	public _postMessage(message: any) {
 		// console.log('Extension posting:', message.type);
-		if (this._panel && this._panel.webview) {
-			this._panel.webview.postMessage(message);
-		} else if (this._webview) {
-			this._webview.postMessage(message);
-		} else {
-			console.error('No webview available to post message to!');
-		}
+		this._webviewMessageHandler.postMessage(message);
 	}
 
 	private _sendReadyMessage() {
@@ -238,6 +225,10 @@ export class ClaudeChatProvider {
 		switch (message.type) {
 			case 'sendMessage':
 				this._sendMessageToClaude(message.text, message.planMode, message.thinkingMode);
+				break;
+
+			case 'userInput':
+				this._sendMessageToClaude(message.data);
 				break;
 
 			case 'stopRequest':
@@ -355,39 +346,9 @@ export class ClaudeChatProvider {
 		}
 	}
 
-	private _setupWebviewMessageHandler(webview: vscode.Webview) {
-		// Dispose of any existing message handler
-		if (this._messageHandlerDisposable) {
-			this._messageHandlerDisposable.dispose();
-		}
-
-		// Set up new message handler
-		this._messageHandlerDisposable = webview.onDidReceiveMessage(
-			message => this._handleWebviewMessage(message),
-			null,
-			this._disposables
-		);
-	}
-
-	private _closeSidebar() {
-		if (this._webviewView) {
-			// Switch VS Code to show Explorer view instead of chat sidebar
-			vscode.commands.executeCommand('workbench.view.explorer');
-		}
-	}
 
 	public showInWebview(webview: vscode.Webview, webviewView?: vscode.WebviewView) {
-		// Close main panel if it's open
-		if (this._panel) {
-			this._panel.dispose();
-			this._panel = undefined;
-		}
-
-		this._webview = webview;
-		this._webviewView = webviewView;
-		this._webview.html = this._getHtmlForWebview();
-
-		this._setupWebviewMessageHandler(this._webview);
+		this._webviewMessageHandler.showInWebview(webview, webviewView);
 		this._initializePermissions();
 
 		// Initialize the webview
@@ -414,13 +375,28 @@ export class ClaudeChatProvider {
 	}
 
 	public reinitializeWebview() {
-		// Only reinitialize if we have a webview (sidebar)
-		if (this._webview) {
+		// Only reinitialize if we have a webview message handler
+		if (this._webviewMessageHandler) {
 			this._initializePermissions();
 			this._initializeWebview();
-			// Set up message handler for the webview
-			this._setupWebviewMessageHandler(this._webview);
 		}
+	}
+
+	public newConversation() {
+		this._conversationManager.clearCurrentConversation();
+		this.newSessionOnConfigChange();
+	}
+
+	public showHistory() {
+		const conversations = this._conversationManager.getConversationList();
+		this._postMessage({
+			type: 'conversationList',
+			data: conversations
+		});
+	}
+
+	public showSettings() {
+		this._settingsManager.sendCurrentSettings();
 	}
 
 	private async _sendMessageToClaude(message: string, planMode?: boolean, thinkingMode?: boolean) {
@@ -1750,8 +1726,8 @@ export class ClaudeChatProvider {
 
 		try {
 			// Create filename from first user message and timestamp
-			const firstUserMessage = this._currentConversation.find(m => m.messageType === 'userInput');
-			const firstMessage = firstUserMessage ? firstUserMessage.data : 'conversation';
+			const firstUserMsg = this._currentConversation.find(m => m.messageType === 'userInput');
+			const firstMessage = firstUserMsg ? firstUserMsg.data : 'conversation';
 			const startTime = this._conversationStartTime || new Date().toISOString();
 			const sessionId = this._currentSessionId || 'unknown';
 
@@ -1765,9 +1741,14 @@ export class ClaudeChatProvider {
 			const datePrefix = startTime.substring(0, 16).replace('T', '_').replace(/:/g, '-');
 			const filename = `${datePrefix}_${cleanMessage}.json`;
 
+			// Find first and last user messages
+			const userMessages = this._currentConversation.filter(msg => msg.messageType === 'userInput');
+			const firstUserMessage = (userMessages[0]?.data as string) || 'New conversation';
+			const lastUserMessage = (userMessages[userMessages.length - 1]?.data as string) || firstUserMessage;
+
 			const conversationData: ConversationData = {
 				sessionId: sessionId,
-				startTime: this._conversationStartTime,
+				startTime: this._conversationStartTime || new Date().toISOString(),
 				endTime: new Date().toISOString(),
 				messageCount: this._currentConversation.length,
 				totalCost: this._totalCost,
@@ -1776,7 +1757,9 @@ export class ClaudeChatProvider {
 					output: this._totalTokensOutput
 				},
 				messages: this._currentConversation,
-				filename
+				filename,
+				firstUserMessage,
+				lastUserMessage
 			};
 
 			const filePath = path.join(this._conversationsPath, filename);
@@ -1798,7 +1781,7 @@ export class ClaudeChatProvider {
 	}
 
 	private _sendConversationList(): void {
-		this._conversationManager.sendConversationList();
+		this._conversationManager.getConversationList();
 	}
 
 	private async _sendWorkspaceFiles(searchTerm?: string): Promise<void> {
@@ -2043,31 +2026,12 @@ export class ClaudeChatProvider {
 	}
 
 	private _recreateWebviewForHotReload(_message: any): void {
-		try {
-			const newHtml = this._getHtmlForWebview();
-
-			if (this._panel && this._panel.webview) {
-				this._panel.webview.html = newHtml;
-			}
-
-			if (this._webview) {
-				this._webview.html = newHtml;
-			}
-		} catch (error) {
-			console.error('❌ Failed to recreate webview for hot reload:', error);
-		}
+		this._webviewMessageHandler.recreateWebviewForHotReload();
 	}
 
-	private _getHtmlForWebview(): string {
-		const webviewUri = this._panel?.webview || this._webview;
-		if (!webviewUri) {
-			throw new Error('Webview URI not available');
-		}
-		return this._webviewRenderer.getHtmlForWebview(webviewUri);
-	}
 
 	private _setupHotReload(): void {
-		this._webviewRenderer.setupHotReload(this._postMessage.bind(this));
+		this._webviewMessageHandler.setupHotReload(this._postMessage.bind(this));
 	}
 
 	private _sendCurrentSettings(): void {
@@ -2451,16 +2415,7 @@ export class ClaudeChatProvider {
 	}
 
 	public dispose() {
-		if (this._panel) {
-			this._panel.dispose();
-			this._panel = undefined;
-		}
-
-		// Dispose message handler if it exists
-		if (this._messageHandlerDisposable) {
-			this._messageHandlerDisposable.dispose();
-			this._messageHandlerDisposable = undefined;
-		}
+		this._webviewMessageHandler.dispose();
 
 		while (this._disposables.length) {
 			const disposable = this._disposables.pop();

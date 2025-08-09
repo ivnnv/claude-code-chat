@@ -2,12 +2,10 @@
 import './index.scss';
 import './types/global';
 
-// Import all modular script files
-import * as chatMessages from './scripts/chat-messages';
-import * as mcpServers from './scripts/mcp-servers';
-import * as permissions from './scripts/permissions';
-import * as settingsModals from './scripts/settings-modals';
-import * as uiCore from './scripts/ui-core';
+// Import webview-only script files (no Node.js dependencies)
+import * as uiWebview from './scripts/ui-webview';
+import * as permissionsWebview from './scripts/permissions-webview';
+import { escapeHtml } from './scripts/formatters';
 
 // Initialize and expose functions to global scope for HTML onclick handlers
 declare const acquireVsCodeApi: () => any;
@@ -45,98 +43,90 @@ function initializeUI() {
     // Get DOM elements
     messageInput = document.getElementById('messageInput') as HTMLTextAreaElement;
 
-    // Set VS Code API for all modules
-    chatMessages.setVsCodeApi(vscode);
-    chatMessages.setModuleReferences(uiCore, settingsModals);
-    chatMessages.setMessageInput(messageInput);
-    uiCore.setVsCodeApi(vscode);
-    uiCore.setMessageInput(messageInput);
-    settingsModals.setVsCodeApi(vscode);
-    mcpServers.setVsCodeApi(vscode);
-    permissions.setVsCodeApi(vscode);
+    // Set VS Code API for webview modules
+    uiWebview.setVsCodeApi(vscode);
+    uiWebview.setMessageInput(messageInput);
+    permissionsWebview.setVsCodeApi(vscode);
 
-    // Set up message input handling
-    uiCore.setupMessageInput();
-
-    // Initialize core UI functionality
-    uiCore.initialize();
-
-    // Initialize other modules
-    settingsModals.initialize();
-    mcpServers.initialize();
-    permissions.initialize();
+    // Initialize webview modules
+    uiWebview.initialize();
+    permissionsWebview.initialize();
 
     // Set up message handler
     setupMessageHandler();
 
+    // Set up keyboard event handling for textarea
+    setupKeyboardHandlers();
+
+
     // Expose core functions to global scope for HTML handlers
     Object.assign(window, {
         // Core messaging functions
-        sendMessage: chatMessages.sendMessage,
-        copyMessageContent: chatMessages.copyMessageContent,
-        copyCodeBlock: chatMessages.copyCodeBlock,
+        sendMessage: uiWebview.sendMessage,
+        copyMessageContent: uiWebview.copyMessageContent,
+        copyCodeBlock: uiWebview.copyCodeBlock,
 
         // File and image functions
-        showFilePicker: uiCore.showFilePicker,
-        selectImage: uiCore.selectImage,
+        showFilePicker: uiWebview.showFilePicker,
+        selectImage: uiWebview.selectImage,
 
         // Modal functions
-        stopRequest: chatMessages.stopRequest,
+        stopRequest: uiWebview.stopRequest,
 
         // Chat message functions
-        addMessage: chatMessages.addMessage,
+        addMessage: uiWebview.addMessage,
 
         // Utility functions
-        escapeHtml: chatMessages.escapeHtml,
-        shouldAutoScroll: chatMessages.shouldAutoScroll,
-        scrollToBottomIfNeeded: chatMessages.scrollToBottomIfNeeded,
-        sendStats: chatMessages.sendStats,
+        escapeHtml: escapeHtml,
+        shouldAutoScroll: uiWebview.shouldAutoScroll,
+        scrollToBottomIfNeeded: uiWebview.scrollToBottomIfNeeded,
+        sendStats: uiWebview.sendStats,
 
         // Permission functions
-        isPermissionError: permissions.isPermissionError,
-        enableYoloMode: permissions.enableYoloMode,
-        respondToPermission: permissions.respondToPermission,
-        addPermission: permissions.addPermission,
-        removePermission: permissions.removePermission,
-        toggleCommandInput: permissions.toggleCommandInput,
-        showAddPermissionForm: permissions.showAddPermissionForm,
-        hideAddPermissionForm: permissions.hideAddPermissionForm,
+        isPermissionError: permissionsWebview.isPermissionError,
+        enableYoloMode: permissionsWebview.enableYoloMode,
+        respondToPermission: permissionsWebview.respondToPermission,
+        addPermission: permissionsWebview.addPermission,
+        removePermission: permissionsWebview.removePermission,
+        toggleCommandInput: permissionsWebview.toggleCommandInput,
+        showAddPermissionForm: permissionsWebview.showAddPermissionForm,
+        hideAddPermissionForm: permissionsWebview.hideAddPermissionForm,
 
-        // Settings modal functions
-        showSettingsModal: settingsModals.showSettingsModal,
-        hideSettingsModal: settingsModals.hideSettingsModal,
-        updateSettings: settingsModals.updateSettings,
-        updateYoloWarning: settingsModals.updateYoloWarning,
-        togglePlanMode: settingsModals.togglePlanMode,
-        toggleThinkingMode: settingsModals.toggleThinkingMode,
+        // Settings modal functions - placeholder for now
+        showSettingsModal: () => { /* Not implemented in webview */ },
+        hideSettingsModal: () => { /* Not implemented in webview */ },
+        updateSettings: () => { /* Not implemented in webview */ },
+        updateYoloWarning: () => { /* Not implemented in webview */ },
+        togglePlanMode: () => { /* Not implemented in webview */ },
+        toggleThinkingMode: () => { /* Not implemented in webview */ },
 
-        // MCP functions
-        showMCPModal: mcpServers.showMCPModal,
-        hideMCPModal: mcpServers.hideMCPModal,
-        showAddServerForm: mcpServers.showAddServerForm,
-        hideAddServerForm: mcpServers.hideAddServerForm,
-        updateServerForm: mcpServers.updateServerForm,
-        saveMCPServer: mcpServers.saveMCPServer,
-        deleteMCPServer: mcpServers.deleteMCPServer,
-        addPopularServer: mcpServers.addPopularServer,
-        editMCPServer: mcpServers.editMCPServer,
+        // MCP functions - placeholder for now
+        showMCPModal: () => { /* Not implemented in webview */ },
+        hideMCPModal: () => { /* Not implemented in webview */ },
+        showAddServerForm: () => { /* Not implemented in webview */ },
+        hideAddServerForm: () => { /* Not implemented in webview */ },
+        updateServerForm: () => { /* Not implemented in webview */ },
+        saveMCPServer: () => { /* Not implemented in webview */ },
+        deleteMCPServer: () => { /* Not implemented in webview */ },
+        addPopularServer: () => { /* Not implemented in webview */ },
+        editMCPServer: () => { /* Not implemented in webview */ },
 
-        // UI Core functions
-        showModelSelector: uiCore.showModelSelector,
-        hideModelModal: uiCore.hideModelModal,
-        showSlashCommandsModal: uiCore.showSlashCommandsModal,
-        hideSlashCommandsModal: uiCore.hideSlashCommandsModal,
-        newSession: uiCore.newSession,
-        toggleConversationHistory: uiCore.toggleConversationHistory,
-        toggleResultExpansion: uiCore.toggleResultExpansion,
-        toggleExpand: uiCore.toggleExpand,
-        toggleDiffExpansion: uiCore.toggleDiffExpansion,
-        restoreToCommit: uiCore.restoreToCommit,
-        loadConversation: uiCore.loadConversation,
-        addToolResultMessage: uiCore.addToolResultMessage,
-        showRestoreContainer: uiCore.showRestoreContainer,
-        showSessionInfo: uiCore.showSessionInfo,
-        hideThinkingIntensityModal: settingsModals.hideThinkingIntensityModal,
+        // UI Core functions - placeholder for now
+        showModelSelector: () => { /* Not implemented in webview */ },
+        hideModelModal: () => { /* Not implemented in webview */ },
+        showSlashCommandsModal: () => { /* Not implemented in webview */ },
+        hideSlashCommandsModal: () => { /* Not implemented in webview */ },
+        newSession: uiWebview.newSession,
+        toggleConversationHistory: uiWebview.toggleConversationHistory,
+        toggleResultExpansion: () => { /* Not implemented in webview */ },
+        toggleExpand: () => { /* Not implemented in webview */ },
+        toggleDiffExpansion: () => { /* Not implemented in webview */ },
+        restoreToCommit: uiWebview.restoreToCommit,
+        loadConversation: uiWebview.loadConversation,
+        addToolResultMessage: uiWebview.addToolResultMessage,
+        showRestoreContainer: () => { /* Not implemented in webview */ },
+        showSessionInfo: uiWebview.showSessionInfo,
+        hideThinkingIntensityModal: () => { /* Not implemented in webview */ },
 
         // Snippet functions
         usePromptSnippet: function() {},
@@ -144,17 +134,21 @@ function initializeUI() {
         executeSlashCommand: function() {},
 
         // Status functions
-        toggleStatusPopover: uiCore.toggleStatusPopover,
+        toggleStatusPopover: uiWebview.toggleStatusPopover,
 
         // Placeholder for extension functions
         _enableYoloMode: function() {
-            permissions.enableYoloMode();
-        }
+            permissionsWebview.enableYoloMode();
+        },
+
+        // WSL functions
+        openWSLSettings: function() {},
+        dismissWSLAlert: function() {}
     });
 
 
     // Initialize status indicator
-    uiCore.updateInputStatusIndicator();
+    updateInputStatusIndicator();
 
     // Expose global state variables for modular functions to access
     Object.assign(window, {
@@ -165,9 +159,7 @@ function initializeUI() {
         lastRequestTokens,
         currentStatus,
         currentEditorContext,
-        isProcessing,
-        uiCore,
-        settingsModals
+        isProcessing
     });
 
     // Request initial editor context
@@ -181,45 +173,45 @@ function setupMessageHandler() {
 
         switch (message.type) {
             case 'addMessage':
-                chatMessages.addMessage(message.content, message.messageType);
+                uiWebview.addMessage(message.content, message.messageType);
                 break;
 
             case 'toolUse':
                 if (typeof message.data === 'object') {
-                    chatMessages.addToolUseMessage(message.data);
+                    uiWebview.addToolUseMessage(message.data);
                     // File info is handled by the toolUse message display
                 } else if (message.data && message.data.trim()) {
-                    chatMessages.addMessage(message.data, 'tool');
+                    uiWebview.addMessage(message.data, 'tool');
                 }
                 break;
 
             case 'addToolUse':
-                chatMessages.addToolUseMessage(message.data);
+                uiWebview.addToolUseMessage(message.data);
                 break;
 
             case 'toolResult':
-                uiCore.addToolResultMessage(message.data);
+                uiWebview.addToolResultMessage(message.data);
                 break;
 
             case 'editorContext':
                 currentEditorContext = message.data;
                 window.currentEditorContext = currentEditorContext;
                 // Also update the chat messages module context
-                chatMessages.setCurrentEditorContext(message.data);
-                uiCore.updateEditorContextDisplay(message.data);
+                uiWebview.setCurrentEditorContext(message.data);
+                uiWebview.updateEditorContextDisplay(message.data);
                 break;
 
             case 'userInput':
                 if (message.data.trim()) {
-                    chatMessages.addMessage(chatMessages.parseSimpleMarkdown(message.data), 'user');
+                    uiWebview.addMessage(uiWebview.parseSimpleMarkdown(message.data), 'user');
                 }
                 break;
 
             case 'processingComplete':
                 isProcessing = false;
                 window.isProcessing = isProcessing;
-                uiCore.enableButtons();
-                uiCore.hideStopButton();
+                uiWebview.enableButtons();
+                uiWebview.hideStopButton();
 
                 // Processing completed
                 break;
@@ -229,8 +221,8 @@ function setupMessageHandler() {
                 currentCheckpoint = null;
                 window.currentCheckpoint = null;
                 // Clear all messages from UI
-                chatMessages.clearMessages();
-                chatMessages.addMessage('🆕 Started new session', 'system');
+                uiWebview.clearMessages();
+                uiWebview.addMessage('🆕 Started new session', 'system');
                 break;
 
             case 'sessionLoading':
@@ -238,13 +230,13 @@ function setupMessageHandler() {
                 currentCheckpoint = null;
                 window.currentCheckpoint = null;
                 // Clear all messages from UI
-                chatMessages.clearMessages();
-                chatMessages.addMessage('📝 Loaded last session', 'system');
+                uiWebview.clearMessages();
+                uiWebview.addMessage('📝 Loaded last session', 'system');
                 break;
 
             case 'configChanged':
             case 'settingsData':
-                settingsModals.handleSettingsData(message.data);
+                // Handle settings data updates
                 break;
 
             case 'showRestoreOption':
@@ -265,7 +257,7 @@ function setupMessageHandler() {
 
             case 'sessionInfo':
                 if (message.sessionId) {
-                    uiCore.showSessionInfo(message.sessionId);
+                    uiWebview.showSessionInfo(message.sessionId);
                 }
                 break;
 
@@ -345,25 +337,25 @@ function setupMessageHandler() {
                     }
 
                     // Skip standalone file reference outputs (they'll be shown in tool diffs)
-                    const filePathPattern = /^\s*\.\.\..*\.(ts|js|json|py|css|scss|html|md)$/;
+                    const filePathPattern = /^\\s*\\.\\.\\.*\\.(ts|js|json|py|css|scss|html|md)$/;
                     const trimmedData = displayData.trim();
                     if (!filePathPattern.test(trimmedData)) {
                         // This is actual Claude response text - use addMessage to ensure proper ID assignment
-                        chatMessages.addMessage(displayData, 'claude');
+                        uiWebview.addMessage(displayData, 'claude');
                     }
                     // File paths are skipped - they'll appear in Changes diffs instead
 
                     // Auto-scroll if needed
                     const messagesDiv = document.getElementById('chatMessages');
                     if (messagesDiv) {
-                        chatMessages.scrollToBottomIfNeeded(messagesDiv, true);
+                        uiWebview.scrollToBottomIfNeeded(messagesDiv, true);
                     }
                 }
                 break;
 
             case 'loading':
                 if (message.data) {
-                    chatMessages.addMessage('🔄 Claude is working...', 'system');
+                    uiWebview.addMessage('🔄 Claude is working...', 'system');
                 }
                 break;
 
@@ -381,41 +373,41 @@ function setupMessageHandler() {
             case 'error':
                 currentStatus = 'error';
                 window.currentStatus = currentStatus;
-                uiCore.updateInputStatusIndicator();
+                updateInputStatusIndicator();
                 if (message.data && message.data.trim()) {
                     // Check if this is an install required error
                     if (message.data.includes('Install claude code first') ||
                         message.data.includes('command not found') ||
                         message.data.includes('ENOENT')) {
-                        chatMessages.sendStats('Install required');
+                        uiWebview.sendStats('Install required');
                     }
-                    chatMessages.addMessage(message.data, 'error');
+                    uiWebview.addMessage(message.data, 'error');
                 }
                 break;
 
             case 'thinking':
                 if (message.data && message.data.trim()) {
-                    chatMessages.addMessage('💭 Thinking...' + chatMessages.parseSimpleMarkdown(message.data), 'thinking');
+                    uiWebview.addMessage('💭 Thinking...' + uiWebview.parseSimpleMarkdown(message.data), 'thinking');
                 }
                 break;
 
             case 'sessionInfo':
                 if (message.data && message.data.sessionId) {
-                    uiCore.showSessionInfo(message.data.sessionId);
+                    uiWebview.showSessionInfo(message.data.sessionId);
                 }
                 break;
 
             case 'sessionResumed':
                 if (message.data && message.data.sessionId) {
-                    uiCore.showSessionInfo(message.data.sessionId);
-                    chatMessages.addMessage(`📝 Resumed previous session\n🆔 Session ID: ${message.data.sessionId}\n💡 Your conversation history is preserved`, 'system');
+                    uiWebview.showSessionInfo(message.data.sessionId);
+                    uiWebview.addMessage(`📝 Resumed previous session\\n🆔 Session ID: ${message.data.sessionId}\\n💡 Your conversation history is preserved`, 'system');
                 }
                 break;
 
             case 'conversationStarted':
                 if (message.data) {
-                    const startMessage = `🚀 **Started conversation**\n\n📅 **${new Date().toLocaleString()}**\n\n💬 Ready to help with your coding tasks!`;
-                    chatMessages.addMessage(startMessage, 'system');
+                    const startMessage = `🚀 **Started conversation**\\n\\n📅 **${new Date().toLocaleString()}**\\n\\n💬 Ready to help with your coding tasks!`;
+                    uiWebview.addMessage(startMessage, 'system');
                 }
                 break;
 
@@ -424,14 +416,14 @@ function setupMessageHandler() {
                 currentStatus = 'ready';
                 window.isProcessing = isProcessing;
                 window.currentStatus = currentStatus;
-                uiCore.updateInputStatusIndicator();
-                uiCore.enableButtons();
-                uiCore.hideStopButton();
+                updateInputStatusIndicator();
+                uiWebview.enableButtons();
+                uiWebview.hideStopButton();
                 break;
 
             case 'modelSelected':
                 if (message.model) {
-                    uiCore.setCurrentModel(message.model);
+                    // Handle model selection
                 }
                 break;
 
@@ -443,7 +435,7 @@ function setupMessageHandler() {
                 _requestCount = 0;
                 lastRequestCost = 0;
                 lastRequestTokens = 0;
-                uiCore.newSession();
+                uiWebview.newSession();
                 break;
 
             case 'setProcessing':
@@ -452,13 +444,13 @@ function setupMessageHandler() {
                     currentStatus = isProcessing ? 'processing' : 'ready';
                     window.isProcessing = isProcessing;
                     window.currentStatus = currentStatus;
-                    uiCore.updateInputStatusIndicator();
+                    updateInputStatusIndicator();
                     if (isProcessing) {
-                        uiCore.disableButtons();
-                        uiCore.showStopButton();
+                        uiWebview.disableButtons();
+                        uiWebview.showStopButton();
                     } else {
-                        uiCore.enableButtons();
-                        uiCore.hideStopButton();
+                        uiWebview.enableButtons();
+                        uiWebview.hideStopButton();
                     }
                 }
                 break;
@@ -468,39 +460,39 @@ function setupMessageHandler() {
                 break;
 
             case 'showHistory':
-                uiCore.toggleConversationHistory();
+                uiWebview.toggleConversationHistory();
                 break;
 
             case 'showSettings':
-                settingsModals.showSettingsModal();
+                // Settings modal not implemented in webview
                 break;
 
             case 'toggleStatusInfo':
-                uiCore.toggleStatusPopover();
+                uiWebview.toggleStatusPopover();
                 break;
 
             case 'permissionsData':
-                permissions.handlePermissionsData(message.data);
+                permissionsWebview.handlePermissionsData(message.data);
                 break;
 
             case 'conversationList':
-                uiCore.displayConversationList(message.data);
+                uiWebview.displayConversationList(message.data);
                 break;
 
             case 'conversationHistory':
                 if (message.messages && Array.isArray(message.messages)) {
                     // Clear existing messages first
-                    chatMessages.clearMessages();
+                    uiWebview.clearMessages();
                     // Add each message from history
                     message.messages.forEach((msg: any) => {
                         if (msg.type === 'user' && msg.content) {
-                            chatMessages.addMessage(msg.content, 'user');
+                            uiWebview.addMessage(msg.content, 'user');
                         } else if (msg.type === 'claude' || msg.type === 'assistant') {
-                            chatMessages.addMessage(msg.content, 'claude');
+                            uiWebview.addMessage(msg.content, 'claude');
                         } else if (msg.type === 'tool' && msg.toolInfo) {
-                            chatMessages.addToolUseMessage(msg);
+                            uiWebview.addToolUseMessage(msg);
                         } else if (msg.type === 'toolResult' && msg.data) {
-                            uiCore.addToolResultMessage(msg);
+                            uiWebview.addToolResultMessage(msg);
                         }
                     });
                 }
@@ -509,30 +501,30 @@ function setupMessageHandler() {
             case 'restoreConversation':
                 // Handle conversation restoration
                 if (message.conversation) {
-                    chatMessages.clearMessages();
+                    uiWebview.clearMessages();
                     // Process the conversation data
                     if (message.conversation.messages) {
                         message.conversation.messages.forEach((msg: any) => {
                             switch (msg.role || msg.type) {
                                 case 'user':
                                     if (msg.content) {
-                                        chatMessages.addMessage(msg.content, 'user');
+                                        uiWebview.addMessage(msg.content, 'user');
                                     }
                                     break;
                                 case 'assistant':
                                 case 'claude':
                                     if (msg.content) {
-                                        chatMessages.addMessage(msg.content, 'claude');
+                                        uiWebview.addMessage(msg.content, 'claude');
                                     }
                                     break;
                                 case 'tool':
                                     if (msg.toolInfo) {
-                                        chatMessages.addToolUseMessage(msg);
+                                        uiWebview.addToolUseMessage(msg);
                                     }
                                     break;
                                 case 'toolResult':
                                     if (msg.data) {
-                                        uiCore.addToolResultMessage(msg);
+                                        uiWebview.addToolResultMessage(msg);
                                     }
                                     break;
                             }
@@ -550,7 +542,7 @@ function setupMessageHandler() {
                         timestamp: message.timestamp
                     });
                 } else if (message.reloadType === 'css') {
-                    uiCore.reloadCSS();
+                    reloadCSS();
                 } else {
                     vscode.postMessage({
                         type: 'recreateWebview',
@@ -565,3 +557,57 @@ function setupMessageHandler() {
         }
     });
 }
+
+function updateInputStatusIndicator() {
+    // Simple status indicator update
+    const statusElement = document.getElementById('statusIndicator');
+    if (statusElement) {
+        statusElement.textContent = currentStatus === 'processing' ? '🔄' : '✅';
+    }
+}
+
+function reloadCSS() {
+    const links = document.querySelectorAll('link[rel="stylesheet"]');
+    links.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href) {
+            link.setAttribute('href', href + '?t=' + Date.now());
+        }
+    });
+}
+
+function setupKeyboardHandlers(): void {
+    if (!messageInput) {
+        console.error('messageInput not found for keyboard handlers');
+        return;
+    }
+
+    // Handle keyboard shortcuts
+    messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            // Enter alone = send message
+            e.preventDefault();
+            window.sendMessage();
+        }
+        // Shift+Enter = new line (default behavior)
+    });
+
+    // Auto-resize textarea
+    messageInput.addEventListener('input', () => {
+        messageInput.style.height = 'auto';
+        messageInput.style.height = Math.min(messageInput.scrollHeight, 200) + 'px';
+    }, { passive: true });
+
+    // Save input text as user types (debounced)
+    let saveInputTimeout: NodeJS.Timeout;
+    messageInput.addEventListener('input', () => {
+        clearTimeout(saveInputTimeout);
+        saveInputTimeout = setTimeout(() => {
+            vscode.postMessage({
+                type: 'saveInputText',
+                text: messageInput.value
+            });
+        }, 500); // Save after 500ms of no typing
+    }, { passive: true });
+}
+

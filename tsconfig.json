@@ -19,6 +19,7 @@
 		"mcp-permissions.js",
 		"claude-code-vsc-panel-permissions-mcp",
 		"rsbuild.config.ts",
+		"master.backup",
 		"out",
 		"dist",
 		"node_modules"
