@@ -53,7 +53,9 @@
       "Bash(claude config show:*)",
       "Bash(claude config list:*)",
       "Bash(pkill:*)",
-      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --install-extension claude-code-vsc-panel-1.2.1.vsix)"
+      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --install-extension claude-code-vsc-panel-1.2.1.vsix)",
+      "Bash(git remote get-url:*)",
+      "Bash(/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code --install-extension claude-code-vsc-panel-1.3.0.vsix)"
     ],
     "deny": []
   },
